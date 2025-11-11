@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Databases (exclude working databases, keep demo)
+public_site.db
+*.db
+!demo.db
+
+# Local configuration files (keep examples)
+config.yaml
+config.local.yaml
+*.local.yaml
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Storage directories
+storage/
+storage-test/
+public_storage_mock_dir/
+
+# Temp files
+*.tmp
+.cache/
+
+# OS
+Thumbs.db
