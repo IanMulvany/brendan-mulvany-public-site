@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Search - Brendan Mulvany Photo Archive</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .search-page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .search-page__header {
+            margin-bottom: 30px;
+        }
+        .search-page__back {
+            display: inline-block;
+            margin-bottom: 10px;
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .search-page__back:hover {
+            text-decoration: underline;
+        }
+        .search-page__title {
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+        .search-page__content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 30px;
+        }
+        .search-page__filters {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+        .search-page__filters-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 10px;
+        }
+        .search-page__filter-group {
+            margin-bottom: 25px;
+        }
+        .search-page__filter-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .search-page__filter-input,
+        .search-page__filter-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .search-page__filter-input:focus,
+        .search-page__filter-select:focus {
+            outline: none;
+            border-color: #0066cc;
+        }
+        .search-page__facet-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .search-page__facet-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        .search-page__facet-item:hover {
+            background-color: #f0f0f0;
+            margin: 0 -10px;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+        .search-page__facet-count {
+            color: #666;
+            font-size: 12px;
+        }
+        .search-page__facet-item.active {
+            font-weight: bold;
+            color: #0066cc;
+        }
+        .search-page__results {
+            flex: 1;
+        }
+        .search-page__results-header {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .search-page__results-count {
+            color: #666;
+            font-size: 14px;
+        }
+        .search-page__results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .search-page__result-item {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        .search-page__result-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .search-page__result-item a {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+        }
+        .search-page__result-thumb {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+        }
+        .search-page__result-info {
+            padding: 10px;
+        }
+        .search-page__result-filename {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        .search-page__result-meta {
+            font-size: 12px;
+            color: #666;
+        }
+        .search-page__no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        .search-page__clear-filters {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .search-page__clear-filters:hover {
+            background: #5a6268;
+        }
+        @media (max-width: 768px) {
+            .search-page__content {
+                grid-template-columns: 1fr;
+            }
+            .search-page__filters {
+                position: static;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title">Brendan Mulvany Photo Archive</h1>
+            <nav class="header__nav">
+                <button class="header__nav-button" id="login-btn">Login</button>
+                <button class="header__nav-button header__nav-button--hidden" id="logout-btn">Logout</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="search-page">
+        <div class="search-page__header">
+            <a href="/" class="search-page__back">← Back to Gallery</a>
+            <h1 class="search-page__title">Advanced Search</h1>
+        </div>
+
+        <div class="search-page__content">
+            <div class="search-page__filters" id="filters-panel">
+                <h2 class="search-page__filters-title">Filters</h2>
+                
+                <div class="search-page__filter-group">
+                    <label class="search-page__filter-label">Search Text</label>
+                    <input 
+                        type="text" 
+                        class="search-page__filter-input" 
+                        id="search-query"
+                        placeholder="Search descriptions, filenames..."
+                    >
+                </div>
+
+                <div class="search-page__filter-group">
+                    <label class="search-page__filter-label">Roll Number</label>
+                    <input 
+                        type="text" 
+                        class="search-page__filter-input" 
+                        id="filter-roll-number"
+                        placeholder="e.g., 5084"
+                    >
+                    <div class="search-page__facet-list" id="facet-roll-numbers"></div>
+                </div>
+
+                <div class="search-page__filter-group">
+                    <label class="search-page__filter-label">Roll Date</label>
+                    <input 
+                        type="text" 
+                        class="search-page__filter-input" 
+                        id="filter-roll-date"
+                        placeholder="e.g., 1981"
+                    >
+                    <div class="search-page__facet-list" id="facet-roll-dates"></div>
+                </div>
+
+                <div class="search-page__filter-group">
+                    <label class="search-page__filter-label">Batch Name</label>
+                    <select class="search-page__filter-select" id="filter-batch-name">
+                        <option value="">All batches</option>
+                    </select>
+                    <div class="search-page__facet-list" id="facet-batch-names"></div>
+                </div>
+
+                <div class="search-page__filter-group">
+                    <label class="search-page__filter-label">Date Source</label>
+                    <select class="search-page__filter-select" id="filter-date-source">
+                        <option value="">All sources</option>
+                        <option value="from_roll">From Roll</option>
+                        <option value="from_notebook">From Notebook</option>
+                        <option value="estimated">Estimated</option>
+                    </select>
+                    <div class="search-page__facet-list" id="facet-date-sources"></div>
+                </div>
+
+                <button class="search-page__clear-filters" id="clear-filters">Clear All Filters</button>
+            </div>
+
+            <div class="search-page__results">
+                <div class="search-page__results-header">
+                    <div class="search-page__results-count" id="results-count">Loading...</div>
+                </div>
+                <div class="search-page__results-grid" id="results-grid">
+                    <p>Enter search criteria to see results</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/search.js"></script>
+</body>
+</html>
+

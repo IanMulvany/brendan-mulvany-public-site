@@ -1,0 +1,39 @@
+# Public Site Configuration Example
+# Copy this file to config.yaml or config.local.yaml and update with your settings
+
+# Security settings
+security:
+  # IMPORTANT: Generate a secure random JWT secret for production
+  # Example: python -c "import secrets; print(secrets.token_urlsafe(32))"
+  jwt_secret: "CHANGE-ME-generate-a-secure-random-secret-key-here"
+
+# Storage configuration
+# Controls where images are stored (local for testing, R2 for production)
+storage:
+  # Storage backend type: 'local' or 'r2'
+  type: local
+
+  # Local storage settings (for testing/mocking R2)
+  # Use relative path or set to your local storage directory
+  base_path: "./storage-test"
+
+  # R2 storage settings (for production - not yet implemented)
+  # Uncomment and configure when ready to use R2:
+  # type: r2
+  # account_id: "your-cloudflare-account-id"
+  # access_key_id: "your-r2-access-key-id"
+  # secret_access_key: "your-r2-secret-access-key"
+  # bucket_name: "your-bucket-name"
+  # public_url: "https://your-cdn-domain.com"  # Optional CDN URL
+
+# Similarity search configuration
+similarity:
+  # Hamming distance threshold for finding similar images
+  # Perceptual hashes are 64-bit (16 hex characters)
+  # Recommended thresholds:
+  #   - 0-3: Very similar (same image, minor compression differences)
+  #   - 4-6: Similar (same scene, different processing/crops)
+  #   - 7-10: Somewhat similar (related scenes, same location/event)
+  #   - 11-16: Less similar (may include false positives)
+  # Default: 8 (good balance for "roughly similar but not exact" images)
+  threshold: 13

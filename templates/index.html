@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brendan Mulvany Photo Archive</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title">Brendan Mulvany Photo Archive</h1>
+            <nav class="header__nav">
+                <button class="header__nav-button" id="login-btn">Login</button>
+                <button class="header__nav-button header__nav-button--hidden" id="logout-btn">Logout</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="search-section">
+            <div class="search-container">
+                <form class="search-form" id="search-form" action="/search">
+                    <div class="search-input-wrapper">
+                        <input 
+                            type="text" 
+                            class="search-input" 
+                            id="search-input"
+                            name="q"
+                            placeholder="Search descriptions, filenames, comments..."
+                            autocomplete="off"
+                        >
+                        <button type="submit" class="search-button">Search</button>
+                    </div>
+                    <div class="search-suggestions" id="search-suggestions"></div>
+                </form>
+                <a href="/search" class="advanced-search-link">Advanced Search →</a>
+            </div>
+        </section>
+
+        <section class="gallery">
+            <div class="gallery__container" id="gallery-container">
+                <p class="gallery__loading">Loading images...</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Image Detail Modal -->
+    <div class="modal modal--hidden" id="image-modal">
+        <div class="modal__overlay" id="modal-overlay"></div>
+        <div class="modal__content">
+            <button class="modal__close" id="modal-close" aria-label="Close modal">&times;</button>
+            <div class="modal__image-container" id="modal-image-container">
+                <!-- Image will be inserted here -->
+            </div>
+            <div class="modal__info" id="modal-info">
+                <!-- Image info will be inserted here -->
+            </div>
+            <div class="modal__annotations" id="modal-annotations">
+                <h2 class="modal__annotations-title">Annotations</h2>
+                <div class="modal__annotations-list" id="annotations-list">
+                    <!-- Annotations will be inserted here -->
+                </div>
+                <form class="modal__annotation-form modal__annotation-form--hidden" id="annotation-form">
+                    <textarea 
+                        class="modal__annotation-input" 
+                        id="annotation-input"
+                        placeholder="Add a comment or annotation..."
+                        rows="3"
+                    ></textarea>
+                    <button type="submit" class="modal__annotation-submit">Add Annotation</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div class="modal modal--hidden" id="login-modal">
+        <div class="modal__overlay" id="login-overlay"></div>
+        <div class="modal__content modal__content--small">
+            <button class="modal__close" id="login-close" aria-label="Close modal">&times;</button>
+            <h2 class="modal__title">Login</h2>
+            <form class="modal__form" id="login-form">
+                <label class="modal__label">
+                    Username:
+                    <input type="text" class="modal__input" id="login-username" required>
+                </label>
+                <label class="modal__label">
+                    Password:
+                    <input type="password" class="modal__input" id="login-password" required>
+                </label>
+                <button type="submit" class="modal__submit">Login</button>
+            </form>
+            <p class="modal__switch">
+                Don't have an account? 
+                <button class="modal__link" id="show-register">Register</button>
+            </p>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div class="modal modal--hidden" id="register-modal">
+        <div class="modal__overlay" id="register-overlay"></div>
+        <div class="modal__content modal__content--small">
+            <button class="modal__close" id="register-close" aria-label="Close modal">&times;</button>
+            <h2 class="modal__title">Register</h2>
+            <form class="modal__form" id="register-form">
+                <label class="modal__label">
+                    Username:
+                    <input type="text" class="modal__input" id="register-username" required>
+                </label>
+                <label class="modal__label">
+                    Email:
+                    <input type="email" class="modal__input" id="register-email" required>
+                </label>
+                <label class="modal__label">
+                    Password:
+                    <input type="password" class="modal__input" id="register-password" required>
+                </label>
+                <button type="submit" class="modal__submit">Register</button>
+            </form>
+            <p class="modal__switch">
+                Already have an account? 
+                <button class="modal__link" id="show-login">Login</button>
+            </p>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
+
