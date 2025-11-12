@@ -38,6 +38,8 @@ ENV/
 public_site.db
 *.db
 !demo.db
+turso_public_db_info.yaml
+turso_tokens.txt 
 
 # Local configuration files (keep examples)
 config.yaml
