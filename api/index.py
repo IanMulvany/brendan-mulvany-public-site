@@ -13,6 +13,6 @@ sys.path.insert(0, str(CURRENT_DIR))
 # Import the FastAPI app
 from main import app
 
-# Export the app for Vercel
-handler = app
+# Export the app for Vercel (Vercel auto-detects FastAPI apps)
+# No need to assign to handler - just export app directly
 

@@ -70,3 +70,4 @@ public_storage_mock_dir/
 
 # OS
 Thumbs.db
+.vercel
