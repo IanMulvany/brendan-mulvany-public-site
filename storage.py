@@ -121,12 +121,53 @@ class LocalStorageBackend(StorageBackend):
         return f"/api/storage/{storage_key}"
 
 
+class CDNBackend(StorageBackend):
+    """CDN-only backend for display layer - no credentials needed"""
+    
+    def __init__(self, public_url: str):
+        """
+        Initialize CDN backend (display-only, no upload/download/delete operations)
+        
+        Args:
+            public_url: Public CDN URL base (e.g., "https://cdn.example.com" or "https://pub-account-id.r2.dev/bucket-name")
+        """
+        # Ensure URL doesn't end with /
+        self.public_url = public_url.rstrip('/')
+        logger.info(f"CDNBackend initialized with public URL: {self.public_url}")
+    
+    def upload_file(self, local_path: Path, storage_key: str) -> bool:
+        """Not supported - uploads handled by management app"""
+        logger.warning("upload_file() called on CDNBackend - uploads should be handled by management app")
+        return False
+    
+    def download_file(self, storage_key: str, local_path: Path) -> bool:
+        """Not supported - downloads handled by management app"""
+        logger.warning("download_file() called on CDNBackend - downloads should be handled by management app")
+        return False
+    
+    def delete_file(self, storage_key: str) -> bool:
+        """Not supported - deletions handled by management app"""
+        logger.warning("delete_file() called on CDNBackend - deletions should be handled by management app")
+        return False
+    
+    def file_exists(self, storage_key: str) -> bool:
+        """Not supported - assume files exist if r2_key is set in database"""
+        logger.warning("file_exists() called on CDNBackend - trusting database state")
+        return True
+    
+    def get_file_url(self, storage_key: str) -> str:
+        """Get public CDN URL for file"""
+        # Ensure storage_key doesn't start with /
+        storage_key = storage_key.lstrip('/')
+        return f"{self.public_url}/{storage_key}"
+
+
 class R2StorageBackend(StorageBackend):
-    """Cloudflare R2 storage backend (to be implemented)"""
+    """Cloudflare R2 storage backend (for management apps - not used by display layer)"""
     
     def __init__(self, account_id: str, access_key_id: str, secret_access_key: str, bucket_name: str, public_url: Optional[str] = None):
         """
-        Initialize R2 storage backend
+        Initialize R2 storage backend (for management apps only)
         
         Args:
             account_id: Cloudflare account ID
@@ -183,25 +224,37 @@ class R2StorageBackend(StorageBackend):
     
     def get_file_url(self, storage_key: str) -> str:
         """Get public CDN URL for file"""
+        storage_key = storage_key.lstrip('/')
         return f"{self.public_url}/{storage_key}"
 
 
-def create_storage_backend(config: dict) -> StorageBackend:
+def create_storage_backend(config: dict) -> Optional[StorageBackend]:
     """
     Create storage backend from config
+    
+    For display layer: use 'cdn' type (no credentials needed)
+    For management apps: use 'local' or 'r2' types
     
     Args:
         config: Storage configuration dict
         
     Returns:
-        StorageBackend instance
+        StorageBackend instance or None if not configured
     """
     storage_type = config.get('type', 'local')
     
     if storage_type == 'local':
         base_path = Path(config.get('base_path', './storage-test'))
         return LocalStorageBackend(base_path)
+    elif storage_type == 'cdn':
+        # CDN-only mode: just need public_url, no credentials
+        public_url = config.get('public_url')
+        if not public_url:
+            logger.warning("CDN backend requires public_url in config")
+            return None
+        return CDNBackend(public_url)
     elif storage_type == 'r2':
+        # R2 mode requires credentials (for management apps)
         return R2StorageBackend(
             account_id=config['account_id'],
             access_key_id=config['access_key_id'],

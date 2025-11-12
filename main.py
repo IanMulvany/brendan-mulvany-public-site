@@ -31,22 +31,48 @@ sys.path.insert(0, str(CODE_DIR))
 sys.path.insert(0, str(CURRENT_DIR))
 
 from database import PublicSiteDatabase
-from webapp.database import Database as ArchiveDatabase
+try:
+    from webapp.database import Database as ArchiveDatabase
+except ImportError:
+    # ArchiveDatabase is optional - only needed for some legacy endpoints
+    ArchiveDatabase = None
 from config_manager import ConfigManager
 from storage import create_storage_backend
+import os
 
-# Configuration
-BASE_DIR = Path(__file__).parent.parent
-IMAGES_DIR = BASE_DIR / "images"
-ARCHIVE_DB = BASE_DIR / "code" / "bm_image_archive.db"
-PUBLIC_DB = BASE_DIR / "public-site" / "public_site.db"
-STATIC_DIR = BASE_DIR / "public-site" / "static"
-TEMPLATES_DIR = BASE_DIR / "public-site" / "templates"
-
-# Try to load config from config.local.yaml first (local development), then config.yaml
-CONFIG_PATH = BASE_DIR / "public-site" / "config.local.yaml"
-if not CONFIG_PATH.exists():
-    CONFIG_PATH = BASE_DIR / "public-site" / "config.yaml"
+# Configuration - support both local development and Vercel deployment
+# On Vercel, use environment variables; locally, use file paths
+if os.getenv("VERCEL"):
+    # Vercel serverless environment
+    BASE_DIR = Path("/tmp")  # Use /tmp for any temporary files
+    CURRENT_DIR = Path(__file__).parent
+    STATIC_DIR = CURRENT_DIR / "static"
+    TEMPLATES_DIR = CURRENT_DIR / "templates"
+    # Database paths from environment variables
+    PUBLIC_DB_PATH = os.getenv("PUBLIC_DB_PATH", "/tmp/public_site.db")
+    ARCHIVE_DB_PATH = os.getenv("ARCHIVE_DB_PATH", "/tmp/bm_image_archive.db")
+    PUBLIC_DB = Path(PUBLIC_DB_PATH)
+    ARCHIVE_DB = Path(ARCHIVE_DB_PATH)
+    # Config from environment variable (JSON string) or default path
+    CONFIG_PATH = os.getenv("CONFIG_PATH")
+    if CONFIG_PATH:
+        CONFIG_PATH = Path(CONFIG_PATH)
+    else:
+        CONFIG_PATH = CURRENT_DIR / "config.yaml"
+    IMAGES_DIR = None  # Images served from CDN on Vercel
+else:
+    # Local development environment
+    CURRENT_DIR = Path(__file__).parent
+    BASE_DIR = CURRENT_DIR.parent  # Parent of public-site directory
+    IMAGES_DIR = BASE_DIR / "images"
+    ARCHIVE_DB = BASE_DIR / "code" / "bm_image_archive.db"
+    PUBLIC_DB = CURRENT_DIR / "public_site.db"  # Database in same directory as main.py
+    STATIC_DIR = CURRENT_DIR / "static"
+    TEMPLATES_DIR = CURRENT_DIR / "templates"
+    # Try to load config from config.local.yaml first (local development), then config.yaml
+    CONFIG_PATH = CURRENT_DIR / "config.local.yaml"
+    if not CONFIG_PATH.exists():
+        CONFIG_PATH = CURRENT_DIR / "config.yaml"
 
 # JWT algorithm
 JWT_ALGORITHM = "HS256"
@@ -71,14 +97,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files
-STATIC_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+# Mount static files (only if directory exists)
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+else:
+    logger.warning(f"Static directory not found: {STATIC_DIR}")
 
 # Initialize databases and config
-public_db = PublicSiteDatabase(PUBLIC_DB)
-archive_db = ArchiveDatabase(ARCHIVE_DB)
-config_manager = ConfigManager(CONFIG_PATH)
+try:
+    public_db = PublicSiteDatabase(PUBLIC_DB)
+except Exception as e:
+    logger.error(f"Failed to initialize public database: {e}")
+    public_db = None
+
+try:
+    if ArchiveDatabase and (ARCHIVE_DB.exists() or os.getenv("VERCEL")):
+        # On Vercel, archive_db might be optional or loaded from environment
+        archive_db = ArchiveDatabase(ARCHIVE_DB)
+    else:
+        logger.warning(f"Archive database not found or ArchiveDatabase not available: {ARCHIVE_DB} (some features may be limited)")
+        archive_db = None
+except Exception as e:
+    logger.warning(f"Failed to initialize archive database: {e} (some features may be limited)")
+    archive_db = None
+
+# Initialize config manager
+# On Vercel, config can come from environment variable as JSON
+if os.getenv("VERCEL") and os.getenv("CONFIG_JSON"):
+    import json
+    config_manager = ConfigManager.from_dict(json.loads(os.getenv("CONFIG_JSON")))
+else:
+    config_manager = ConfigManager(CONFIG_PATH)
 
 # Get JWT secret from config
 JWT_SECRET = config_manager.get_jwt_secret()
@@ -214,10 +263,17 @@ def image_id_to_scene_id(image_id: int) -> Optional[str]:
                 path_obj = Path(local_path)
                 if path_obj.is_absolute():
                     # Try to make it relative to IMAGES_DIR
-                    try:
-                        rel_path = path_obj.relative_to(IMAGES_DIR)
-                    except ValueError:
-                        # If not under IMAGES_DIR, construct from scene data
+                    if IMAGES_DIR:
+                        try:
+                            rel_path = path_obj.relative_to(IMAGES_DIR)
+                        except ValueError:
+                            # If not under IMAGES_DIR, construct from scene data
+                            rel_path = None
+                    else:
+                        # On Vercel, images are in CDN, so use the path as-is
+                        rel_path = path_obj
+                    if not rel_path:
+                        # Construct from scene data
                         rel_path = Path(scene['batch_name']) / version.get('version_type', 'final_crops') / scene['base_filename']
                 else:
                     rel_path = path_obj
@@ -423,17 +479,24 @@ async def serve_image(image_id: int):
     if not version:
         raise HTTPException(status_code=404, detail="No live version found for scene")
     
-    # Try to serve from storage first
+    # If r2_key exists, redirect to CDN URL (trust database state)
     if version.get('r2_key') and storage_backend:
         storage_key = version['r2_key']
-        if storage_backend.file_exists(storage_key):
-            # For local storage, serve directly
-            if storage_config.get('type') == 'local':
-                storage_path = Path(storage_config.get('base_path', './storage-test')) / storage_key
-                if storage_path.exists():
-                    return FileResponse(storage_path)
+        # For local storage, serve directly
+        if storage_config.get('type') == 'local':
+            storage_path = Path(storage_config.get('base_path', './storage-test')) / storage_key
+            if storage_path.exists():
+                return FileResponse(storage_path)
+        else:
+            # For CDN/R2, redirect to CDN URL
+            from fastapi.responses import RedirectResponse
+            cdn_url = storage_backend.get_file_url(storage_key)
+            return RedirectResponse(url=cdn_url)
     
-    # Fallback to local path
+    # Fallback to local path (only if IMAGES_DIR is available - not on Vercel)
+    if IMAGES_DIR is None:
+        raise HTTPException(status_code=404, detail="Image not available locally - use CDN")
+    
     local_path = Path(version['local_path'])
     if local_path.is_absolute():
         if not local_path.exists():
@@ -449,9 +512,13 @@ async def serve_image(image_id: int):
 
 @app.get("/api/public/images/{image_id}/thumbnail")
 async def serve_thumbnail(image_id: int, size: int = Query(300, ge=50, le=1000)):
-    """Serve thumbnail image (backward compatibility - uses scene-based lookup)"""
-    from PIL import Image
-    import io
+    """
+    Serve thumbnail image (backward compatibility - uses scene-based lookup)
+    
+    Thumbnails are pre-generated by management app and stored in R2/CDN.
+    Naming convention: scenes/{scene_id}-thumb.jpg
+    """
+    from fastapi.responses import RedirectResponse
     
     # Find scene by image_id (image_id is hash of scene_id)
     scene_id = image_id_to_scene_id(image_id)
@@ -464,36 +531,50 @@ async def serve_thumbnail(image_id: int, size: int = Query(300, ge=50, le=1000))
     if not version:
         raise HTTPException(status_code=404, detail="No live version found for scene")
     
-    # Try to serve from storage first
-    full_path = None
+    # If r2_key exists, serve thumbnail from CDN (management app should have uploaded it)
     if version.get('r2_key') and storage_backend:
-        storage_key = version['r2_key']
-        if storage_backend.file_exists(storage_key):
-            # For local storage, serve directly
-            if storage_config.get('type') == 'local':
-                storage_path = Path(storage_config.get('base_path', './storage-test')) / storage_key
-                if storage_path.exists():
-                    full_path = storage_path
-    
-    # Fallback to local path
-    if not full_path:
-        local_path = Path(version['local_path'])
-        if local_path.is_absolute():
-            if not local_path.exists():
-                raise HTTPException(status_code=404, detail="Image file not found")
-            full_path = local_path
+        # Thumbnail naming convention: scenes/{scene_id}-thumb.jpg
+        # Extract scene_id from r2_key (format: scenes/{scene_id}.jpg)
+        # Replace extension with -thumb.jpg
+        r2_key = version['r2_key']
+        if '.' in r2_key:
+            thumbnail_key = r2_key.rsplit('.', 1)[0] + '-thumb.jpg'
         else:
-            # Try relative to IMAGES_DIR
-            local_path = IMAGES_DIR / version['local_path']
-            if not local_path.exists():
-                raise HTTPException(status_code=404, detail="Image file not found")
+            thumbnail_key = r2_key + '-thumb.jpg'
+        
+        # For local storage, try to serve directly
+        if storage_config.get('type') == 'local':
+            storage_path = Path(storage_config.get('base_path', './storage-test')) / thumbnail_key
+            if storage_path.exists():
+                return FileResponse(storage_path)
+        else:
+            # For CDN/R2, redirect to CDN URL
+            cdn_url = storage_backend.get_file_url(thumbnail_key)
+            return RedirectResponse(url=cdn_url)
+    
+    # Fallback: generate thumbnail on-the-fly (for backward compatibility during migration)
+    from PIL import Image
+    import io
+    
+    full_path = None
+    local_path = Path(version['local_path'])
+    if local_path.is_absolute():
+        if local_path.exists():
+            full_path = local_path
+    else:
+        local_path = IMAGES_DIR / version['local_path']
+        if local_path.exists():
             full_path = local_path
     
-    # Generate thumbnail
+    if not full_path:
+        if IMAGES_DIR is None:
+            raise HTTPException(status_code=404, detail="Thumbnail not available - ensure management app has uploaded it to CDN")
+        raise HTTPException(status_code=404, detail="Image file not found for thumbnail generation")
+    
+    # Generate thumbnail on-the-fly as fallback
     img = Image.open(full_path)
     img.thumbnail((size, size), Image.Resampling.LANCZOS)
     
-    # Convert to bytes
     img_bytes = io.BytesIO()
     img.save(img_bytes, format='JPEG', quality=85)
     img_bytes.seek(0)
@@ -583,8 +664,8 @@ async def get_search_suggestions(
 async def get_stats():
     """Get site statistics"""
     # Count public images based on config
-    all_images = archive_db.get_images(limit=10000)
-    public_images = config_manager.filter_images(all_images, images_dir=IMAGES_DIR)
+    all_images = archive_db.get_images(limit=10000) if archive_db else []
+    public_images = config_manager.filter_images(all_images, images_dir=IMAGES_DIR if IMAGES_DIR else None)
     public_count = len(public_images)
     
     # Count scenes and live versions
@@ -738,21 +819,20 @@ async def sync_data(
     """
     Sync scene and version data to public site (admin only)
     Called by management apps to push data to public-site DB
+    
+    Display layer: trusts that files are uploaded by management app.
+    No file existence checks or deletions - management app handles storage operations.
     """
     if current_user['role'] != 'admin':
         raise HTTPException(status_code=403, detail="Admin access required")
-    
-    if not storage_backend:
-        raise HTTPException(status_code=500, detail="Storage backend not initialized")
     
     sync_id = public_db.log_sync("api_sync", status="in_progress")
     
     try:
         stats = {
             'scenes_synced': 0,
-            'images_uploaded': 0,
+            'images_marked_live': 0,
             'images_skipped': 0,
-            'images_deleted': 0,
             'errors': 0
         }
         
@@ -818,41 +898,31 @@ async def sync_data(
                     is_current=is_current
                 )
                 
-                # If current version, set storage key (file should already be uploaded by sync script)
+                # If current version, set storage key (trust management app has uploaded file)
                 if is_current:
                     storage_key = f"scenes/{scene_id}.jpg"
                     
                     # Check if already synced
                     existing_version = public_db.get_current_version_for_scene(scene_id)
                     if existing_version and existing_version.get('r2_key') == storage_key:
-                        if storage_backend.file_exists(storage_key):
-                            stats['images_skipped'] += 1
-                            continue
+                        stats['images_skipped'] += 1
+                        continue
                     
-                    # Note: File should be uploaded by sync script before calling this API
-                    # We just mark it as synced in the database
+                    # Trust management app - mark as synced in database
+                    # Management app is responsible for uploading files and deleting old versions
                     if not sync_data.dry_run:
-                        # Verify file exists in storage (uploaded by sync script)
-                        if storage_backend.file_exists(storage_key):
-                            public_db.update_version_r2_key(version_id, storage_key)
-                            stats['images_uploaded'] += 1
-                        else:
-                            logger.warning(f"Storage file not found: {storage_key} (should be uploaded by sync script)")
-                            stats['errors'] += 1
+                        public_db.update_version_r2_key(version_id, storage_key)
+                        stats['images_marked_live'] += 1
                         
-                        # Delete old version if exists
+                        # Clear old version's r2_key (management app should have deleted the file)
                         if existing_version and existing_version.get('r2_key') and existing_version['r2_key'] != storage_key:
-                            old_key = existing_version['r2_key']
-                            if storage_backend.delete_file(old_key):
-                                stats['images_deleted'] += 1
-                            # Clear old version's r2_key
                             public_db.update_version_r2_key(existing_version['version_id'], None)
             
             stats['scenes_synced'] += 1
         
         public_db.update_sync_log(
             sync_id, "success",
-            images_synced=stats['images_uploaded'],
+            images_synced=stats['images_marked_live'],
             metadata_updated=stats['scenes_synced']
         )
         
@@ -1039,7 +1109,7 @@ async def get_scene(scene_id: str):
 
 @app.get("/api/public/scenes/{scene_id}/image")
 async def serve_scene_image(scene_id: str):
-    """Serve full-size image for a scene (from storage or local fallback)"""
+    """Serve full-size image for a scene (from CDN or local fallback)"""
     scene = public_db.get_scene(scene_id)
     if not scene:
         raise HTTPException(status_code=404, detail="Scene not found")
@@ -1048,17 +1118,24 @@ async def serve_scene_image(scene_id: str):
     if not version:
         raise HTTPException(status_code=404, detail="No live version found for scene")
     
-    # Try to serve from storage first
+    # If r2_key exists, redirect to CDN URL (trust database state)
     if version.get('r2_key') and storage_backend:
         storage_key = version['r2_key']
-        if storage_backend.file_exists(storage_key):
-            # For local storage, serve directly
-            if storage_config.get('type') == 'local':
-                storage_path = Path(storage_config.get('base_path', './storage-test')) / storage_key
-                if storage_path.exists():
-                    return FileResponse(storage_path)
+        # For local storage, serve directly
+        if storage_config.get('type') == 'local':
+            storage_path = Path(storage_config.get('base_path', './storage-test')) / storage_key
+            if storage_path.exists():
+                return FileResponse(storage_path)
+        else:
+            # For CDN/R2, redirect to CDN URL
+            from fastapi.responses import RedirectResponse
+            cdn_url = storage_backend.get_file_url(storage_key)
+            return RedirectResponse(url=cdn_url)
     
-    # Fallback to local path
+    # Fallback to local path (only if IMAGES_DIR is available - not on Vercel)
+    if IMAGES_DIR is None:
+        raise HTTPException(status_code=404, detail="Image not available locally - use CDN")
+    
     local_path = Path(version['local_path'])
     if local_path.is_absolute():
         if not local_path.exists():
@@ -1074,9 +1151,13 @@ async def serve_scene_image(scene_id: str):
 
 @app.get("/api/public/scenes/{scene_id}/thumbnail")
 async def serve_scene_thumbnail(scene_id: str, size: int = Query(300, ge=50, le=1000)):
-    """Serve thumbnail for a scene"""
-    from PIL import Image
-    import io
+    """
+    Serve thumbnail for a scene
+    
+    Thumbnails are pre-generated by management app and stored in R2/CDN.
+    Naming convention: scenes/{scene_id}-thumb.jpg
+    """
+    from fastapi.responses import RedirectResponse
     
     scene = public_db.get_scene(scene_id)
     if not scene:
@@ -1086,19 +1167,42 @@ async def serve_scene_thumbnail(scene_id: str, size: int = Query(300, ge=50, le=
     if not version:
         raise HTTPException(status_code=404, detail="No live version found for scene")
     
-    # Get local path
+    # If r2_key exists, serve thumbnail from CDN (management app should have uploaded it)
+    if version.get('r2_key') and storage_backend:
+        # Thumbnail naming convention: scenes/{scene_id}-thumb.jpg
+        # Extract scene_id from r2_key (format: scenes/{scene_id}.jpg)
+        # Replace extension with -thumb.jpg
+        r2_key = version['r2_key']
+        if '.' in r2_key:
+            thumbnail_key = r2_key.rsplit('.', 1)[0] + '-thumb.jpg'
+        else:
+            thumbnail_key = r2_key + '-thumb.jpg'
+        
+        # For local storage, try to serve directly
+        if storage_config.get('type') == 'local':
+            storage_path = Path(storage_config.get('base_path', './storage-test')) / thumbnail_key
+            if storage_path.exists():
+                return FileResponse(storage_path)
+        else:
+            # For CDN/R2, redirect to CDN URL
+            cdn_url = storage_backend.get_file_url(thumbnail_key)
+            return RedirectResponse(url=cdn_url)
+    
+    # Fallback: generate thumbnail on-the-fly (for backward compatibility during migration)
+    from PIL import Image
+    import io
+    
     local_path = Path(version['local_path'])
     if not local_path.exists():
         # Try relative to IMAGES_DIR
         local_path = IMAGES_DIR / version['local_path']
         if not local_path.exists():
-            raise HTTPException(status_code=404, detail="Image file not found")
+            raise HTTPException(status_code=404, detail="Image file not found for thumbnail generation")
     
-    # Generate thumbnail
+    # Generate thumbnail on-the-fly as fallback
     img = Image.open(local_path)
     img.thumbnail((size, size), Image.Resampling.LANCZOS)
     
-    # Convert to bytes
     img_bytes = io.BytesIO()
     img.save(img_bytes, format='JPEG', quality=85)
     img_bytes.seek(0)

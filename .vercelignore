@@ -1,0 +1,50 @@
+# Vercel ignore file
+# Exclude files that shouldn't be deployed
+
+# Local development files
+config.local.yaml
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test files
+test/
+tests/
+*.test.py
+
+# Documentation (optional - uncomment if you don't want docs deployed)
+# *.md
+# docs/
+
+# Local images directory (images served from CDN on Vercel)
+images/
+
+# Code directory (not needed for public site deployment)
+code/
+

@@ -9,6 +9,7 @@ from typing import List, Dict, Optional, Set
 from datetime import datetime, timedelta
 import logging
 import sys
+import os
 
 # Import batch config utilities
 sys.path.insert(0, str(Path(__file__).parent.parent / "code"))
@@ -29,15 +30,34 @@ logger = logging.getLogger(__name__)
 class ConfigManager:
     """Manages public site configuration"""
     
-    def __init__(self, config_path: Path):
-        self.config_path = config_path
-        self.config = self._load_config()
+    def __init__(self, config_path: Path = None, config_dict: Dict = None):
+        """
+        Initialize ConfigManager
+        
+        Args:
+            config_path: Path to YAML config file (for local development)
+            config_dict: Dictionary with config (for Vercel environment variables)
+        """
+        if config_dict:
+            self.config_path = None
+            self.config = config_dict
+        else:
+            self.config_path = config_path
+            self.config = self._load_config()
         self._cache = {}
         self._cache_timestamp = None
         self._cache_ttl = self.config.get('settings', {}).get('cache_ttl', 3600)
     
+    @classmethod
+    def from_dict(cls, config_dict: Dict):
+        """Create ConfigManager from dictionary (for Vercel environment variables)"""
+        return cls(config_dict=config_dict)
+    
     def _load_config(self) -> Dict:
         """Load configuration from YAML file"""
+        if self.config_path is None:
+            return self._default_config()
+        
         if not self.config_path.exists():
             logger.warning(f"Config file not found at {self.config_path}, using defaults")
             return self._default_config()
@@ -53,13 +73,23 @@ class ConfigManager:
     def _default_config(self) -> Dict:
         """Return default configuration"""
         return {
+            'security': {
+                'jwt_secret': os.getenv('JWT_SECRET', 'insecure-default-secret-DO-NOT-USE-IN-PRODUCTION')
+            },
             'settings': {
                 'restrict_to_listed': False,
                 'cache_ttl': 3600
             },
             'batches': [],
             'directory_aliases': {},
-            'batch_metadata': {}
+            'batch_metadata': {},
+            'storage': {
+                'type': 'cdn',
+                'public_url': os.getenv('CDN_PUBLIC_URL', '')
+            },
+            'similarity': {
+                'threshold': 13
+            }
         }
     
     def reload(self):
