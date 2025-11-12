@@ -41,6 +41,10 @@ public_site.db
 turso_public_db_info.yaml
 turso_tokens.txt 
 
+# local test script 
+run_with_turso.sh
+
+
 # Local configuration files (keep examples)
 config.yaml
 config.local.yaml
