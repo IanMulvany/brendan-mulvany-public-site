@@ -850,4 +850,240 @@ class PublicSiteDatabase:
                 (r2_key, synced_at, version_id)
             )
             conn.commit()
+    
+    def batch_sync_scenes(self, scenes_data: List[Dict]) -> Dict[str, int]:
+        """
+        Batch sync multiple scenes and versions in a single connection.
+        This is much more efficient for Turso as it uses one connection instead of many.
+        
+        Args:
+            scenes_data: List of scene dicts with structure:
+                {
+                    'scene_id': str,
+                    'batch_name': str,
+                    'base_filename': str,
+                    'capture_date': Optional[str],
+                    'description': Optional[str],
+                    'description_model': Optional[str],
+                    'description_timestamp': Optional[str],
+                    'roll_number': Optional[str],
+                    'roll_date': Optional[str],
+                    'date_source': Optional[str],
+                    'date_notes': Optional[str],
+                    'roll_comment': Optional[str],
+                    'index_book_number': Optional[str],
+                    'index_book_date': Optional[str],
+                    'index_book_comment': Optional[str],
+                    'short_description': Optional[str],
+                    'versions': List[Dict]  # version dicts with version_id, version_type, etc.
+                }
+        
+        Returns:
+            Dict with stats: {'scenes_synced': int, 'images_marked_live': int, 'images_skipped': int, 'errors': int}
+        """
+        stats = {
+            'scenes_synced': 0,
+            'images_marked_live': 0,
+            'images_skipped': 0,
+            'errors': 0
+        }
+        
+        # Use a single connection for all operations
+        with self.get_connection() as conn:
+            try:
+                for scene_data in scenes_data:
+                    try:
+                        scene_id = scene_data['scene_id']
+                        batch_name = scene_data['batch_name']
+                        base_filename = scene_data['base_filename']
+                        capture_date = scene_data.get('capture_date')
+                        description = scene_data.get('description')
+                        description_model = scene_data.get('description_model')
+                        description_timestamp = scene_data.get('description_timestamp')
+                        roll_number = scene_data.get('roll_number')
+                        roll_date = scene_data.get('roll_date')
+                        date_source = scene_data.get('date_source')
+                        date_notes = scene_data.get('date_notes')
+                        roll_comment = scene_data.get('roll_comment')
+                        index_book_number = scene_data.get('index_book_number')
+                        index_book_date = scene_data.get('index_book_date')
+                        index_book_comment = scene_data.get('index_book_comment')
+                        short_description = scene_data.get('short_description')
+                        
+                        # Insert/update scene
+                        if self.use_turso:
+                            # For Turso, use execute with tuple result
+                            cursor = conn.execute(
+                                """INSERT INTO scenes 
+                                   (scene_id, batch_name, base_filename, capture_date, description, description_model, description_timestamp,
+                                    roll_number, roll_date, date_source, date_notes, roll_comment,
+                                    index_book_number, index_book_date, index_book_comment, short_description, updated_at)
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                                   ON CONFLICT(scene_id) DO UPDATE SET
+                                       batch_name = excluded.batch_name,
+                                       base_filename = excluded.base_filename,
+                                       capture_date = excluded.capture_date,
+                                       description = excluded.description,
+                                       description_model = excluded.description_model,
+                                       description_timestamp = excluded.description_timestamp,
+                                       roll_number = excluded.roll_number,
+                                       roll_date = excluded.roll_date,
+                                       date_source = excluded.date_source,
+                                       date_notes = excluded.date_notes,
+                                       roll_comment = excluded.roll_comment,
+                                       index_book_number = excluded.index_book_number,
+                                       index_book_date = excluded.index_book_date,
+                                       index_book_comment = excluded.index_book_comment,
+                                       short_description = excluded.short_description,
+                                       updated_at = CURRENT_TIMESTAMP""",
+                                (scene_id, batch_name, base_filename, capture_date, description, description_model, description_timestamp,
+                                 roll_number, roll_date, date_source, date_notes, roll_comment,
+                                 index_book_number, index_book_date, index_book_comment, short_description)
+                            )
+                        else:
+                            # For SQLite
+                            conn.execute(
+                                """INSERT INTO scenes 
+                                   (scene_id, batch_name, base_filename, capture_date, description, description_model, description_timestamp,
+                                    roll_number, roll_date, date_source, date_notes, roll_comment,
+                                    index_book_number, index_book_date, index_book_comment, short_description, updated_at)
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                                   ON CONFLICT(scene_id) DO UPDATE SET
+                                       batch_name = excluded.batch_name,
+                                       base_filename = excluded.base_filename,
+                                       capture_date = excluded.capture_date,
+                                       description = excluded.description,
+                                       description_model = excluded.description_model,
+                                       description_timestamp = excluded.description_timestamp,
+                                       roll_number = excluded.roll_number,
+                                       roll_date = excluded.roll_date,
+                                       date_source = excluded.date_source,
+                                       date_notes = excluded.date_notes,
+                                       roll_comment = excluded.roll_comment,
+                                       index_book_number = excluded.index_book_number,
+                                       index_book_date = excluded.index_book_date,
+                                       index_book_comment = excluded.index_book_comment,
+                                       short_description = excluded.short_description,
+                                       updated_at = CURRENT_TIMESTAMP""",
+                                (scene_id, batch_name, base_filename, capture_date, description, description_model, description_timestamp,
+                                 roll_number, roll_date, date_source, date_notes, roll_comment,
+                                 index_book_number, index_book_date, index_book_comment, short_description)
+                            )
+                        
+                        # Process versions
+                        versions = scene_data.get('versions', [])
+                        current_version_id = None
+                        
+                        # First, unset all current versions for this scene
+                        if self.use_turso:
+                            conn.execute(
+                                "UPDATE image_versions SET is_current = 0 WHERE scene_id = ?",
+                                (scene_id,)
+                            )
+                        else:
+                            conn.execute(
+                                "UPDATE image_versions SET is_current = 0 WHERE scene_id = ?",
+                                (scene_id,)
+                            )
+                        
+                        # Insert/update all versions
+                        for version_data in versions:
+                            version_id = version_data['version_id']
+                            version_type = version_data['version_type']
+                            local_path = version_data.get('local_path', '')
+                            perceptual_hash = version_data.get('perceptual_hash')
+                            is_current = version_data.get('is_current', False)
+                            file_size = version_data.get('file_size')
+                            
+                            if is_current:
+                                current_version_id = version_id
+                            
+                            synced_at = datetime.now().isoformat() if version_data.get('r2_key') else None
+                            
+                            if self.use_turso:
+                                conn.execute(
+                                    """INSERT OR REPLACE INTO image_versions 
+                                       (version_id, scene_id, version_type, local_path, perceptual_hash, r2_key, is_current, synced_at, file_size)
+                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                    (version_id, scene_id, version_type, local_path, perceptual_hash, 
+                                     version_data.get('r2_key'), is_current, synced_at, file_size)
+                                )
+                            else:
+                                conn.execute(
+                                    """INSERT OR REPLACE INTO image_versions 
+                                       (version_id, scene_id, version_type, local_path, perceptual_hash, r2_key, is_current, synced_at, file_size)
+                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                    (version_id, scene_id, version_type, local_path, perceptual_hash, 
+                                     version_data.get('r2_key'), is_current, synced_at, file_size)
+                                )
+                        
+                        # Handle current version's r2_key
+                        if current_version_id:
+                            storage_key = f"scenes/{scene_id}.jpg"
+                            
+                            # Check if already synced (query within same connection)
+                            cursor = conn.execute(
+                                """SELECT version_id, r2_key FROM image_versions 
+                                   WHERE scene_id = ? AND is_current = 1 AND r2_key IS NOT NULL
+                                   LIMIT 1""",
+                                (scene_id,)
+                            )
+                            row = cursor.fetchone()
+                            if row:
+                                if self.use_turso:
+                                    # Turso returns tuples
+                                    existing_r2_key = row[1] if len(row) > 1 else None
+                                else:
+                                    # SQLite with Row factory returns dict-like
+                                    existing_r2_key = row['r2_key']
+                            else:
+                                existing_r2_key = None
+                            
+                            if existing_r2_key == storage_key:
+                                stats['images_skipped'] += 1
+                            else:
+                                # Update current version's r2_key
+                                synced_at = datetime.now().isoformat()
+                                conn.execute(
+                                    "UPDATE image_versions SET r2_key = ?, synced_at = ? WHERE version_id = ?",
+                                    (storage_key, synced_at, current_version_id)
+                                )
+                                stats['images_marked_live'] += 1
+                                
+                                # Clear old version's r2_key if different
+                                if existing_r2_key and existing_r2_key != storage_key:
+                                    # Find the old version
+                                    cursor = conn.execute(
+                                        "SELECT version_id FROM image_versions WHERE r2_key = ? LIMIT 1",
+                                        (existing_r2_key,)
+                                    )
+                                    row = cursor.fetchone()
+                                    if row:
+                                        if self.use_turso:
+                                            old_version_id = row[0]
+                                        else:
+                                            old_version_id = row['version_id']
+                                    else:
+                                        old_version_id = None
+                                    
+                                    if old_version_id:
+                                        conn.execute(
+                                            "UPDATE image_versions SET r2_key = NULL, synced_at = NULL WHERE version_id = ?",
+                                            (old_version_id,)
+                                        )
+                        
+                        stats['scenes_synced'] += 1
+                    except Exception as e:
+                        logger.error(f"Error syncing scene {scene_data.get('scene_id', 'unknown')}: {e}", exc_info=True)
+                        stats['errors'] += 1
+                
+                # Commit all changes at once
+                conn.commit()
+                
+            except Exception as e:
+                logger.error(f"Batch sync error: {e}", exc_info=True)
+                stats['errors'] += len(scenes_data) - stats['scenes_synced']
+                raise
+        
+        return stats
 

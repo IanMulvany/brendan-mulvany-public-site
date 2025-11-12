@@ -813,6 +813,7 @@ async def sync_data(
     Sync scene and version data to public site (admin only)
     Called by management apps to push data to public-site DB
     
+    Uses batch operations for efficiency with Turso database.
     Display layer: trusts that files are uploaded by management app.
     No file existence checks or deletions - management app handles storage operations.
     """
@@ -822,97 +823,66 @@ async def sync_data(
     sync_id = public_db.log_sync("api_sync", status="in_progress")
     
     try:
-        stats = {
-            'scenes_synced': 0,
-            'images_marked_live': 0,
-            'images_skipped': 0,
-            'errors': 0
-        }
-        
-        # Process each scene
+        # Prepare scene data for batch sync
+        # The batch_sync_scenes method expects versions to have r2_key set for current versions
+        scenes_for_batch = []
         for scene_data in sync_data.scenes:
             scene_id = scene_data['scene_id']
-            batch_name = scene_data['batch_name']
-            base_filename = scene_data['base_filename']
-            description = scene_data.get('description')
-            description_model = scene_data.get('description_model')
-            description_timestamp = scene_data.get('description_timestamp')
             
-            # Extract batch metadata
-            capture_date = scene_data.get('capture_date') or scene_data.get('roll_date')
-            roll_number = scene_data.get('roll_number')
-            roll_date = scene_data.get('roll_date')
-            date_source = scene_data.get('date_source')
-            date_notes = scene_data.get('date_notes')
-            roll_comment = scene_data.get('roll_comment')
-            index_book_number = scene_data.get('index_book_number')
-            index_book_date = scene_data.get('index_book_date')
-            index_book_comment = scene_data.get('index_book_comment')
-            short_description = scene_data.get('short_description')
-            
-            # Log description status for debugging
-            logger.info(f"API received scene {scene_id}: description={'present (' + str(len(description)) + ' chars)' if description else 'None'}, model={description_model}, roll_number={roll_number}, roll_date={roll_date}")
-            
-            # Create/update scene with description and batch metadata
-            public_db.create_or_update_scene(
-                scene_id, 
-                batch_name, 
-                base_filename,
-                capture_date=capture_date,
-                description=description,
-                description_model=description_model,
-                description_timestamp=description_timestamp,
-                roll_number=roll_number,
-                roll_date=roll_date,
-                date_source=date_source,
-                date_notes=date_notes,
-                roll_comment=roll_comment,
-                index_book_number=index_book_number,
-                index_book_date=index_book_date,
-                index_book_comment=index_book_comment,
-                short_description=short_description
-            )
-            
-            # Process versions
+            # Prepare versions with r2_key for current versions
+            versions = []
             for version_data in scene_data.get('versions', []):
-                version_id = version_data['version_id']
-                version_type = version_data['version_type']
-                local_path = version_data['local_path']
-                perceptual_hash = version_data.get('perceptual_hash')
-                is_current = version_data.get('is_current', False)
+                version_dict = {
+                    'version_id': version_data['version_id'],
+                    'version_type': version_data['version_type'],
+                    'local_path': version_data.get('local_path', ''),
+                    'perceptual_hash': version_data.get('perceptual_hash'),
+                    'is_current': version_data.get('is_current', False),
+                    'file_size': version_data.get('file_size'),
+                    'r2_key': None  # Will be set below for current version
+                }
                 
-                # Create version in DB
-                public_db.create_version(
-                    version_id=version_id,
-                    scene_id=scene_id,
-                    version_type=version_type,
-                    local_path=local_path,
-                    perceptual_hash=perceptual_hash,
-                    is_current=is_current
-                )
+                # If this is the current version, set r2_key (trusting management app uploaded file)
+                if version_dict['is_current'] and not sync_data.dry_run:
+                    version_dict['r2_key'] = f"scenes/{scene_id}.jpg"
                 
-                # If current version, set storage key (trust management app has uploaded file)
-                if is_current:
-                    storage_key = f"scenes/{scene_id}.jpg"
-                    
-                    # Check if already synced
-                    existing_version = public_db.get_current_version_for_scene(scene_id)
-                    if existing_version and existing_version.get('r2_key') == storage_key:
-                        stats['images_skipped'] += 1
-                        continue
-                    
-                    # Trust management app - mark as synced in database
-                    # Management app is responsible for uploading files and deleting old versions
-                    if not sync_data.dry_run:
-                        public_db.update_version_r2_key(version_id, storage_key)
-                        stats['images_marked_live'] += 1
-                        
-                        # Clear old version's r2_key (management app should have deleted the file)
-                        if existing_version and existing_version.get('r2_key') and existing_version['r2_key'] != storage_key:
-                            public_db.update_version_r2_key(existing_version['version_id'], None)
+                versions.append(version_dict)
             
-            stats['scenes_synced'] += 1
+            # Prepare scene dict for batch sync
+            scene_dict = {
+                'scene_id': scene_id,
+                'batch_name': scene_data['batch_name'],
+                'base_filename': scene_data['base_filename'],
+                'capture_date': scene_data.get('capture_date') or scene_data.get('roll_date'),
+                'description': scene_data.get('description'),
+                'description_model': scene_data.get('description_model'),
+                'description_timestamp': scene_data.get('description_timestamp'),
+                'roll_number': scene_data.get('roll_number'),
+                'roll_date': scene_data.get('roll_date'),
+                'date_source': scene_data.get('date_source'),
+                'date_notes': scene_data.get('date_notes'),
+                'roll_comment': scene_data.get('roll_comment'),
+                'index_book_number': scene_data.get('index_book_number'),
+                'index_book_date': scene_data.get('index_book_date'),
+                'index_book_comment': scene_data.get('index_book_comment'),
+                'short_description': scene_data.get('short_description'),
+                'versions': versions
+            }
+            
+            scenes_for_batch.append(scene_dict)
         
+        # Use batch sync method (single connection for all operations)
+        if sync_data.dry_run:
+            stats = {
+                'scenes_synced': len(scenes_for_batch),
+                'images_marked_live': sum(1 for s in scenes_for_batch for v in s['versions'] if v.get('is_current')),
+                'images_skipped': 0,
+                'errors': 0
+            }
+        else:
+            stats = public_db.batch_sync_scenes(scenes_for_batch)
+        
+        # Update sync log
         public_db.update_sync_log(
             sync_id, "success",
             images_synced=stats['images_marked_live'],
@@ -923,7 +893,13 @@ async def sync_data(
             "message": "Sync completed",
             "sync_id": sync_id,
             "stats": stats,
-            "dry_run": sync_data.dry_run
+            "dry_run": sync_data.dry_run,
+            "total_scenes": len(scenes_for_batch),
+            "progress": {
+                "completed": stats['scenes_synced'],
+                "total": len(scenes_for_batch),
+                "percentage": round((stats['scenes_synced'] / len(scenes_for_batch) * 100) if scenes_for_batch else 0, 1)
+            }
         }
     except Exception as e:
         logger.error(f"Sync error: {e}", exc_info=True)
