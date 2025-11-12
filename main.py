@@ -31,11 +31,6 @@ sys.path.insert(0, str(CODE_DIR))
 sys.path.insert(0, str(CURRENT_DIR))
 
 from database import PublicSiteDatabase
-try:
-    from webapp.database import Database as ArchiveDatabase
-except ImportError:
-    # ArchiveDatabase is optional - only needed for some legacy endpoints
-    ArchiveDatabase = None
 from config_manager import ConfigManager
 from storage import create_storage_backend
 import os
@@ -50,9 +45,7 @@ if os.getenv("VERCEL"):
     TEMPLATES_DIR = CURRENT_DIR / "templates"
     # Database paths from environment variables
     PUBLIC_DB_PATH = os.getenv("PUBLIC_DB_PATH", "/tmp/public_site.db")
-    ARCHIVE_DB_PATH = os.getenv("ARCHIVE_DB_PATH", "/tmp/bm_image_archive.db")
     PUBLIC_DB = Path(PUBLIC_DB_PATH)
-    ARCHIVE_DB = Path(ARCHIVE_DB_PATH)
     # Config from environment variable (JSON string) or default path
     CONFIG_PATH = os.getenv("CONFIG_PATH")
     if CONFIG_PATH:
@@ -65,7 +58,6 @@ else:
     CURRENT_DIR = Path(__file__).parent
     BASE_DIR = CURRENT_DIR.parent  # Parent of public-site directory
     IMAGES_DIR = BASE_DIR / "images"
-    ARCHIVE_DB = BASE_DIR / "code" / "bm_image_archive.db"
     PUBLIC_DB = CURRENT_DIR / "public_site.db"  # Database in same directory as main.py
     STATIC_DIR = CURRENT_DIR / "static"
     TEMPLATES_DIR = CURRENT_DIR / "templates"
@@ -105,21 +97,23 @@ else:
 
 # Initialize databases and config
 try:
-    public_db = PublicSiteDatabase(PUBLIC_DB)
+    # Check for Turso environment variables (production or local testing)
+    turso_url = os.getenv("TURSO_DATABASE_URL")
+    turso_token = os.getenv("TURSO_AUTH_TOKEN")
+    
+    if turso_url and turso_token:
+        # Use Turso database
+        public_db = PublicSiteDatabase(turso_url=turso_url, turso_token=turso_token)
+        logger.info("Connected to Turso database")
+    else:
+        # Use local SQLite database
+        public_db = PublicSiteDatabase(db_path=PUBLIC_DB)
+        logger.info(f"Using local SQLite database: {PUBLIC_DB}")
 except Exception as e:
-    logger.error(f"Failed to initialize public database: {e}")
+    logger.error(f"Failed to initialize public database: {e}", exc_info=True)
     public_db = None
 
-try:
-    if ArchiveDatabase and (ARCHIVE_DB.exists() or os.getenv("VERCEL")):
-        # On Vercel, archive_db might be optional or loaded from environment
-        archive_db = ArchiveDatabase(ARCHIVE_DB)
-    else:
-        logger.warning(f"Archive database not found or ArchiveDatabase not available: {ARCHIVE_DB} (some features may be limited)")
-        archive_db = None
-except Exception as e:
-    logger.warning(f"Failed to initialize archive database: {e} (some features may be limited)")
-    archive_db = None
+# Archive database removed - no longer needed (legacy from old system)
 
 # Initialize config manager
 # On Vercel, config can come from environment variable as JSON
@@ -663,28 +657,27 @@ async def get_search_suggestions(
 @app.get("/api/public/stats")
 async def get_stats():
     """Get site statistics"""
-    # Count public images based on config
-    all_images = archive_db.get_images(limit=10000) if archive_db else []
-    public_images = config_manager.filter_images(all_images, images_dir=IMAGES_DIR if IMAGES_DIR else None)
-    public_count = len(public_images)
-    
-    # Count scenes and live versions
+    # Count scenes and live versions from public database
     scenes = public_db.get_scenes(limit=10000)
     scene_count = len(scenes)
     live_versions = public_db.get_live_versions(limit=10000)
     live_count = len(live_versions)
     
-    # Count annotations
+    # Count annotations and users
     annotation_count = 0
     user_count = 0
     with public_db.get_connection() as conn:
-        result = conn.execute("SELECT COUNT(*) as count FROM annotations").fetchone()
-        annotation_count = result['count'] if result else 0
-        result = conn.execute("SELECT COUNT(*) as count FROM users WHERE is_active = 1").fetchone()
-        user_count = result['count'] if result else 0
+        cursor = conn.execute("SELECT COUNT(*) as count FROM annotations")
+        row = cursor.fetchone()
+        if row:
+            annotation_count = row[0] if isinstance(row, tuple) else row['count']
+        cursor = conn.execute("SELECT COUNT(*) as count FROM users WHERE is_active = 1")
+        row = cursor.fetchone()
+        if row:
+            user_count = row[0] if isinstance(row, tuple) else row['count']
     
     return {
-        "total_images": public_count,
+        "total_images": live_count,  # Use live versions count as image count
         "total_scenes": scene_count,
         "total_live_versions": live_count,
         "total_annotations": annotation_count,

@@ -9,6 +9,15 @@ from typing import List, Dict, Optional
 from contextlib import contextmanager
 from datetime import datetime
 import logging
+import os
+
+# Try to import libsql for Turso support
+try:
+    import libsql_experimental
+    LIBSQL_AVAILABLE = True
+except ImportError:
+    LIBSQL_AVAILABLE = False
+    libsql_experimental = None
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +25,38 @@ logger = logging.getLogger(__name__)
 class PublicSiteDatabase:
     """Database connection and query manager for public site"""
     
-    def __init__(self, db_path: Path):
+    def __init__(self, db_path: Path = None, turso_url: Optional[str] = None, turso_token: Optional[str] = None):
+        """
+        Initialize database connection.
+        
+        Args:
+            db_path: Path to local SQLite file (for local dev)
+            turso_url: Turso database URL (for production)
+            turso_token: Turso auth token (for production)
+        """
         self.db_path = db_path
+        self.turso_url = turso_url
+        self.turso_token = turso_token
+        self.use_turso = bool(turso_url and turso_token and LIBSQL_AVAILABLE)
+        
+        if not self.use_turso and not db_path:
+            raise ValueError("Either db_path (for SQLite) or turso_url/turso_token (for Turso) must be provided")
+        
+        if self.use_turso:
+            logger.info(f"Using Turso database: {turso_url}")
+        else:
+            logger.info(f"Using local SQLite database: {db_path}")
+        
         self._init_schema()
     
     def _init_schema(self):
         """Initialize database schema if it doesn't exist"""
+        # Skip schema creation for Turso - schema must be created manually via Turso CLI
+        # due to libsql-experimental bug with CREATE TABLE on remote connections
+        if self.use_turso:
+            logger.info("Skipping schema creation for Turso (schema should already exist)")
+            return
+        
         with self.get_connection() as conn:
             # Users table
             conn.execute("""
@@ -219,12 +254,57 @@ class PublicSiteDatabase:
     @contextmanager
     def get_connection(self):
         """Context manager for database connections"""
-        conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row
-        try:
-            yield conn
-        finally:
-            conn.close()
+        if self.use_turso:
+            # Use Turso/libSQL connection
+            # For remote Turso, we use sync_url with a local cache database
+            # Use a file-based cache so schema can sync properly
+            import tempfile
+            cache_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
+            cache_path = cache_file.name
+            cache_file.close()
+            conn = libsql_experimental.connect(
+                database=cache_path,  # Local file cache (allows schema sync)
+                sync_url=self.turso_url,
+                auth_token=self.turso_token
+            )
+            # Sync schema and data from remote database
+            try:
+                conn.sync()
+            except Exception as e:
+                logger.warning(f"Sync warning (may be normal on first connection): {e}")
+            # libsql connections return tuples, we'll convert to dicts in methods
+            try:
+                yield conn
+            finally:
+                conn.close()
+                # Clean up temp file
+                try:
+                    import os
+                    os.unlink(cache_path)
+                except:
+                    pass
+        else:
+            # Use local SQLite connection
+            conn = sqlite3.connect(str(self.db_path))
+            conn.row_factory = sqlite3.Row
+            try:
+                yield conn
+            finally:
+                conn.close()
+    
+    def _row_to_dict(self, row, cursor_description=None):
+        """Convert database row to dictionary"""
+        if self.use_turso:
+            # For Turso/libSQL, rows are tuples - convert to dict
+            if cursor_description:
+                return {desc[0]: val for desc, val in zip(cursor_description, row)}
+            # Fallback: try to access as dict if it supports it
+            if hasattr(row, '_asdict'):
+                return row._asdict()
+            return dict(row) if isinstance(row, dict) else row
+        else:
+            # For SQLite with Row factory, already a dict-like object
+            return dict(row)
     
     def create_user(self, username: str, email: str, password_hash: str, role: str = 'user') -> int:
         """Create a new user"""
@@ -245,7 +325,9 @@ class PublicSiteDatabase:
                 (username,)
             )
             row = cursor.fetchone()
-            return dict(row) if row else None
+            if row:
+                return self._row_to_dict(row, cursor.description)
+            return None
     
     def get_user_by_id(self, user_id: int) -> Optional[Dict]:
         """Get user by ID"""
@@ -255,7 +337,9 @@ class PublicSiteDatabase:
                 (user_id,)
             )
             row = cursor.fetchone()
-            return dict(row) if row else None
+            if row:
+                return self._row_to_dict(row, cursor.description)
+            return None
     
     def create_annotation(
         self,
@@ -293,7 +377,7 @@ class PublicSiteDatabase:
             rows = cursor.fetchall()
             result = []
             for row in rows:
-                ann = dict(row)
+                ann = self._row_to_dict(row, cursor.description)
                 if ann.get('metadata'):
                     try:
                         ann['metadata'] = json.loads(ann['metadata'])
@@ -369,7 +453,9 @@ class PublicSiteDatabase:
                 "SELECT * FROM sync_log ORDER BY started_at DESC LIMIT 1"
             )
             row = cursor.fetchone()
-            return dict(row) if row else None
+            if row:
+                return self._row_to_dict(row, cursor.description)
+            return None
     
     # Scene and version methods
     def get_scene(self, scene_id: str) -> Optional[Dict]:
@@ -380,7 +466,9 @@ class PublicSiteDatabase:
                 (scene_id,)
             )
             row = cursor.fetchone()
-            return dict(row) if row else None
+            if row:
+                return self._row_to_dict(row, cursor.description)
+            return None
     
     def get_scenes(self, batch_name: Optional[str] = None, limit: int = 100, offset: int = 0) -> List[Dict]:
         """Get list of scenes, optionally filtered by batch"""
@@ -401,7 +489,7 @@ class PublicSiteDatabase:
                     (limit, offset)
                 )
             rows = cursor.fetchall()
-            return [dict(row) for row in rows]
+            return [self._row_to_dict(row, cursor.description) for row in rows]
     
     def get_scenes_by_roll_number(self, roll_number: str) -> List[Dict]:
         """Get all scenes for a given roll number"""
@@ -413,7 +501,7 @@ class PublicSiteDatabase:
                 (roll_number,)
             )
             rows = cursor.fetchall()
-            return [dict(row) for row in rows]
+            return [self._row_to_dict(row, cursor.description) for row in rows]
     
     def search_scenes_fts(
         self,
@@ -485,7 +573,7 @@ class PublicSiteDatabase:
                    LIMIT ? OFFSET ?""",
                 params + [limit, offset]
             )
-            results = [dict(row) for row in cursor.fetchall()]
+            results = [self._row_to_dict(row, cursor.description) for row in cursor.fetchall()]
             
             # Get total count
             cursor = conn.execute(
@@ -600,7 +688,9 @@ class PublicSiteDatabase:
                 (scene_id,)
             )
             row = cursor.fetchone()
-            return dict(row) if row else None
+            if row:
+                return self._row_to_dict(row, cursor.description)
+            return None
     
     def get_all_versions_for_scene(self, scene_id: str) -> List[Dict]:
         """Get all versions for a scene"""
@@ -612,7 +702,7 @@ class PublicSiteDatabase:
                 (scene_id,)
             )
             rows = cursor.fetchall()
-            return [dict(row) for row in rows]
+            return [self._row_to_dict(row, cursor.description) for row in rows]
     
     def get_live_versions(self, limit: int = 1000) -> List[Dict]:
         """Get all live versions (r2_key IS NOT NULL) for similarity search"""
@@ -628,7 +718,7 @@ class PublicSiteDatabase:
                 (limit,)
             )
             rows = cursor.fetchall()
-            return [dict(row) for row in rows]
+            return [self._row_to_dict(row, cursor.description) for row in rows]
     
     def find_similar_scenes(self, target_hash: str, threshold: int = 10, limit: int = 20) -> List[Dict]:
         """
