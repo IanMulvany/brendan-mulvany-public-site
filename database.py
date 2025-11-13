@@ -575,19 +575,14 @@ class PublicSiteDatabase:
             params = []
             
             # FTS5 search
+            fts_query = None
             if query:
-                # FTS5 syntax: simple queries work directly, for multiple terms use OR
-                # Escape special FTS5 characters: ", ', \
-                # For simple queries, just use the query as-is
-                # For multiple words, join with OR
-                query_terms = [term.strip() for term in query.split() if term.strip()]
-                if len(query_terms) > 1:
-                    # Multiple terms: use OR
-                    fts_query = " OR ".join(query_terms)
-                else:
-                    # Single term or phrase
-                    fts_query = query
-                
+                sanitized_query = re.sub(r'["\'\\]', ' ', query)
+                query_terms = [term.strip() for term in sanitized_query.split() if term.strip()]
+                if query_terms:
+                    fts_query = " OR ".join(f'"{term}"' for term in query_terms)
+            
+            if query and fts_query:
                 where_clauses.append("""
                     scene_id IN (
                         SELECT scene_id FROM scenes_fts 

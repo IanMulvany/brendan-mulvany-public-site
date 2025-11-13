@@ -88,6 +88,10 @@ async function performSearch() {
         if (currentFilters.date_source) params.append('date_source', currentFilters.date_source);
         
         const response = await fetch(`${API_BASE}/api/public/search?${params.toString()}`);
+        if (!response.ok) {
+            const body = await response.text();
+            throw new Error(body || `Search request failed (${response.status})`);
+        }
         const data = await response.json();
         
         // Update results count
