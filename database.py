@@ -491,6 +491,56 @@ class PublicSiteDatabase:
             rows = cursor.fetchall()
             return [self._row_to_dict(row, cursor.description) for row in rows]
     
+    def get_scenes_with_current_versions(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """
+        Get scenes with their current (live) image versions in a single query.
+        
+        Returns rows that include both scene metadata and the associated
+        live image version metadata to avoid per-scene database round-trips.
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                SELECT
+                    s.scene_id,
+                    s.batch_name,
+                    s.base_filename,
+                    s.capture_date,
+                    s.roll_number,
+                    s.roll_date,
+                    s.date_source,
+                    s.date_notes,
+                    s.roll_comment,
+                    s.index_book_number,
+                    s.index_book_date,
+                    s.index_book_comment,
+                    s.short_description,
+                    s.created_at AS scene_created_at,
+                    s.updated_at AS scene_updated_at,
+                    iv.version_id,
+                    iv.version_type,
+                    iv.local_path,
+                    iv.r2_key,
+                    iv.perceptual_hash,
+                    iv.md5_hash,
+                    iv.file_size,
+                    iv.width,
+                    iv.height,
+                    iv.synced_at,
+                    iv.created_at AS version_created_at
+                FROM scenes s
+                JOIN image_versions iv
+                  ON iv.scene_id = s.scene_id
+                 AND iv.is_current = 1
+                 AND iv.r2_key IS NOT NULL
+                ORDER BY s.created_at DESC
+                LIMIT ? OFFSET ?
+                """,
+                (limit, offset)
+            )
+            rows = cursor.fetchall()
+            return [self._row_to_dict(row, cursor.description) for row in rows]
+
     def get_scenes_by_roll_number(self, roll_number: str) -> List[Dict]:
         """Get all scenes for a given roll number"""
         with self.get_connection() as conn:

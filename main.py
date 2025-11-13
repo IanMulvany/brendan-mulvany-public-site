@@ -320,54 +320,41 @@ async def list_images(
     offset: int = Query(0, ge=0)
 ):
     """List public images (backward compatibility - uses scene-based data)"""
-    # Get scenes from public-site database (scene-based architecture)
-    all_scenes = public_db.get_scenes(batch_name=None, limit=limit * 2, offset=offset)
+    # Fetch scenes and their current versions in a single query to minimize sync overhead
+    scene_records = public_db.get_scenes_with_current_versions(limit=limit, offset=offset)
     
-    # Convert scenes to old image format for backward compatibility
+    # Convert database rows to public image payload
     public_images = []
-    for scene in all_scenes:
-        version = public_db.get_current_version_for_scene(scene['scene_id'])
-        if not version:
-            continue  # Skip scenes without live versions
+    for record in scene_records:
+        scene_id = record['scene_id']
+        image_id = scene_id_to_image_id(scene_id)
+        local_path = record.get('local_path', '')
+        r2_key = record.get('r2_key')
         
-        # Generate image_id from scene_id (backward compatibility)
-        image_id = scene_id_to_image_id(scene['scene_id'])
-        
-        # Get local path for backward compatibility
-        local_path = version.get('local_path', '')
-        
-        # Build URLs - use direct CDN URLs if available, otherwise use redirect URLs
-        r2_key = version.get('r2_key')
         if r2_key and storage_backend:
-            # Use direct CDN URLs
             image_url = storage_backend.get_file_url(r2_key)
-            # Thumbnail naming: scenes/{scene_id}-thumb.jpg
             if '.' in r2_key:
                 thumbnail_key = r2_key.rsplit('.', 1)[0] + '-thumb.jpg'
             else:
                 thumbnail_key = r2_key + '-thumb.jpg'
             thumbnail_url = storage_backend.get_file_url(thumbnail_key)
         else:
-            # Fallback to redirect URLs
             image_url = f"/api/public/images/{image_id}/image"
             thumbnail_url = f"/api/public/images/{image_id}/thumbnail"
         
         img_dict = {
             'image_id': image_id,
             'image_path': local_path,
-            'image_name': scene['base_filename'],
+            'image_name': record['base_filename'],
             'image_url': image_url,
             'thumbnail_url': thumbnail_url,
             'bm_batch_year': '',
-            'roll_number': '',
-            'capture_date': scene.get('capture_date'),
-            'bm_batch_note': scene['batch_name'],
-            'scene_id': scene['scene_id']  # Include for reference
+            'roll_number': record.get('roll_number', ''),
+            'capture_date': record.get('capture_date'),
+            'bm_batch_note': record['batch_name'],
+            'scene_id': scene_id
         }
         public_images.append(img_dict)
-    
-    # Apply limit
-    public_images = public_images[:limit]
     
     return {
         "images": public_images,
