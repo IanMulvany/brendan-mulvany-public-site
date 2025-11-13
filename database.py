@@ -5,11 +5,12 @@ Handles users, annotations, and sync logging
 
 import sqlite3
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import os
+import re
 
 # Try to import libsql for Turso support
 try:
@@ -20,6 +21,31 @@ except ImportError:
     libsql_experimental = None
 
 logger = logging.getLogger(__name__)
+
+SCENE_BASE_SELECT = """
+    SELECT
+        s.scene_id,
+        s.batch_name,
+        s.base_filename,
+        s.capture_date,
+        s.created_at,
+        s.updated_at,
+        sm.roll_number,
+        sm.roll_date,
+        sm.date_source,
+        sm.date_notes,
+        sm.roll_comment,
+        sm.index_book_number,
+        sm.index_book_date,
+        sm.index_book_comment,
+        sd.description,
+        sd.description_model,
+        sd.description_timestamp,
+        sd.short_description
+    FROM scenes s
+    LEFT JOIN scene_metadata sm ON sm.scene_id = s.scene_id
+    LEFT JOIN scene_descriptions sd ON sd.scene_id = s.scene_id
+"""
 
 
 class PublicSiteDatabase:
@@ -47,6 +73,10 @@ class PublicSiteDatabase:
         else:
             logger.info(f"Using local SQLite database: {db_path}")
         
+        self._metadata_cache: Optional[Dict[str, List[Dict[str, Any]]]] = None
+        self._metadata_cache_expiry: datetime = datetime.min
+        self._metadata_cache_ttl = timedelta(minutes=5)
+
         self._init_schema()
     
     def _init_schema(self):
@@ -139,6 +169,53 @@ class PublicSiteDatabase:
                 )
             """)
             
+            # Normalized supplemental tables for search-optimized schema
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS scene_descriptions (
+                    scene_id TEXT PRIMARY KEY,
+                    description TEXT,
+                    description_model TEXT,
+                    description_timestamp TEXT,
+                    short_description TEXT,
+                    FOREIGN KEY (scene_id) REFERENCES scenes(scene_id) ON DELETE CASCADE
+                )
+            """)
+
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS scene_metadata (
+                    scene_id TEXT PRIMARY KEY,
+                    roll_number TEXT,
+                    roll_date TEXT,
+                    date_source TEXT,
+                    date_notes TEXT,
+                    roll_comment TEXT,
+                    index_book_number TEXT,
+                    index_book_date TEXT,
+                    index_book_comment TEXT,
+                    FOREIGN KEY (scene_id) REFERENCES scenes(scene_id) ON DELETE CASCADE
+                )
+            """)
+
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS scene_tags (
+                    scene_id TEXT NOT NULL,
+                    tag TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (scene_id, tag),
+                    FOREIGN KEY (scene_id) REFERENCES scenes(scene_id) ON DELETE CASCADE
+                )
+            """)
+
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS scene_people (
+                    scene_id TEXT NOT NULL,
+                    person TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (scene_id, person),
+                    FOREIGN KEY (scene_id) REFERENCES scenes(scene_id) ON DELETE CASCADE
+                )
+            """)
+
             # Add description columns if they don't exist (for existing databases)
             for col in ['description', 'description_model', 'description_timestamp']:
                 try:
@@ -189,11 +266,45 @@ class PublicSiteDatabase:
             # Index for similarity search: only versions in R2 (r2_key IS NOT NULL)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_versions_hash_live ON image_versions(perceptual_hash) WHERE r2_key IS NOT NULL")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_versions_r2_key ON image_versions(r2_key) WHERE r2_key IS NOT NULL")
-            
-            # FTS5 virtual table for full-text search
-            # This will be populated with scene data for searching descriptions and text fields
+
+            # Supplemental indexes for normalized tables
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_scene_metadata_roll_number ON scene_metadata(roll_number)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_scene_metadata_roll_date ON scene_metadata(roll_date)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_scene_metadata_date_source ON scene_metadata(date_source)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_scene_metadata_batch_roll ON scene_metadata(roll_number, roll_date)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_scene_tags_tag ON scene_tags(tag)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_scene_people_person ON scene_people(person)")
+
+            # View aggregating search content for FTS maintenance
             conn.execute("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS scenes_fts USING fts5(
+                CREATE VIEW IF NOT EXISTS scene_search_index AS
+                SELECT
+                    s.rowid AS rowid,
+                    s.scene_id AS scene_id,
+                    s.base_filename AS base_filename,
+                    COALESCE(sd.description, '') AS description,
+                    COALESCE(sd.short_description, '') AS short_description,
+                    COALESCE(sm.roll_comment, '') AS roll_comment,
+                    COALESCE(sm.date_notes, '') AS date_notes,
+                    COALESCE(sm.index_book_comment, '') AS index_book_comment,
+                    COALESCE((
+                        SELECT GROUP_CONCAT(tag, ' ')
+                        FROM scene_tags st
+                        WHERE st.scene_id = s.scene_id
+                    ), '') AS tags,
+                    COALESCE((
+                        SELECT GROUP_CONCAT(person, ' ')
+                        FROM scene_people sp
+                        WHERE sp.scene_id = s.scene_id
+                    ), '') AS people
+                FROM scenes s
+                LEFT JOIN scene_descriptions sd ON sd.scene_id = s.scene_id
+                LEFT JOIN scene_metadata sm ON sm.scene_id = s.scene_id
+            """)
+
+            # New FTS5 table optimized for search
+            conn.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS scene_search_fts USING fts5(
                     scene_id UNINDEXED,
                     base_filename,
                     description,
@@ -201,52 +312,234 @@ class PublicSiteDatabase:
                     date_notes,
                     index_book_comment,
                     short_description,
-                    content='scenes',
-                    content_rowid='rowid'
+                    tags,
+                    people,
+                    tokenize = 'porter unicode61'
                 )
             """)
-            
-            # Trigger to keep FTS5 table in sync with scenes table
+
+            # Triggers to keep scene_search_fts synchronized
             conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS scenes_fts_insert AFTER INSERT ON scenes BEGIN
-                    INSERT INTO scenes_fts(
-                        rowid, scene_id, base_filename, description, 
-                        roll_comment, date_notes, index_book_comment, short_description
-                    ) VALUES (
-                        new.rowid, new.scene_id, new.base_filename, new.description,
-                        new.roll_comment, new.date_notes, new.index_book_comment, new.short_description
-                    );
-                END
-            """)
-            
-            conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS scenes_fts_delete AFTER DELETE ON scenes BEGIN
-                    DELETE FROM scenes_fts WHERE rowid = old.rowid;
-                END
-            """)
-            
-            conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS scenes_fts_update AFTER UPDATE ON scenes BEGIN
-                    DELETE FROM scenes_fts WHERE rowid = old.rowid;
-                    INSERT INTO scenes_fts(
+                CREATE TRIGGER IF NOT EXISTS scene_search_fts_insert AFTER INSERT ON scenes BEGIN
+                    INSERT INTO scene_search_fts(
                         rowid, scene_id, base_filename, description,
-                        roll_comment, date_notes, index_book_comment, short_description
-                    ) VALUES (
-                        new.rowid, new.scene_id, new.base_filename, new.description,
-                        new.roll_comment, new.date_notes, new.index_book_comment, new.short_description
-                    );
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    )
+                    SELECT
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    FROM scene_search_index
+                    WHERE rowid = new.rowid;
                 END
             """)
-            
-            # Populate FTS5 table with existing data
+
             conn.execute("""
-                INSERT OR IGNORE INTO scenes_fts(
-                    rowid, scene_id, base_filename, description,
-                    roll_comment, date_notes, index_book_comment, short_description
-                )
-                SELECT rowid, scene_id, base_filename, description,
-                       roll_comment, date_notes, index_book_comment, short_description
-                FROM scenes
+                CREATE TRIGGER IF NOT EXISTS scene_search_fts_delete AFTER DELETE ON scenes BEGIN
+                    DELETE FROM scene_search_fts WHERE rowid = old.rowid;
+                END
+            """)
+
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS scene_search_fts_update AFTER UPDATE ON scenes BEGIN
+                    DELETE FROM scene_search_fts WHERE rowid = old.rowid;
+                    INSERT INTO scene_search_fts(
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    )
+                    SELECT
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    FROM scene_search_index
+                    WHERE rowid = new.rowid;
+                END
+            """)
+
+            # scene_descriptions triggers
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS scene_search_fts_desc_insert AFTER INSERT ON scene_descriptions BEGIN
+                    DELETE FROM scene_search_fts
+                    WHERE rowid = (SELECT rowid FROM scenes WHERE scene_id = new.scene_id);
+                    INSERT INTO scene_search_fts(
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    )
+                    SELECT
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    FROM scene_search_index
+                    WHERE scene_id = new.scene_id;
+                END
+            """)
+
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS scene_search_fts_desc_update AFTER UPDATE ON scene_descriptions BEGIN
+                    DELETE FROM scene_search_fts
+                    WHERE rowid = (SELECT rowid FROM scenes WHERE scene_id = new.scene_id);
+                    INSERT INTO scene_search_fts(
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    )
+                    SELECT
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    FROM scene_search_index
+                    WHERE scene_id = new.scene_id;
+                END
+            """)
+
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS scene_search_fts_desc_delete AFTER DELETE ON scene_descriptions BEGIN
+                    DELETE FROM scene_search_fts
+                    WHERE rowid = (SELECT rowid FROM scenes WHERE scene_id = old.scene_id);
+                    INSERT INTO scene_search_fts(
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    )
+                    SELECT
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    FROM scene_search_index
+                    WHERE scene_id = old.scene_id;
+                END
+            """)
+
+            # scene_metadata triggers
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS scene_search_fts_meta_insert AFTER INSERT ON scene_metadata BEGIN
+                    DELETE FROM scene_search_fts
+                    WHERE rowid = (SELECT rowid FROM scenes WHERE scene_id = new.scene_id);
+                    INSERT INTO scene_search_fts(
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    )
+                    SELECT
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    FROM scene_search_index
+                    WHERE scene_id = new.scene_id;
+                END
+            """)
+
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS scene_search_fts_meta_update AFTER UPDATE ON scene_metadata BEGIN
+                    DELETE FROM scene_search_fts
+                    WHERE rowid = (SELECT rowid FROM scenes WHERE scene_id = new.scene_id);
+                    INSERT INTO scene_search_fts(
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    )
+                    SELECT
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    FROM scene_search_index
+                    WHERE scene_id = new.scene_id;
+                END
+            """)
+
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS scene_search_fts_meta_delete AFTER DELETE ON scene_metadata BEGIN
+                    DELETE FROM scene_search_fts
+                    WHERE rowid = (SELECT rowid FROM scenes WHERE scene_id = old.scene_id);
+                    INSERT INTO scene_search_fts(
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    )
+                    SELECT
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    FROM scene_search_index
+                    WHERE scene_id = old.scene_id;
+                END
+            """)
+
+            # scene_tags triggers
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS scene_search_fts_tags_insert AFTER INSERT ON scene_tags BEGIN
+                    DELETE FROM scene_search_fts
+                    WHERE rowid = (SELECT rowid FROM scenes WHERE scene_id = new.scene_id);
+                    INSERT INTO scene_search_fts(
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    )
+                    SELECT
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    FROM scene_search_index
+                    WHERE scene_id = new.scene_id;
+                END
+            """)
+
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS scene_search_fts_tags_delete AFTER DELETE ON scene_tags BEGIN
+                    DELETE FROM scene_search_fts
+                    WHERE rowid = (SELECT rowid FROM scenes WHERE scene_id = old.scene_id);
+                    INSERT INTO scene_search_fts(
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    )
+                    SELECT
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    FROM scene_search_index
+                    WHERE scene_id = old.scene_id;
+                END
+            """)
+
+            # scene_people triggers
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS scene_search_fts_people_insert AFTER INSERT ON scene_people BEGIN
+                    DELETE FROM scene_search_fts
+                    WHERE rowid = (SELECT rowid FROM scenes WHERE scene_id = new.scene_id);
+                    INSERT INTO scene_search_fts(
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    )
+                    SELECT
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    FROM scene_search_index
+                    WHERE scene_id = new.scene_id;
+                END
+            """)
+
+            conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS scene_search_fts_people_delete AFTER DELETE ON scene_people BEGIN
+                    DELETE FROM scene_search_fts
+                    WHERE rowid = (SELECT rowid FROM scenes WHERE scene_id = old.scene_id);
+                    INSERT INTO scene_search_fts(
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    )
+                    SELECT
+                        rowid, scene_id, base_filename, description,
+                        roll_comment, date_notes, index_book_comment,
+                        short_description, tags, people
+                    FROM scene_search_index
+                    WHERE scene_id = old.scene_id;
+                END
             """)
             
             conn.commit()
@@ -462,7 +755,7 @@ class PublicSiteDatabase:
         """Get scene by scene_id"""
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM scenes WHERE scene_id = ?",
+                SCENE_BASE_SELECT + " WHERE s.scene_id = ?",
                 (scene_id,)
             )
             row = cursor.fetchone()
@@ -475,16 +768,16 @@ class PublicSiteDatabase:
         with self.get_connection() as conn:
             if batch_name:
                 cursor = conn.execute(
-                    """SELECT * FROM scenes 
-                       WHERE batch_name = ?
-                       ORDER BY created_at DESC
+                    SCENE_BASE_SELECT + """
+                       WHERE s.batch_name = ?
+                       ORDER BY s.created_at DESC
                        LIMIT ? OFFSET ?""",
                     (batch_name, limit, offset)
                 )
             else:
                 cursor = conn.execute(
-                    """SELECT * FROM scenes 
-                       ORDER BY created_at DESC
+                    SCENE_BASE_SELECT + """
+                       ORDER BY s.created_at DESC
                        LIMIT ? OFFSET ?""",
                     (limit, offset)
                 )
@@ -506,17 +799,20 @@ class PublicSiteDatabase:
                     s.batch_name,
                     s.base_filename,
                     s.capture_date,
-                    s.roll_number,
-                    s.roll_date,
-                    s.date_source,
-                    s.date_notes,
-                    s.roll_comment,
-                    s.index_book_number,
-                    s.index_book_date,
-                    s.index_book_comment,
-                    s.short_description,
                     s.created_at AS scene_created_at,
                     s.updated_at AS scene_updated_at,
+                    md.roll_number,
+                    md.roll_date,
+                    md.date_source,
+                    md.date_notes,
+                    md.roll_comment,
+                    md.index_book_number,
+                    md.index_book_date,
+                    md.index_book_comment,
+                    sd.description,
+                    sd.description_model,
+                    sd.description_timestamp,
+                    sd.short_description,
                     iv.version_id,
                     iv.version_type,
                     iv.local_path,
@@ -529,6 +825,8 @@ class PublicSiteDatabase:
                     iv.synced_at,
                     iv.created_at AS version_created_at
                 FROM scenes s
+                LEFT JOIN scene_metadata md ON md.scene_id = s.scene_id
+                LEFT JOIN scene_descriptions sd ON sd.scene_id = s.scene_id
                 JOIN image_versions iv
                   ON iv.scene_id = s.scene_id
                  AND iv.is_current = 1
@@ -545,9 +843,9 @@ class PublicSiteDatabase:
         """Get all scenes for a given roll number"""
         with self.get_connection() as conn:
             cursor = conn.execute(
-                """SELECT * FROM scenes 
-                   WHERE roll_number = ?
-                   ORDER BY base_filename ASC""",
+                SCENE_BASE_SELECT + """
+                   WHERE sm.roll_number = ?
+                   ORDER BY s.base_filename ASC""",
                 (roll_number,)
             )
             rows = cursor.fetchall()
@@ -570,118 +868,183 @@ class PublicSiteDatabase:
             Dict with 'results' (list of scenes) and 'facets' (facet counts)
         """
         with self.get_connection() as conn:
-            # Build WHERE clause for filters
+            cte_parts = []
+            fts_params: List[str] = []
+            filter_params: List[str] = []
             where_clauses = []
-            params = []
-            
-            # FTS5 search
+            rank_select = "NULL AS rank"
+            join_fts = ""
+
+            # Build FTS match clause if query provided
             fts_query = None
             if query:
                 sanitized_query = re.sub(r'["\'\\]', ' ', query)
-                query_terms = [term.strip() for term in sanitized_query.split() if term.strip()]
-                if query_terms:
-                    fts_query = " OR ".join(f'"{term}"' for term in query_terms)
-            
-            if query and fts_query:
-                where_clauses.append("""
-                    scene_id IN (
-                        SELECT scene_id FROM scenes_fts 
-                        WHERE scenes_fts MATCH ?
+                terms = [term.strip() for term in sanitized_query.split() if term.strip()]
+                if terms:
+                    # Use prefix search for trailing wildcard support
+                    fts_query = " OR ".join(f'"{term}"' for term in terms)
+
+            if fts_query:
+                cte_parts.append("""
+                    fts_match AS (
+                        SELECT rowid, bm25(scene_search_fts) AS rank
+                        FROM scene_search_fts
+                        WHERE scene_search_fts MATCH ?
                     )
                 """)
-                params.append(fts_query)
-            
+                fts_params.append(fts_query)
+                join_fts = "JOIN fts_match fm ON fm.rowid = s.rowid"
+                rank_select = "fm.rank AS rank"
+
             # Faceted filters
             if roll_number:
-                where_clauses.append("roll_number = ?")
-                params.append(roll_number)
-            
+                where_clauses.append("sm.roll_number = ?")
+                filter_params.append(roll_number)
             if roll_date:
-                where_clauses.append("roll_date = ?")
-                params.append(roll_date)
-            
+                where_clauses.append("sm.roll_date = ?")
+                filter_params.append(roll_date)
             if batch_name:
-                where_clauses.append("batch_name = ?")
-                params.append(batch_name)
-            
+                where_clauses.append("s.batch_name = ?")
+                filter_params.append(batch_name)
             if date_source:
-                where_clauses.append("date_source = ?")
-                params.append(date_source)
-            
+                where_clauses.append("sm.date_source = ?")
+                filter_params.append(date_source)
+
             where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-            
-            # Get matching scenes
-            cursor = conn.execute(
-                f"""SELECT * FROM scenes 
-                   WHERE {where_sql}
-                   ORDER BY updated_at DESC
-                   LIMIT ? OFFSET ?""",
-                params + [limit, offset]
-            )
-            results = [self._row_to_dict(row, cursor.description) for row in cursor.fetchall()]
-            
-            # Get total count
-            cursor = conn.execute(
-                f"SELECT COUNT(*) FROM scenes WHERE {where_sql}",
-                params
-            )
-            total = cursor.fetchone()[0]
-            
-            # Get facet counts (only if no filters applied, or for active filters)
+
+            cte_parts.append(f"""
+                filtered AS (
+                    SELECT
+                        s.scene_id,
+                        s.rowid,
+                        s.batch_name,
+                        s.base_filename,
+                        s.capture_date,
+                        s.created_at,
+                        s.updated_at,
+                        {rank_select},
+                        sm.roll_number,
+                        sm.roll_date,
+                        sm.date_source,
+                        sm.date_notes,
+                        sm.roll_comment,
+                        sm.index_book_number,
+                        sm.index_book_date,
+                        sm.index_book_comment,
+                        sd.description,
+                        sd.description_model,
+                        sd.description_timestamp,
+                        sd.short_description
+                    FROM scenes s
+                    LEFT JOIN scene_metadata sm ON sm.scene_id = s.scene_id
+                    LEFT JOIN scene_descriptions sd ON sd.scene_id = s.scene_id
+                    {join_fts}
+                    WHERE {where_sql}
+                )
+            """)
+
+            cte_sql = "WITH " + ", ".join(part.strip() for part in cte_parts)
+            common_params = fts_params + filter_params
+
+            # Fetch result rows with current version data in a single query
+            result_sql = f"""
+                {cte_sql}
+                SELECT
+                    f.scene_id,
+                    f.batch_name,
+                    f.base_filename,
+                    f.capture_date,
+                    f.created_at,
+                    f.updated_at,
+                    f.rank,
+                    f.roll_number,
+                    f.roll_date,
+                    f.date_source,
+                    f.date_notes,
+                    f.roll_comment,
+                    f.index_book_number,
+                    f.index_book_date,
+                    f.index_book_comment,
+                    f.description,
+                    f.description_model,
+                    f.description_timestamp,
+                    f.short_description,
+                    iv.version_id,
+                    iv.version_type,
+                    iv.local_path,
+                    iv.r2_key,
+                    iv.md5_hash,
+                    iv.file_size,
+                    iv.width,
+                    iv.height,
+                    iv.synced_at
+                FROM filtered f
+                LEFT JOIN image_versions iv
+                  ON iv.scene_id = f.scene_id
+                 AND iv.is_current = 1
+                ORDER BY
+                    CASE WHEN f.rank IS NULL THEN 1 ELSE 0 END,
+                    f.rank,
+                    f.updated_at DESC
+                LIMIT ? OFFSET ?
+            """
+            cursor = conn.execute(result_sql, common_params + [limit, offset])
+            rows = cursor.fetchall()
+            results = [self._row_to_dict(row, cursor.description) for row in rows]
+
+            # Total count
+            total_sql = f"""
+                {cte_sql}
+                SELECT COUNT(*) FROM filtered
+            """
+            total_cursor = conn.execute(total_sql, common_params)
+            total_row = total_cursor.fetchone()
+            total = total_row[0] if isinstance(total_row, tuple) else total_row['COUNT(*)']
+
+            # Facets using filtered set
             facets = {}
-            
-            # Roll number facets
+            facet_base_sql = f"{cte_sql} SELECT {{field}}, COUNT(*) as count FROM filtered WHERE {{predicate}} GROUP BY {{field}} ORDER BY count DESC{{extra_order}} LIMIT {{limit}}"
+
             if not roll_number:
                 cursor = conn.execute(
-                    f"""SELECT roll_number, COUNT(*) as count 
-                       FROM scenes 
-                       WHERE {where_sql} AND roll_number IS NOT NULL
-                       GROUP BY roll_number 
-                       ORDER BY count DESC, roll_number ASC
-                       LIMIT 20""",
-                    params
+                    facet_base_sql.format(field="roll_number", predicate="roll_number IS NOT NULL", extra_order=", roll_number ASC", limit=20),
+                    common_params
                 )
-                facets['roll_numbers'] = [{'value': row[0], 'count': row[1]} for row in cursor.fetchall()]
-            
-            # Roll date facets
+                facets['roll_numbers'] = [
+                    {'value': row[0], 'count': row[1]} for row in cursor.fetchall()
+                    if row[0] is not None
+                ]
+
             if not roll_date:
                 cursor = conn.execute(
-                    f"""SELECT roll_date, COUNT(*) as count 
-                       FROM scenes 
-                       WHERE {where_sql} AND roll_date IS NOT NULL
-                       GROUP BY roll_date 
-                       ORDER BY count DESC, roll_date DESC
-                       LIMIT 20""",
-                    params
+                    facet_base_sql.format(field="roll_date", predicate="roll_date IS NOT NULL", extra_order=", roll_date DESC", limit=20),
+                    common_params
                 )
-                facets['roll_dates'] = [{'value': row[0], 'count': row[1]} for row in cursor.fetchall()]
-            
-            # Batch name facets
+                facets['roll_dates'] = [
+                    {'value': row[0], 'count': row[1]} for row in cursor.fetchall()
+                    if row[0] is not None
+                ]
+
             if not batch_name:
                 cursor = conn.execute(
-                    f"""SELECT batch_name, COUNT(*) as count 
-                       FROM scenes 
-                       WHERE {where_sql}
-                       GROUP BY batch_name 
-                       ORDER BY count DESC, batch_name ASC
-                       LIMIT 20""",
-                    params
+                    facet_base_sql.format(field="batch_name", predicate="batch_name IS NOT NULL", extra_order=", batch_name ASC", limit=20),
+                    common_params
                 )
-                facets['batch_names'] = [{'value': row[0], 'count': row[1]} for row in cursor.fetchall()]
-            
-            # Date source facets
+                facets['batch_names'] = [
+                    {'value': row[0], 'count': row[1]} for row in cursor.fetchall()
+                    if row[0] is not None
+                ]
+
             if not date_source:
                 cursor = conn.execute(
-                    f"""SELECT date_source, COUNT(*) as count 
-                       FROM scenes 
-                       WHERE {where_sql} AND date_source IS NOT NULL
-                       GROUP BY date_source 
-                       ORDER BY count DESC
-                       LIMIT 10""",
-                    params
+                    facet_base_sql.format(field="date_source", predicate="date_source IS NOT NULL", extra_order=", date_source ASC", limit=10),
+                    common_params
                 )
-                facets['date_sources'] = [{'value': row[0], 'count': row[1]} for row in cursor.fetchall()]
-            
+                facets['date_sources'] = [
+                    {'value': row[0], 'count': row[1]} for row in cursor.fetchall()
+                    if row[0] is not None
+                ]
+
             return {
                 'results': results,
                 'total': total,
@@ -705,7 +1068,7 @@ class PublicSiteDatabase:
             
             # Search roll numbers
             cursor = conn.execute(
-                """SELECT DISTINCT roll_number FROM scenes 
+                """SELECT DISTINCT roll_number FROM scene_metadata
                    WHERE roll_number LIKE ? AND roll_number IS NOT NULL
                    LIMIT ?""",
                 (f"%{query}%", limit)
@@ -714,7 +1077,7 @@ class PublicSiteDatabase:
             
             # Search roll comments
             cursor = conn.execute(
-                """SELECT DISTINCT roll_comment FROM scenes 
+                """SELECT DISTINCT roll_comment FROM scene_metadata 
                    WHERE roll_comment LIKE ? AND roll_comment IS NOT NULL
                    LIMIT ?""",
                 (f"%{query}%", limit)
@@ -722,6 +1085,84 @@ class PublicSiteDatabase:
             suggestions.extend([row[0] for row in cursor.fetchall() if row[0]])
             
             return list(set(suggestions))[:limit]
+    
+    def get_search_metadata_snapshot(self, refresh: bool = False) -> Dict[str, Any]:
+        """
+        Return cached facet metadata for the search UI.
+        The result is cached for a short TTL to avoid recomputing on every request.
+        """
+        now = datetime.utcnow()
+        if not refresh and self._metadata_cache and now < self._metadata_cache_expiry:
+            return self._metadata_cache
+
+        with self.get_connection() as conn:
+            # Total scenes count
+            cursor = conn.execute("SELECT COUNT(*) AS total FROM scenes")
+            total_row = cursor.fetchone()
+            total_scenes = total_row[0] if isinstance(total_row, tuple) else total_row['total']
+
+            def fetch_facet(sql: str) -> List[Dict[str, Any]]:
+                cur = conn.execute(sql)
+                rows = cur.fetchall()
+                return [
+                    {
+                        'value': row[0] if isinstance(row, tuple) else row['value'],
+                        'count': row[1] if isinstance(row, tuple) else row['count']
+                    }
+                    for row in rows
+                    if (row[0] if isinstance(row, tuple) else row['value']) is not None
+                ]
+
+            roll_numbers = fetch_facet("""
+                SELECT sm.roll_number AS value, COUNT(*) AS count
+                FROM scenes s
+                LEFT JOIN scene_metadata sm ON sm.scene_id = s.scene_id
+                WHERE sm.roll_number IS NOT NULL
+                GROUP BY sm.roll_number
+                ORDER BY count DESC, sm.roll_number ASC
+                LIMIT 20
+            """)
+
+            roll_dates = fetch_facet("""
+                SELECT sm.roll_date AS value, COUNT(*) AS count
+                FROM scenes s
+                LEFT JOIN scene_metadata sm ON sm.scene_id = s.scene_id
+                WHERE sm.roll_date IS NOT NULL
+                GROUP BY sm.roll_date
+                ORDER BY count DESC, sm.roll_date DESC
+                LIMIT 20
+            """)
+
+            batch_names = fetch_facet("""
+                SELECT s.batch_name AS value, COUNT(*) AS count
+                FROM scenes s
+                GROUP BY s.batch_name
+                ORDER BY count DESC, s.batch_name ASC
+                LIMIT 20
+            """)
+
+            date_sources = fetch_facet("""
+                SELECT sm.date_source AS value, COUNT(*) AS count
+                FROM scenes s
+                LEFT JOIN scene_metadata sm ON sm.scene_id = s.scene_id
+                WHERE sm.date_source IS NOT NULL
+                GROUP BY sm.date_source
+                ORDER BY count DESC, sm.date_source ASC
+                LIMIT 10
+            """)
+
+        snapshot = {
+            'total_scenes': total_scenes,
+            'roll_numbers': roll_numbers,
+            'roll_dates': roll_dates,
+            'batch_names': batch_names,
+            'date_sources': date_sources
+        }
+
+        self._metadata_cache = snapshot
+        self._metadata_cache_expiry = now + self._metadata_cache_ttl
+
+        return snapshot
     
     def get_current_version_for_scene(self, scene_id: str) -> Optional[Dict]:
         """Get the current (live) version for a scene"""
@@ -825,35 +1266,69 @@ class PublicSiteDatabase:
             if description:
                 logger.info(f"Storing description for {scene_id}: model={description_model}, length={len(description)}")
             
-            # Use INSERT ... ON CONFLICT to properly update all fields
+            # Upsert base scene record (kept narrow for performance)
             conn.execute(
                 """INSERT INTO scenes 
-                   (scene_id, batch_name, base_filename, capture_date, description, description_model, description_timestamp,
-                    roll_number, roll_date, date_source, date_notes, roll_comment,
-                    index_book_number, index_book_date, index_book_comment, short_description, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                   (scene_id, batch_name, base_filename, capture_date, updated_at)
+                   VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
                    ON CONFLICT(scene_id) DO UPDATE SET
                        batch_name = excluded.batch_name,
                        base_filename = excluded.base_filename,
                        capture_date = excluded.capture_date,
-                       description = excluded.description,
-                       description_model = excluded.description_model,
-                       description_timestamp = excluded.description_timestamp,
-                       roll_number = excluded.roll_number,
-                       roll_date = excluded.roll_date,
-                       date_source = excluded.date_source,
-                       date_notes = excluded.date_notes,
-                       roll_comment = excluded.roll_comment,
-                       index_book_number = excluded.index_book_number,
-                       index_book_date = excluded.index_book_date,
-                       index_book_comment = excluded.index_book_comment,
-                       short_description = excluded.short_description,
                        updated_at = CURRENT_TIMESTAMP""",
-                (scene_id, batch_name, base_filename, capture_date, description, description_model, description_timestamp,
-                 roll_number, roll_date, date_source, date_notes, roll_comment,
-                 index_book_number, index_book_date, index_book_comment, short_description)
+                (scene_id, batch_name, base_filename, capture_date)
             )
+
+            # Upsert description details
+            if any([description, description_model, description_timestamp, short_description]):
+                conn.execute(
+                    """INSERT INTO scene_descriptions
+                       (scene_id, description, description_model, description_timestamp, short_description)
+                       VALUES (?, ?, ?, ?, ?)
+                       ON CONFLICT(scene_id) DO UPDATE SET
+                           description = excluded.description,
+                           description_model = excluded.description_model,
+                           description_timestamp = excluded.description_timestamp,
+                           short_description = excluded.short_description
+                    """,
+                    (scene_id, description, description_model, description_timestamp, short_description)
+                )
+            else:
+                conn.execute(
+                    "DELETE FROM scene_descriptions WHERE scene_id = ?",
+                    (scene_id,)
+                )
+
+            # Upsert metadata details
+            if any([roll_number, roll_date, date_source, date_notes, roll_comment,
+                    index_book_number, index_book_date, index_book_comment]):
+                conn.execute(
+                    """INSERT INTO scene_metadata
+                       (scene_id, roll_number, roll_date, date_source, date_notes, roll_comment,
+                        index_book_number, index_book_date, index_book_comment)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(scene_id) DO UPDATE SET
+                           roll_number = excluded.roll_number,
+                           roll_date = excluded.roll_date,
+                           date_source = excluded.date_source,
+                           date_notes = excluded.date_notes,
+                           roll_comment = excluded.roll_comment,
+                           index_book_number = excluded.index_book_number,
+                           index_book_date = excluded.index_book_date,
+                           index_book_comment = excluded.index_book_comment
+                    """,
+                    (scene_id, roll_number, roll_date, date_source, date_notes, roll_comment,
+                     index_book_number, index_book_date, index_book_comment)
+                )
+            else:
+                conn.execute(
+                    "DELETE FROM scene_metadata WHERE scene_id = ?",
+                    (scene_id,)
+                )
+
             conn.commit()
+            self._metadata_cache = None
+            self._metadata_cache_expiry = datetime.min
             return scene_id
     
     def create_version(
@@ -955,51 +1430,47 @@ class PublicSiteDatabase:
                         index_book_comment = scene_data.get('index_book_comment')
                         short_description = scene_data.get('short_description')
                         
-                        # Insert/update scene
-                        if self.use_turso:
-                            # For Turso, use execute with tuple result
-                            cursor = conn.execute(
-                                """INSERT INTO scenes 
-                                   (scene_id, batch_name, base_filename, capture_date, description, description_model, description_timestamp,
-                                    roll_number, roll_date, date_source, date_notes, roll_comment,
-                                    index_book_number, index_book_date, index_book_comment, short_description, updated_at)
-                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                        # Insert/update base scene row
+                        conn.execute(
+                            """INSERT INTO scenes 
+                               (scene_id, batch_name, base_filename, capture_date, updated_at)
+                               VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                               ON CONFLICT(scene_id) DO UPDATE SET
+                                   batch_name = excluded.batch_name,
+                                   base_filename = excluded.base_filename,
+                                   capture_date = excluded.capture_date,
+                                   updated_at = CURRENT_TIMESTAMP""",
+                            (scene_id, batch_name, base_filename, capture_date)
+                        )
+
+                        # Upsert descriptions
+                        if any([description, description_model, description_timestamp, short_description]):
+                            conn.execute(
+                                """INSERT INTO scene_descriptions
+                                   (scene_id, description, description_model, description_timestamp, short_description)
+                                   VALUES (?, ?, ?, ?, ?)
                                    ON CONFLICT(scene_id) DO UPDATE SET
-                                       batch_name = excluded.batch_name,
-                                       base_filename = excluded.base_filename,
-                                       capture_date = excluded.capture_date,
                                        description = excluded.description,
                                        description_model = excluded.description_model,
                                        description_timestamp = excluded.description_timestamp,
-                                       roll_number = excluded.roll_number,
-                                       roll_date = excluded.roll_date,
-                                       date_source = excluded.date_source,
-                                       date_notes = excluded.date_notes,
-                                       roll_comment = excluded.roll_comment,
-                                       index_book_number = excluded.index_book_number,
-                                       index_book_date = excluded.index_book_date,
-                                       index_book_comment = excluded.index_book_comment,
-                                       short_description = excluded.short_description,
-                                       updated_at = CURRENT_TIMESTAMP""",
-                                (scene_id, batch_name, base_filename, capture_date, description, description_model, description_timestamp,
-                                 roll_number, roll_date, date_source, date_notes, roll_comment,
-                                 index_book_number, index_book_date, index_book_comment, short_description)
+                                       short_description = excluded.short_description""",
+                                (scene_id, description, description_model, description_timestamp, short_description)
                             )
                         else:
-                            # For SQLite
                             conn.execute(
-                                """INSERT INTO scenes 
-                                   (scene_id, batch_name, base_filename, capture_date, description, description_model, description_timestamp,
-                                    roll_number, roll_date, date_source, date_notes, roll_comment,
-                                    index_book_number, index_book_date, index_book_comment, short_description, updated_at)
-                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                                "DELETE FROM scene_descriptions WHERE scene_id = ?",
+                                (scene_id,)
+                            )
+
+                        # Upsert metadata
+                        if any([roll_number, roll_date, date_source, date_notes, roll_comment,
+                                index_book_number, index_book_date, index_book_comment]):
+                            conn.execute(
+                                """INSERT INTO scene_metadata
+                                   (scene_id, roll_number, roll_date, date_source, date_notes, roll_comment,
+                                    index_book_number, index_book_date, index_book_comment)
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                                    ON CONFLICT(scene_id) DO UPDATE SET
-                                       batch_name = excluded.batch_name,
-                                       base_filename = excluded.base_filename,
-                                       capture_date = excluded.capture_date,
-                                       description = excluded.description,
-                                       description_model = excluded.description_model,
-                                       description_timestamp = excluded.description_timestamp,
                                        roll_number = excluded.roll_number,
                                        roll_date = excluded.roll_date,
                                        date_source = excluded.date_source,
@@ -1007,12 +1478,14 @@ class PublicSiteDatabase:
                                        roll_comment = excluded.roll_comment,
                                        index_book_number = excluded.index_book_number,
                                        index_book_date = excluded.index_book_date,
-                                       index_book_comment = excluded.index_book_comment,
-                                       short_description = excluded.short_description,
-                                       updated_at = CURRENT_TIMESTAMP""",
-                                (scene_id, batch_name, base_filename, capture_date, description, description_model, description_timestamp,
-                                 roll_number, roll_date, date_source, date_notes, roll_comment,
-                                 index_book_number, index_book_date, index_book_comment, short_description)
+                                       index_book_comment = excluded.index_book_comment""",
+                                (scene_id, roll_number, roll_date, date_source, date_notes, roll_comment,
+                                 index_book_number, index_book_date, index_book_comment)
+                            )
+                        else:
+                            conn.execute(
+                                "DELETE FROM scene_metadata WHERE scene_id = ?",
+                                (scene_id,)
                             )
                         
                         # Process versions
@@ -1124,6 +1597,8 @@ class PublicSiteDatabase:
                 
                 # Commit all changes at once
                 conn.commit()
+                self._metadata_cache = None
+                self._metadata_cache_expiry = datetime.min
                 
             except Exception as e:
                 logger.error(f"Batch sync error: {e}", exc_info=True)

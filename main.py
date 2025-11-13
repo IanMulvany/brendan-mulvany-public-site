@@ -614,10 +614,16 @@ async def search_images(
     """
     # If no query and no filters, return empty results
     if not q and not any([roll_number, roll_date, batch_name, date_source]):
+        metadata_snapshot = public_db.get_search_metadata_snapshot()
         return {
             "results": [],
-            "total": 0,
-            "facets": {},
+            "total": metadata_snapshot.get("total_scenes", 0),
+            "facets": {
+                "roll_numbers": metadata_snapshot.get("roll_numbers", []),
+                "roll_dates": metadata_snapshot.get("roll_dates", []),
+                "batch_names": metadata_snapshot.get("batch_names", []),
+                "date_sources": metadata_snapshot.get("date_sources", []),
+            },
             "query": q
         }
     
@@ -635,14 +641,14 @@ async def search_images(
     # Convert scenes to image format with image_ids
     images = []
     for scene in search_result['results']:
-        version = public_db.get_current_version_for_scene(scene['scene_id'])
-        if not version:
+        if not scene.get('version_id'):
             continue  # Skip scenes without live versions
-        
-        image_id = scene_id_to_image_id(scene['scene_id'])
+
+        scene_id = scene['scene_id']
+        image_id = scene_id_to_image_id(scene_id)
         
         # Build URLs - use direct CDN URLs if available, otherwise use redirect URLs
-        r2_key = version.get('r2_key')
+        r2_key = scene.get('r2_key')
         if r2_key and storage_backend:
             # Use direct CDN URLs
             image_url = storage_backend.get_file_url(r2_key)
@@ -659,7 +665,7 @@ async def search_images(
         
         images.append({
             'image_id': image_id,
-            'scene_id': scene['scene_id'],
+            'scene_id': scene_id,
             'image_name': scene['base_filename'],
             'base_filename': scene['base_filename'],
             'batch_name': scene['batch_name'],
