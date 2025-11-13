@@ -316,7 +316,7 @@ async def search_page():
 
 @app.get("/api/public/images")
 async def list_images(
-    limit: int = Query(1000, ge=1, le=10000),
+    limit: int = Query(48, ge=1, le=500),
     offset: int = Query(0, ge=0)
 ):
     """List public images (backward compatibility - uses scene-based data)"""
@@ -356,11 +356,14 @@ async def list_images(
         }
         public_images.append(img_dict)
     
+    has_more = len(scene_records) == limit
+    
     return {
         "images": public_images,
         "total": len(public_images),
         "limit": limit,
-        "offset": offset
+        "offset": offset,
+        "has_more": has_more
     }
 
 

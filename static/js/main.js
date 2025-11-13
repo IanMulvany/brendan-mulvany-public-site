@@ -3,17 +3,22 @@
 
 const API_BASE = ''; // Same origin
 let currentPage = 0;
-let currentLimit = 1000; // Show all images
+let currentLimit = 48; // Default to 48 thumbnails per page
 let currentFilters = {};
 let allImageIds = []; // Store all image IDs for navigation
 let authToken = localStorage.getItem('authToken');
 let currentUser = null;
+let isLoading = false;
+let hasMore = true;
+
+const GALLERY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const GALLERY_CACHE_PREFIX = 'gallery-cache::';
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     initializeAuth();
-    loadImages();
     setupEventListeners();
+    loadImages({ reset: true });
 });
 
 // Auth Functions
@@ -77,6 +82,12 @@ function setupEventListeners() {
     const logoutBtn = document.getElementById('logout-btn');
     if (loginBtn) loginBtn.addEventListener('click', showLoginModal);
     if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+    
+    // Pagination
+    const loadMoreButton = document.getElementById('load-more-button');
+    if (loadMoreButton) {
+        loadMoreButton.addEventListener('click', () => loadImages());
+    }
     
     // Login/Register modals
     setupAuthModals();
@@ -162,40 +173,96 @@ function escapeHtml(text) {
 }
 
 // Load Images
-async function loadImages() {
+async function loadImages({ reset = false } = {}) {
     const container = document.getElementById('gallery-container');
     if (!container) return;
     
-    container.innerHTML = '<p class="gallery__loading">Loading images...</p>';
+    const loadMoreContainer = document.getElementById('gallery-load-more');
+    
+    if (reset) {
+        currentPage = 0;
+        hasMore = true;
+        allImageIds = [];
+        if (loadMoreContainer) {
+            loadMoreContainer.classList.add('gallery__load-more--hidden');
+        }
+        container.innerHTML = '<p class="gallery__loading">Loading images...</p>';
+    }
+    
+    if (isLoading || (!hasMore && currentPage !== 0)) {
+        return;
+    }
+    
+    const page = currentPage;
+    const cacheKey = getGalleryCacheKey(page);
+    const cachedPage = getCachedGalleryPage(cacheKey);
+    
+    if (cachedPage) {
+        if (page === 0) {
+            container.innerHTML = '';
+        }
+        renderGalleryPage(cachedPage.images, page > 0);
+        hasMore = typeof cachedPage.has_more === 'boolean'
+            ? cachedPage.has_more
+            : (cachedPage.images.length === currentLimit);
+        allImageIds = allImageIds.concat(cachedPage.images.map(img => img.image_id));
+        currentPage += 1;
+        updateLoadMoreState();
+        return;
+    }
+    
+    isLoading = true;
+    updateLoadMoreState();
+    
+    const params = new URLSearchParams({
+        limit: currentLimit,
+        offset: page * currentLimit,
+        ...currentFilters
+    });
     
     try {
-        const params = new URLSearchParams({
-            limit: currentLimit,
-            offset: currentPage * currentLimit,
-            ...currentFilters
-        });
-        
         const response = await fetch(`${API_BASE}/api/public/images?${params}`);
+        if (!response.ok) {
+            throw new Error(`Failed to load images: ${response.status}`);
+        }
+        
         const data = await response.json();
         
+        if (page === 0) {
+            container.innerHTML = '';
+        }
+        
         if (data.images && data.images.length > 0) {
-            // Store all image IDs for navigation
-            allImageIds = data.images.map(img => img.image_id);
-            displayImages(data.images);
-        } else {
+            renderGalleryPage(data.images, page > 0);
+            hasMore = data.has_more ?? (data.images.length === currentLimit);
+            allImageIds = allImageIds.concat(data.images.map(img => img.image_id));
+            cacheGalleryPage(cacheKey, data);
+            currentPage += 1;
+        } else if (page === 0) {
             container.innerHTML = '<p class="gallery__loading">No images found</p>';
+            hasMore = false;
+        } else {
+            hasMore = false;
         }
     } catch (error) {
         console.error('Error loading images:', error);
-        container.innerHTML = '<p class="gallery__loading">Error loading images</p>';
+        if (page === 0) {
+            container.innerHTML = '<p class="gallery__loading">Error loading images</p>';
+        }
+        hasMore = false;
+    } finally {
+        isLoading = false;
+        updateLoadMoreState();
     }
 }
 
-function displayImages(images) {
+function renderGalleryPage(images, append = false) {
     const container = document.getElementById('gallery-container');
     if (!container) return;
     
-    container.innerHTML = '';
+    if (!append) {
+        container.innerHTML = '';
+    }
     
     images.forEach(image => {
         const item = document.createElement('div');
@@ -221,7 +288,86 @@ function displayImages(images) {
     });
 }
 
-// Pagination functions removed - showing all images now
+function updateLoadMoreState() {
+    const loadMoreContainer = document.getElementById('gallery-load-more');
+    const loadMoreButton = document.getElementById('load-more-button');
+    
+    if (!loadMoreContainer || !loadMoreButton) {
+        return;
+    }
+    
+    if (allImageIds.length === 0) {
+        loadMoreContainer.classList.add('gallery__load-more--hidden');
+        return;
+    }
+    
+    loadMoreContainer.classList.remove('gallery__load-more--hidden');
+    
+    if (isLoading) {
+        loadMoreButton.textContent = 'Loading…';
+        loadMoreButton.disabled = true;
+        return;
+    }
+    
+    if (hasMore) {
+        loadMoreButton.textContent = 'Load More';
+        loadMoreButton.disabled = false;
+    } else {
+        loadMoreButton.textContent = 'All Images Loaded';
+        loadMoreButton.disabled = true;
+    }
+}
+
+function getGalleryCacheKey(page) {
+    const filterKey = serializeFilters(currentFilters) || 'all';
+    return `${GALLERY_CACHE_PREFIX}${filterKey}::${currentLimit}::${page}`;
+}
+
+function cacheGalleryPage(key, data) {
+    try {
+        sessionStorage.setItem(key, JSON.stringify({
+            images: data.images || [],
+            limit: data.limit,
+            offset: data.offset,
+            has_more: data.has_more ?? null,
+            cached_at: Date.now()
+        }));
+    } catch (error) {
+        console.warn('Unable to cache gallery page:', error);
+    }
+}
+
+function getCachedGalleryPage(key) {
+    try {
+        const raw = sessionStorage.getItem(key);
+        if (!raw) {
+            return null;
+        }
+        const parsed = JSON.parse(raw);
+        if (!parsed.cached_at || (Date.now() - parsed.cached_at) > GALLERY_CACHE_TTL) {
+            sessionStorage.removeItem(key);
+            return null;
+        }
+        return parsed;
+    } catch (error) {
+        sessionStorage.removeItem(key);
+        return null;
+    }
+}
+
+function serializeFilters(filters) {
+    const keys = Object.keys(filters).sort();
+    const params = [];
+    keys.forEach(key => {
+        const value = filters[key];
+        if (value === undefined || value === null || value === '') {
+            return;
+        }
+        params.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+    });
+    return params.join('&');
+}
+
 // Image Modal functions removed - using page navigation instead
 
 // Auth Modals
