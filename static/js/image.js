@@ -17,12 +17,52 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+const NAV_CACHE_KEY = 'image-nav::ids';
+const NAV_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 // Load all image IDs for navigation
 async function loadAllImageIds() {
+    const cachedIds = getCachedNavIds();
+    if (cachedIds && Array.isArray(cachedIds) && cachedIds.length > 0) {
+        allImageIds = cachedIds;
+        return;
+    }
+    
+    const limit = 200;
+    let offset = 0;
+    let hasMore = true;
+    const ids = [];
+    
     try {
-        const response = await fetch(`${API_BASE}/api/public/images?limit=1000`);
-        const data = await response.json();
-        allImageIds = data.images.map(img => img.image_id);
+        while (hasMore) {
+            const params = new URLSearchParams({
+                limit,
+                offset
+            });
+            
+            const response = await fetch(`${API_BASE}/api/public/images?${params}`);
+            if (!response.ok) {
+                throw new Error(`Failed to load image IDs: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const images = Array.isArray(data.images) ? data.images : [];
+            
+            images.forEach(img => {
+                if (typeof img.image_id === 'number') {
+                    ids.push(img.image_id);
+                }
+            });
+            
+            const pageHasMore = data.has_more ?? (images.length === limit);
+            hasMore = pageHasMore && images.length > 0;
+            if (hasMore) {
+                offset += limit;
+            }
+        }
+        
+        allImageIds = ids;
+        cacheNavIds(ids);
     } catch (error) {
         console.error('Error loading image IDs:', error);
     }
@@ -38,6 +78,10 @@ async function loadImage(imageId) {
     
     try {
         const response = await fetch(`${API_BASE}/api/public/images/${imageId}`);
+        if (!response.ok) {
+            throw new Error(`Failed to load image: ${response.status}`);
+        }
+        
         const image = await response.json();
         
         // Set image
@@ -187,5 +231,34 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function cacheNavIds(ids) {
+    try {
+        const payload = {
+            ids,
+            cached_at: Date.now()
+        };
+        sessionStorage.setItem(NAV_CACHE_KEY, JSON.stringify(payload));
+    } catch (error) {
+        console.warn('Unable to cache navigation IDs:', error);
+    }
+}
+
+function getCachedNavIds() {
+    try {
+        const raw = sessionStorage.getItem(NAV_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.ids)) return null;
+        if (!parsed.cached_at || (Date.now() - parsed.cached_at) > NAV_CACHE_TTL) {
+            sessionStorage.removeItem(NAV_CACHE_KEY);
+            return null;
+        }
+        return parsed.ids;
+    } catch (error) {
+        sessionStorage.removeItem(NAV_CACHE_KEY);
+        return null;
+    }
 }
 
