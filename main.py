@@ -336,12 +336,28 @@ async def list_images(
         # Get local path for backward compatibility
         local_path = version.get('local_path', '')
         
+        # Build URLs - use direct CDN URLs if available, otherwise use redirect URLs
+        r2_key = version.get('r2_key')
+        if r2_key and storage_backend:
+            # Use direct CDN URLs
+            image_url = storage_backend.get_file_url(r2_key)
+            # Thumbnail naming: scenes/{scene_id}-thumb.jpg
+            if '.' in r2_key:
+                thumbnail_key = r2_key.rsplit('.', 1)[0] + '-thumb.jpg'
+            else:
+                thumbnail_key = r2_key + '-thumb.jpg'
+            thumbnail_url = storage_backend.get_file_url(thumbnail_key)
+        else:
+            # Fallback to redirect URLs
+            image_url = f"/api/public/images/{image_id}/image"
+            thumbnail_url = f"/api/public/images/{image_id}/thumbnail"
+        
         img_dict = {
             'image_id': image_id,
             'image_path': local_path,
             'image_name': scene['base_filename'],
-            'image_url': f"/api/public/images/{image_id}/image",
-            'thumbnail_url': f"/api/public/images/{image_id}/thumbnail",
+            'image_url': image_url,
+            'thumbnail_url': thumbnail_url,
             'bm_batch_year': '',
             'roll_number': '',
             'capture_date': scene.get('capture_date'),
@@ -451,9 +467,22 @@ async def get_image(image_id: int):
     # Get annotations
     annotations = public_db.get_annotations_for_image(image_id)
     
-    # Build URLs
-    image['image_url'] = f"/api/public/images/{image_id}/image"
-    image['thumbnail_url'] = f"/api/public/images/{image_id}/thumbnail"
+    # Build URLs - use direct CDN URLs if available, otherwise use redirect URLs
+    r2_key = version.get('r2_key')
+    if r2_key and storage_backend:
+        # Use direct CDN URLs
+        image['image_url'] = storage_backend.get_file_url(r2_key)
+        # Thumbnail naming: scenes/{scene_id}-thumb.jpg
+        if '.' in r2_key:
+            thumbnail_key = r2_key.rsplit('.', 1)[0] + '-thumb.jpg'
+        else:
+            thumbnail_key = r2_key + '-thumb.jpg'
+        image['thumbnail_url'] = storage_backend.get_file_url(thumbnail_key)
+    else:
+        # Fallback to redirect URLs
+        image['image_url'] = f"/api/public/images/{image_id}/image"
+        image['thumbnail_url'] = f"/api/public/images/{image_id}/thumbnail"
+    
     image['annotations'] = annotations
     
     return image
@@ -621,6 +650,23 @@ async def search_images(
             continue  # Skip scenes without live versions
         
         image_id = scene_id_to_image_id(scene['scene_id'])
+        
+        # Build URLs - use direct CDN URLs if available, otherwise use redirect URLs
+        r2_key = version.get('r2_key')
+        if r2_key and storage_backend:
+            # Use direct CDN URLs
+            image_url = storage_backend.get_file_url(r2_key)
+            # Thumbnail naming: scenes/{scene_id}-thumb.jpg
+            if '.' in r2_key:
+                thumbnail_key = r2_key.rsplit('.', 1)[0] + '-thumb.jpg'
+            else:
+                thumbnail_key = r2_key + '-thumb.jpg'
+            thumbnail_url = storage_backend.get_file_url(thumbnail_key)
+        else:
+            # Fallback to redirect URLs
+            image_url = f"/api/public/images/{image_id}/image"
+            thumbnail_url = f"/api/public/images/{image_id}/thumbnail"
+        
         images.append({
             'image_id': image_id,
             'scene_id': scene['scene_id'],
@@ -632,8 +678,8 @@ async def search_images(
             'roll_date': scene.get('roll_date'),
             'roll_comment': scene.get('roll_comment'),
             'description': scene.get('description'),
-            'image_url': f"/api/public/images/{image_id}/image",
-            'thumbnail_url': f"/api/public/images/{image_id}/thumbnail"
+            'image_url': image_url,
+            'thumbnail_url': thumbnail_url
         })
     
     return {
