@@ -1205,39 +1205,38 @@ async def find_similar_scenes(
     similar = public_db.find_similar_scenes(target_hash, threshold=threshold, limit=limit)
     
     # Build response with scene details
+    # NOTE: find_similar_scenes() already returns batch_name, base_filename, capture_date, and r2_key
+    # from the JOIN query, so we don't need additional DB queries (fixes N+1 problem)
     results = []
     for item in similar:
         # Skip the scene itself
         if item['scene_id'] == scene_id:
             continue
         
-        similar_scene = public_db.get_scene(item['scene_id'])
-        if similar_scene:
-            # Get current version for similar scene to check r2_key
-            similar_version = public_db.get_current_version_for_scene(item['scene_id'])
-            similar_image_id = scene_id_to_image_id(item['scene_id'])
-            
-            # Generate direct CDN URLs if r2_key exists (same pattern as gallery endpoint)
-            r2_key = similar_version.get('r2_key') if similar_version else None
-            if r2_key and storage_backend:
-                base_url = storage_backend.get_file_url(r2_key)
-                image_url = f"{base_url}/original.jpg"
-                thumbnail_url = f"{base_url}/thumb.avif"
-            else:
-                # Fallback to redirect URLs
-                image_url = f"/api/public/scenes/{item['scene_id']}/image"
-                thumbnail_url = f"/api/public/scenes/{item['scene_id']}/thumbnail"
-            
-            results.append({
-                'scene_id': item['scene_id'],
-                'image_id': similar_image_id,  # Add image_id for frontend navigation
-                'distance': item['distance'],
-                'batch_name': item['batch_name'],
-                'base_filename': item['base_filename'],
-                'capture_date': item.get('capture_date'),
-                'image_url': image_url,
-                'thumbnail_url': thumbnail_url
-            })
+        similar_image_id = scene_id_to_image_id(item['scene_id'])
+        
+        # Generate direct CDN URLs if r2_key exists (same pattern as gallery endpoint)
+        # r2_key is already in item from find_similar_scenes() JOIN query
+        r2_key = item.get('r2_key')
+        if r2_key and storage_backend:
+            base_url = storage_backend.get_file_url(r2_key)
+            image_url = f"{base_url}/original.jpg"
+            thumbnail_url = f"{base_url}/thumb.avif"
+        else:
+            # Fallback to redirect URLs
+            image_url = f"/api/public/scenes/{item['scene_id']}/image"
+            thumbnail_url = f"/api/public/scenes/{item['scene_id']}/thumbnail"
+        
+        results.append({
+            'scene_id': item['scene_id'],
+            'image_id': similar_image_id,  # Add image_id for frontend navigation
+            'distance': item['distance'],
+            'batch_name': item['batch_name'],  # Already from JOIN
+            'base_filename': item['base_filename'],  # Already from JOIN
+            'capture_date': item.get('capture_date'),  # Already from JOIN
+            'image_url': image_url,
+            'thumbnail_url': thumbnail_url
+        })
     
     return {
         "query_scene_id": scene_id,
