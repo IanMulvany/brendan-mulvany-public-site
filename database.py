@@ -1062,9 +1062,10 @@ class PublicSiteDatabase:
                                      version_data.get('r2_key'), is_current, synced_at, file_size)
                                 )
                         
-                        # Handle current version's r2_key
+                        # Handle current version's r2_key (now points to manifest)
                         if current_version_id:
-                            storage_key = f"scenes/{scene_id}.jpg"
+                            # R2 manifest: the key is just the scene_id (manifest at {scene_id}/manifest.json)
+                            storage_key = scene_id
                             
                             # Check if already synced (query within same connection)
                             cursor = conn.execute(

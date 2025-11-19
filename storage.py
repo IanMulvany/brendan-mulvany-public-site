@@ -156,7 +156,15 @@ class CDNBackend(StorageBackend):
         return True
     
     def get_file_url(self, storage_key: str) -> str:
-        """Get public CDN URL for file"""
+        """
+        Get public CDN URL for file (R2 manifest format)
+        
+        Expected format: scene_id only (e.g., "2025-11-04-batch-1-DSCF1533")
+        Resulting URL: https://cdn.example.com/2025-11-04-batch-1-DSCF1533 (extensionless)
+        
+        The manifest file should be at {scene_id}/manifest.json in R2.
+        Cloudflare will automatically select the best variant based on browser capabilities.
+        """
         # Ensure storage_key doesn't start with /
         storage_key = storage_key.lstrip('/')
         return f"{self.public_url}/{storage_key}"

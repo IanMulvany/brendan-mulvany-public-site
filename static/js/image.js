@@ -84,8 +84,26 @@ async function loadImage(imageId) {
         
         const image = await response.json();
         
-        // Set image
-        imageEl.src = image.image_url;
+        // Build srcset from predictable variant pattern (no manifest needed)
+        if (image.base_url) {
+            const base = image.base_url;
+            
+            // Build srcset with AVIF (preferred) and WebP (fallback) variants
+            // Browser will automatically select best format and size
+            const srcset = [
+                `${base}/small.avif 800w`,
+                `${base}/large.avif 1600w`,
+                `${base}/small.webp 800w`,  // WebP fallback for browsers without AVIF
+                `${base}/large.webp 1600w`, // WebP fallback
+            ].join(', ');
+            
+            imageEl.srcset = srcset;
+            imageEl.sizes = '(max-width: 1200px) 100vw, 1200px';
+            imageEl.src = `${base}/original.jpg`;  // Fallback for browsers without srcset support
+        } else {
+            // Fallback to old behavior
+            imageEl.src = image.image_url;
+        }
         imageEl.alt = image.image_name || 'Image';
         
         // Build info HTML
