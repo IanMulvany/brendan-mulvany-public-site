@@ -63,6 +63,7 @@ logs/
 storage/
 storage-test/
 public_storage_mock_dir/
+dist/
 
 # Temp files
 *.tmp
