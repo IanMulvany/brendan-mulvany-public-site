@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Archive - Brendan Mulvany</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #e8dcc8;
+            --card: #f8f5f0;
+            --text: #2c2417;
+            --text-muted: #6b5d4d;
+            --shadow: rgba(44, 36, 23, 0.15);
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: var(--bg);
+            background-image:
+                radial-gradient(circle at 20% 50%, rgba(139, 119, 101, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(139, 119, 101, 0.1) 0%, transparent 50%);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Cork Board Header */
+        .header {
+            background: #5d4e37;
+            padding: 16px 24px;
+            color: #f5f0e8;
+        }
+
+        .header__inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header__title {
+            font-size: 1.2rem;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+        }
+
+        .header__nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        .header__nav a {
+            color: #d4c9b8;
+            text-decoration: none;
+            padding: 6px 14px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: color 0.2s;
+        }
+
+        .header__nav a:hover,
+        .header__nav a.active {
+            color: #fff;
+        }
+
+        /* Main */
+        .main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 48px 24px;
+        }
+
+        .search-box {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .search-box input {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px 16px;
+            background: var(--card);
+            border: none;
+            box-shadow: 2px 2px 8px var(--shadow);
+            font-family: inherit;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        /* Polaroid Grid */
+        .polaroids {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 32px;
+            justify-items: center;
+        }
+
+        .polaroid {
+            background: var(--card);
+            padding: 12px 12px 40px 12px;
+            box-shadow: 3px 4px 12px var(--shadow);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            transform: rotate(var(--rotation, 0deg));
+        }
+
+        .polaroid:nth-child(odd) { --rotation: -2deg; }
+        .polaroid:nth-child(even) { --rotation: 2deg; }
+        .polaroid:nth-child(3n) { --rotation: -1deg; }
+        .polaroid:nth-child(5n) { --rotation: 3deg; }
+
+        .polaroid:hover {
+            transform: rotate(0deg) scale(1.05);
+            box-shadow: 6px 8px 20px var(--shadow);
+            z-index: 10;
+        }
+
+        .polaroid__image {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .polaroid__caption {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 0.85rem;
+            color: var(--text);
+        }
+
+        .polaroid__date {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Gallery compatibility */
+        .gallery {
+            display: contents;
+        }
+
+        .gallery__item {
+            background: var(--card);
+            padding: 12px 12px 40px 12px;
+            box-shadow: 3px 4px 12px var(--shadow);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            transform: rotate(var(--rotation, 0deg));
+        }
+
+        .gallery__item:nth-child(odd) { --rotation: -2deg; }
+        .gallery__item:nth-child(even) { --rotation: 2deg; }
+        .gallery__item:nth-child(3n) { --rotation: -1deg; }
+        .gallery__item:nth-child(5n) { --rotation: 3deg; }
+
+        .gallery__item:hover {
+            transform: rotate(0deg) scale(1.05);
+            box-shadow: 6px 8px 20px var(--shadow);
+            z-index: 10;
+        }
+
+        .gallery__image {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .gallery__info {
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        .gallery__title {
+            font-size: 0.85rem;
+            color: var(--text);
+        }
+
+        .gallery__meta {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .loading-text {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: var(--text-muted);
+            padding: 64px;
+        }
+
+        .load-more {
+            text-align: center;
+            padding: 48px;
+        }
+
+        .load-more button {
+            padding: 12px 28px;
+            background: #5d4e37;
+            color: #f5f0e8;
+            border: none;
+            font-family: inherit;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .load-more button:hover {
+            background: #7a6b56;
+        }
+
+        /* Tape effect on some polaroids */
+        .polaroid::before,
+        .gallery__item::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 20px;
+            background: rgba(255, 255, 200, 0.6);
+            opacity: 0;
+        }
+
+        .polaroid:nth-child(4n)::before,
+        .gallery__item:nth-child(4n)::before {
+            opacity: 1;
+        }
+
+        @media (max-width: 640px) {
+            .polaroids { gap: 20px; }
+            .polaroid__image, .gallery__image { width: 160px; height: 160px; }
+            .header__title { font-size: 0.9rem; letter-spacing: 0.1em; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header__inner">
+            <h1 class="header__title">Brendan Mulvany Archive</h1>
+            <nav class="header__nav">
+                <a href="/" class="active">Photos</a>
+                <a href="/index_rolls.html">Rolls</a>
+                <a href="/index_years.html">Years</a>
+                <a href="/index_themes.html">Themes</a>
+                <a href="/index_featured.html">Favorites</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="search-box">
+            <input type="text" placeholder="Search memories..." id="search-input">
+        </div>
+
+        <div class="polaroids gallery" id="gallery-container">
+            <p class="loading-text">Developing photos...</p>
+        </div>
+
+        <div class="load-more" id="gallery-load-more" style="display:none;">
+            <button id="load-more-button">More Photos</button>
+        </div>
+    </main>
+
+    <script>window.__STATIC_DATA__ = null;</script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

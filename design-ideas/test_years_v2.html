@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Years V2 - Ultra-Compact Grid</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Fix nav link colors */
+        .header__nav-link {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .header__nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .header__nav-link--active {
+            background-color: rgba(255,255,255,0.2);
+            font-weight: 600;
+        }
+
+        /* V2: Ultra-Compact Grid for Years */
+        .years-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 8px;
+            padding: 1rem 0;
+        }
+
+        .year-card {
+            background: #fff;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .year-card:hover {
+            transform: scale(1.03);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        }
+
+        .year-card__link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .year-card__image-wrapper {
+            position: relative;
+            aspect-ratio: 1;
+            overflow: hidden;
+        }
+
+        .year-card__image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .year-card__count {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            font-size: 0.6rem;
+            padding: 1px 4px;
+            border-radius: 2px;
+        }
+
+        .year-card__info {
+            padding: 4px 6px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            color: #fff;
+        }
+
+        .year-card__title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin: 0;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .year-card__photos {
+            font-size: 0.6rem;
+            opacity: 0.85;
+            margin: 0;
+        }
+
+        .view-header {
+            margin-bottom: 1rem;
+        }
+
+        .view-header__title {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .view-header__description {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .test-label {
+            background: #e74c3c;
+            color: #fff;
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            display: inline-block;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title">Brendan Mulvany Photo Archive</h1>
+            <nav class="header__nav">
+                <a href="/" class="header__nav-link">All</a>
+                <a href="/index_rolls.html" class="header__nav-link">Rolls</a>
+                <a href="/index_years.html" class="header__nav-link header__nav-link--active">Years</a>
+                <a href="/index_themes.html" class="header__nav-link">Themes</a>
+                <a href="/index_featured.html" class="header__nav-link">Featured</a>
+                <a href="/index_minimal.html" class="header__nav-link">Minimal</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <span class="test-label">Years V2: Ultra-Compact (120px square cards, overlay info)</span>
+        <section class="view-header">
+            <h2 class="view-header__title">Timeline</h2>
+            <p class="view-header__description">Explore the archive chronologically by year.</p>
+        </section>
+
+        <section class="years-grid" id="years-grid">
+            <p class="loading-text">Loading years...</p>
+        </section>
+    </main>
+
+    <script>window.__STATIC_DATA__ = {"years": {"1980": [{"image_id": 917038894, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1526/thumb.avif", "image_name": "DSCF1526"}, {"image_id": 681672493, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1532/thumb.avif"}, {"image_id": 520153496, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1533/thumb.avif"}, {"image_id": 26435400, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1527/thumb.avif"}, {"image_id": 481490495, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1519/thumb.avif"}, {"image_id": 210540256, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1531/thumb.avif"}, {"image_id": 442954329, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1528/thumb.avif"}, {"image_id": 354594844, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1608/thumb.avif"}, {"image_id": 123456789, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1609/thumb.avif"}, {"image_id": 234567890, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1610/thumb.avif"}, {"image_id": 345678901, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1611/thumb.avif"}, {"image_id": 456789012, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1612/thumb.avif"}], "1981": [{"image_id": 431647904, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-2-DSCF1557/thumb.avif", "image_name": "DSCF1557"}, {"image_id": 565722519, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1579/thumb.avif"}, {"image_id": 111111111, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-2-DSCF1558/thumb.avif"}, {"image_id": 222222222, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-2-DSCF1559/thumb.avif"}, {"image_id": 333333333, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1580/thumb.avif"}, {"image_id": 444444444, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1581/thumb.avif"}, {"image_id": 555555555, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1582/thumb.avif"}, {"image_id": 666666666, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1583/thumb.avif"}, {"image_id": 777777777, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1584/thumb.avif"}, {"image_id": 888888888, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1585/thumb.avif"}, {"image_id": 999999999, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1586/thumb.avif"}, {"image_id": 101010101, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1587/thumb.avif"}, {"image_id": 121212121, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1588/thumb.avif"}, {"image_id": 131313131, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1589/thumb.avif"}, {"image_id": 141414141, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1590/thumb.avif"}, {"image_id": 151515151, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1591/thumb.avif"}, {"image_id": 161616161, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1592/thumb.avif"}, {"image_id": 171717171, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1593/thumb.avif"}, {"image_id": 181818181, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1594/thumb.avif"}, {"image_id": 191919191, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1595/thumb.avif"}, {"image_id": 202020202, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1596/thumb.avif"}, {"image_id": 212121212, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1597/thumb.avif"}, {"image_id": 232323232, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1598/thumb.avif"}, {"image_id": 242424242, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1599/thumb.avif"}], "1983": [{"image_id": 375626239, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1545/thumb.avif", "image_name": "DSCF1545"}, {"image_id": 150238477, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1491/thumb.avif"}, {"image_id": 987654321, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1492/thumb.avif"}, {"image_id": 876543210, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1493/thumb.avif"}, {"image_id": 765432109, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1494/thumb.avif"}, {"image_id": 654321098, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1495/thumb.avif"}, {"image_id": 543210987, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1496/thumb.avif"}, {"image_id": 432109876, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1497/thumb.avif"}, {"image_id": 321098765, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1498/thumb.avif"}, {"image_id": 210987654, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1499/thumb.avif"}, {"image_id": 109876543, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1500/thumb.avif"}, {"image_id": 998877665, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1501/thumb.avif"}, {"image_id": 887766554, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1502/thumb.avif"}, {"image_id": 776655443, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1503/thumb.avif"}, {"image_id": 665544332, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1504/thumb.avif"}, {"image_id": 554433221, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1505/thumb.avif"}, {"image_id": 443322110, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1506/thumb.avif"}, {"image_id": 332211009, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1507/thumb.avif"}, {"image_id": 221100998, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1508/thumb.avif"}, {"image_id": 110099887, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1509/thumb.avif"}, {"image_id": 990088776, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1510/thumb.avif"}, {"image_id": 889977665, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1511/thumb.avif"}, {"image_id": 778866554, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1512/thumb.avif"}, {"image_id": 667755443, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1513/thumb.avif"}, {"image_id": 556644332, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1546/thumb.avif"}, {"image_id": 445533221, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1547/thumb.avif"}, {"image_id": 334422110, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1548/thumb.avif"}, {"image_id": 223311009, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1549/thumb.avif"}, {"image_id": 112200998, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1550/thumb.avif"}, {"image_id": 901199887, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1551/thumb.avif"}, {"image_id": 890188776, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1552/thumb.avif"}, {"image_id": 789177665, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1553/thumb.avif"}, {"image_id": 678166554, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1554/thumb.avif"}, {"image_id": 567155443, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1555/thumb.avif"}, {"image_id": 456144332, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1556/thumb.avif"}, {"image_id": 345133221, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1514/thumb.avif"}, {"image_id": 234122110, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1515/thumb.avif"}, {"image_id": 123111009, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1516/thumb.avif"}], "1986": [{"image_id": 277190967, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1627/thumb.avif", "image_name": "DSCF1627"}, {"image_id": 166279856, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1628/thumb.avif"}, {"image_id": 255368745, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1629/thumb.avif"}, {"image_id": 344457634, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1630/thumb.avif"}, {"image_id": 433546523, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1631/thumb.avif"}, {"image_id": 522635412, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1632/thumb.avif"}, {"image_id": 611724301, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1633/thumb.avif"}, {"image_id": 700813290, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1634/thumb.avif"}, {"image_id": 899902189, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1635/thumb.avif"}, {"image_id": 988091078, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1636/thumb.avif"}, {"image_id": 177189967, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1637/thumb.avif"}, {"image_id": 266278856, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1638/thumb.avif"}, {"image_id": 355367745, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1639/thumb.avif"}, {"image_id": 444456634, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1640/thumb.avif"}, {"image_id": 533545523, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1641/thumb.avif"}, {"image_id": 622634412, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1642/thumb.avif"}, {"image_id": 711723301, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1643/thumb.avif"}, {"image_id": 800812290, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1644/thumb.avif"}, {"image_id": 999901189, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1645/thumb.avif"}, {"image_id": 188090078, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1646/thumb.avif"}]}};</script>
+    <script>
+        // Custom render for Years V2 - ultra-compact overlay style
+        document.addEventListener('DOMContentLoaded', () => {
+            const yearsGrid = document.getElementById('years-grid');
+            const data = window.__STATIC_DATA__;
+
+            if (!data || !data.years) {
+                yearsGrid.innerHTML = '<p class="error-text">No data available.</p>';
+                return;
+            }
+
+            yearsGrid.innerHTML = '';
+
+            // Sort years descending
+            const sortedYears = Object.keys(data.years).sort((a, b) => b - a);
+
+            sortedYears.forEach(year => {
+                const images = data.years[year];
+                const coverImage = images[0];
+                const coverUrl = coverImage.thumbnail_url || coverImage.image_url;
+
+                const yearCard = document.createElement('div');
+                yearCard.className = 'year-card';
+
+                yearCard.innerHTML = `
+                    <a href="/year/${year}/index.html" class="year-card__link">
+                        <div class="year-card__image-wrapper">
+                            <img src="${coverUrl}" alt="Year ${year}" class="year-card__image" loading="lazy">
+                            <div class="year-card__count">${images.length}</div>
+                            <div class="year-card__info">
+                                <h3 class="year-card__title">${year}</h3>
+                                <p class="year-card__photos">${images.length} photos</p>
+                            </div>
+                        </div>
+                    </a>
+                `;
+                yearsGrid.appendChild(yearCard);
+            });
+        });
+    </script>
+</body>
+
+</html>

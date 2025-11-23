@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Archive - Brendan Mulvany</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #fff;
+            --text: #111;
+            --text-muted: #666;
+            --accent: #111;
+            --border: #e8e8e8;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Split Hero */
+        .hero {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 70vh;
+        }
+
+        .hero__image {
+            background: #f0f0f0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero__image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .hero__content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 64px;
+            background: var(--bg);
+        }
+
+        .hero__label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .hero__title {
+            font-size: 3rem;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 16px;
+            letter-spacing: -0.03em;
+        }
+
+        .hero__desc {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            max-width: 400px;
+        }
+
+        .hero__nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 32px;
+        }
+
+        .hero__nav a {
+            color: var(--text);
+            text-decoration: none;
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .hero__nav a:hover,
+        .hero__nav a.active {
+            background: var(--text);
+            color: white;
+            border-color: var(--text);
+        }
+
+        .hero__search {
+            display: flex;
+            gap: 8px;
+            max-width: 400px;
+        }
+
+        .hero__search input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .hero__search input:focus {
+            border-color: var(--text);
+        }
+
+        .hero__search button {
+            padding: 14px 24px;
+            background: var(--text);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .hero__search button:hover {
+            opacity: 0.8;
+        }
+
+        /* Main */
+        .main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 64px 32px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .section-header h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+
+        .section-header a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        /* Grid */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .gallery__item {
+            aspect-ratio: 1;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .gallery__item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .gallery__item:hover img {
+            transform: scale(1.04);
+        }
+
+        .gallery__info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 16px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.7));
+            color: white;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .gallery__item:hover .gallery__info {
+            opacity: 1;
+        }
+
+        .gallery__title {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .gallery__meta {
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+
+        .loading-text {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: var(--text-muted);
+            padding: 64px;
+        }
+
+        .load-more {
+            text-align: center;
+            padding: 48px;
+        }
+
+        .load-more button {
+            padding: 14px 48px;
+            background: transparent;
+            border: 1px solid var(--text);
+            color: var(--text);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .load-more button:hover {
+            background: var(--text);
+            color: white;
+        }
+
+        @media (max-width: 1024px) {
+            .gallery { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .hero { grid-template-columns: 1fr; }
+            .hero__image { height: 40vh; }
+            .hero__content { padding: 32px; }
+            .hero__title { font-size: 2rem; }
+            .gallery { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <section class="hero">
+        <div class="hero__image">
+            <img src="" alt="Featured" id="hero-image">
+        </div>
+        <div class="hero__content">
+            <span class="hero__label">Photo Archive</span>
+            <h1 class="hero__title">Brendan Mulvany</h1>
+            <p class="hero__desc">A personal collection of film photography documenting life, travel, and everyday moments.</p>
+
+            <nav class="hero__nav">
+                <a href="/" class="active">All</a>
+                <a href="/index_rolls.html">Rolls</a>
+                <a href="/index_years.html">Years</a>
+                <a href="/index_themes.html">Themes</a>
+                <a href="/index_featured.html">Featured</a>
+            </nav>
+
+            <form class="hero__search" id="search-form" action="/search">
+                <input type="text" name="q" placeholder="Search photos..." id="search-input">
+                <button type="submit">Search</button>
+            </form>
+        </div>
+    </section>
+
+    <main class="main">
+        <div class="section-header">
+            <h2>Gallery</h2>
+        </div>
+
+        <div class="gallery" id="gallery-container">
+            <p class="loading-text">Loading images...</p>
+        </div>
+
+        <div class="load-more" id="gallery-load-more" style="display:none;">
+            <button id="load-more-button">Load More</button>
+        </div>
+    </main>
+
+    <script>window.__STATIC_DATA__ = null;</script>
+    <script src="/static/js/main.js"></script>
+    <script>
+        // Set hero image from first loaded image
+        const origRender = window.renderGalleryPage;
+        if (origRender) {
+            window.renderGalleryPage = function(images, append) {
+                origRender(images, append);
+                if (images && images.length > 0 && !append) {
+                    document.getElementById('hero-image').src = images[0].thumbnail_url || images[0].image_url;
+                }
+            };
+        }
+    </script>
+</body>
+</html>

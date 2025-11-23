@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Archive - Brendan Mulvany</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #fafafa;
+            --text: #1a1a1a;
+            --text-muted: #666;
+            --accent: #0066cc;
+            --border: #e0e0e0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        /* Header - Compact & Clean */
+        .header {
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header__inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header__title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .header__nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        .header__nav a {
+            color: var(--text);
+            text-decoration: none;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .header__nav a:hover {
+            background: #f0f0f0;
+        }
+
+        .header__nav a.active {
+            background: var(--text);
+            color: white;
+        }
+
+        /* Stats Bar */
+        .stats {
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 10px 24px;
+        }
+
+        .stats__inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            gap: 32px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .stats__item strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Search */
+        .search-box {
+            margin-bottom: 24px;
+        }
+
+        .search-box input {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent);
+        }
+
+        /* Gallery Grid - Tight & Dense */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 8px;
+        }
+
+        .gallery__item {
+            aspect-ratio: 1;
+            overflow: hidden;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .gallery__item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s;
+        }
+
+        .gallery__item:hover img {
+            transform: scale(1.05);
+        }
+
+        .gallery__item::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.4), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .gallery__item:hover::after {
+            opacity: 1;
+        }
+
+        /* Load More */
+        .load-more {
+            text-align: center;
+            padding: 32px;
+        }
+
+        .load-more button {
+            padding: 10px 24px;
+            background: var(--text);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .load-more button:hover {
+            opacity: 0.8;
+        }
+
+        .loading-text { color: var(--text-muted); }
+
+        @media (max-width: 640px) {
+            .gallery { grid-template-columns: repeat(3, 1fr); gap: 4px; }
+            .header__title { font-size: 0.95rem; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header__inner">
+            <h1 class="header__title">Brendan Mulvany Photo Archive</h1>
+            <nav class="header__nav">
+                <a href="/" class="active">All</a>
+                <a href="/index_rolls.html">Rolls</a>
+                <a href="/index_years.html">Years</a>
+                <a href="/index_themes.html">Themes</a>
+                <a href="/index_featured.html">Featured</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="stats">
+        <div class="stats__inner">
+            <div class="stats__item"><strong id="total-count">-</strong> photographs</div>
+            <div class="stats__item"><strong id="year-range">-</strong></div>
+            <div class="stats__item"><strong id="roll-count">-</strong> film rolls</div>
+        </div>
+    </div>
+
+    <main class="main">
+        <div class="search-box">
+            <input type="text" placeholder="Search photos..." id="search-input">
+        </div>
+
+        <div class="gallery" id="gallery-container">
+            <p class="loading-text">Loading images...</p>
+        </div>
+
+        <div class="load-more" id="gallery-load-more" style="display:none;">
+            <button id="load-more-button">Load More</button>
+        </div>
+    </main>
+
+    <script>window.__STATIC_DATA__ = null;</script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Archive - Brendan Mulvany</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #1a1a2e;
+            --surface: #16213e;
+            --text: #eaeaea;
+            --text-muted: #8892b0;
+            --accent: #00d9ff;
+            --line: #0f3460;
+        }
+
+        body {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: var(--surface);
+            padding: 16px 32px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .header__inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header__title {
+            font-size: 0.9rem;
+            font-weight: 400;
+        }
+
+        .header__title span {
+            color: var(--accent);
+        }
+
+        .header__nav {
+            display: flex;
+            gap: 24px;
+        }
+
+        .header__nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: color 0.2s;
+        }
+
+        .header__nav a:hover,
+        .header__nav a.active {
+            color: var(--accent);
+        }
+
+        /* Timeline Layout */
+        .main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 48px 32px;
+        }
+
+        .search-box {
+            margin-bottom: 48px;
+        }
+
+        .search-box input {
+            width: 100%;
+            max-width: 500px;
+            padding: 12px 16px;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent);
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--line);
+        }
+
+        .timeline__year {
+            margin-bottom: 48px;
+            position: relative;
+        }
+
+        .timeline__year::before {
+            content: '';
+            position: absolute;
+            left: -36px;
+            top: 6px;
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 20px var(--accent);
+        }
+
+        .timeline__year-label {
+            font-size: 1.5rem;
+            font-weight: 300;
+            color: var(--accent);
+            margin-bottom: 16px;
+        }
+
+        .timeline__count {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-left: 12px;
+        }
+
+        .timeline__grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 8px;
+        }
+
+        .timeline__item {
+            aspect-ratio: 1;
+            overflow: hidden;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            border: 1px solid var(--line);
+        }
+
+        .timeline__item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: all 0.3s;
+            filter: saturate(0.8);
+        }
+
+        .timeline__item:hover img {
+            transform: scale(1.1);
+            filter: saturate(1);
+        }
+
+        .timeline__item:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(0, 217, 255, 0.2);
+        }
+
+        .loading-text {
+            color: var(--text-muted);
+            text-align: center;
+            padding: 64px;
+        }
+
+        .load-more {
+            text-align: center;
+            padding: 32px;
+            padding-left: 40px;
+        }
+
+        .load-more button {
+            padding: 12px 24px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            font-family: inherit;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .load-more button:hover {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        /* Gallery wrapper for compatibility with main.js */
+        .gallery {
+            display: contents;
+        }
+
+        .gallery__item {
+            aspect-ratio: 1;
+            overflow: hidden;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid var(--line);
+        }
+
+        .gallery__item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        @media (max-width: 768px) {
+            .timeline { padding-left: 24px; }
+            .timeline::before { left: 4px; }
+            .timeline__year::before { left: -22px; width: 8px; height: 8px; }
+            .timeline__grid { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header__inner">
+            <h1 class="header__title"><span>$</span> brendan-mulvany/photo-archive</h1>
+            <nav class="header__nav">
+                <a href="/" class="active">./browse</a>
+                <a href="/index_rolls.html">./rolls</a>
+                <a href="/index_years.html">./timeline</a>
+                <a href="/index_themes.html">./themes</a>
+                <a href="/index_featured.html">./featured</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="search-box">
+            <input type="text" placeholder="grep -r 'search term'" id="search-input">
+        </div>
+
+        <div class="timeline">
+            <div class="gallery" id="gallery-container">
+                <p class="loading-text">Fetching archive data...</p>
+            </div>
+        </div>
+
+        <div class="load-more" id="gallery-load-more" style="display:none;">
+            <button id="load-more-button">fetch --more</button>
+        </div>
+    </main>
+
+    <script>window.__STATIC_DATA__ = null;</script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rolls V3 - Horizontal Strip Cards</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Fix nav link colors */
+        .header__nav-link {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .header__nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .header__nav-link--active {
+            background-color: rgba(255,255,255,0.2);
+            font-weight: 600;
+        }
+
+        /* V3: Horizontal strip cards - compact rows */
+        .rolls-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 1rem 0;
+        }
+
+        .roll-card {
+            background: #fff;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.15s, box-shadow 0.15s;
+            display: flex;
+            flex-direction: row;
+            width: calc(33.333% - 6px);
+            min-width: 280px;
+            flex-grow: 1;
+        }
+
+        @media (max-width: 900px) {
+            .roll-card {
+                width: calc(50% - 4px);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .roll-card {
+                width: 100%;
+            }
+        }
+
+        .roll-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        }
+
+        .roll-card__link {
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            width: 100%;
+            align-items: center;
+        }
+
+        .roll-card__image-wrapper {
+            width: 60px;
+            height: 60px;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .roll-card__image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .roll-card__info {
+            padding: 8px 12px;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 0;
+        }
+
+        .roll-card__title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin: 0;
+            color: #333;
+        }
+
+        .roll-card__date {
+            font-size: 0.75rem;
+            color: #666;
+            margin: 2px 0 0 0;
+        }
+
+        .roll-card__count {
+            background: #f0f0f0;
+            color: #666;
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .roll-card__meta {
+            min-width: 0;
+        }
+
+        .view-header {
+            margin-bottom: 1rem;
+        }
+
+        .view-header__title {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .view-header__description {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .test-label {
+            background: #27ae60;
+            color: #fff;
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            display: inline-block;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title">Brendan Mulvany Photo Archive</h1>
+            <nav class="header__nav">
+                <a href="/" class="header__nav-link">All</a>
+                <a href="/index_rolls.html" class="header__nav-link header__nav-link--active">Rolls</a>
+                <a href="/index_years.html" class="header__nav-link">Years</a>
+                <a href="/index_themes.html" class="header__nav-link">Themes</a>
+                <a href="/index_featured.html" class="header__nav-link">Featured</a>
+                <a href="/index_minimal.html" class="header__nav-link">Minimal</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <span class="test-label">V3: Horizontal Strip Cards (3 per row, small thumbnail)</span>
+        <section class="view-header">
+            <h2 class="view-header__title">Rolls</h2>
+            <p class="view-header__description">Browse the archive by film roll.</p>
+        </section>
+
+        <section class="rolls-grid" id="rolls-grid">
+            <p class="loading-text">Loading rolls...</p>
+        </section>
+    </main>
+
+    <script>window.__STATIC_DATA__ = {"rolls": [{"roll_number": "7023", "count": 15, "images": [{"image_id": 375626239, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1545/thumb.avif", "capture_date": "1983"}]}, {"roll_number": "7019", "count": 20, "images": [{"image_id": 277190967, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1627/thumb.avif", "capture_date": "1986"}]}, {"roll_number": "6023", "count": 23, "images": [{"image_id": 150238477, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1491/thumb.avif", "capture_date": "1983-08-20"}]}, {"roll_number": "5084", "count": 16, "images": [{"image_id": 431647904, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-2-DSCF1557/thumb.avif", "capture_date": "1981"}]}, {"roll_number": "5082", "count": 24, "images": [{"image_id": 565722519, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1579/thumb.avif", "capture_date": "1981"}]}, {"roll_number": "5018", "count": 12, "images": [{"image_id": 354594844, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1608/thumb.avif", "capture_date": "1980-08-07"}]}, {"roll_number": "4081", "count": 31, "images": [{"image_id": 917038894, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1526/thumb.avif", "capture_date": "1980-05-16"}]}]};</script>
+    <script>
+        // Custom render for V3 - horizontal strip style
+        document.addEventListener('DOMContentLoaded', () => {
+            const rollsGrid = document.getElementById('rolls-grid');
+            const data = window.__STATIC_DATA__;
+
+            if (!data || !data.rolls) {
+                rollsGrid.innerHTML = '<p class="error-text">No data available.</p>';
+                return;
+            }
+
+            rollsGrid.innerHTML = '';
+
+            data.rolls.forEach(roll => {
+                const rollCard = document.createElement('div');
+                rollCard.className = 'roll-card';
+
+                const coverImage = roll.images[0];
+                const coverUrl = coverImage.thumbnail_url || coverImage.image_url;
+
+                rollCard.innerHTML = `
+                    <a href="/roll/${roll.roll_number}/index.html" class="roll-card__link">
+                        <div class="roll-card__image-wrapper">
+                            <img src="${coverUrl}" alt="Roll ${roll.roll_number}" class="roll-card__image" loading="lazy">
+                        </div>
+                        <div class="roll-card__info">
+                            <div class="roll-card__meta">
+                                <h3 class="roll-card__title">Roll ${roll.roll_number}</h3>
+                                <p class="roll-card__date">${formatDate(roll.images[0].capture_date)}</p>
+                            </div>
+                            <div class="roll-card__count">${roll.count} photos</div>
+                        </div>
+                    </a>
+                `;
+                rollsGrid.appendChild(rollCard);
+            });
+        });
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
+            } catch (e) {
+                return dateString;
+            }
+        }
+    </script>
+</body>
+
+</html>

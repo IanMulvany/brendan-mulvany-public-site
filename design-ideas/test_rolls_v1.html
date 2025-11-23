@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rolls V1 - Basic Compact Grid</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Fix nav link colors */
+        .header__nav-link {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .header__nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .header__nav-link--active {
+            background-color: rgba(255,255,255,0.2);
+            font-weight: 600;
+        }
+
+        /* V1: Basic Compact Card Grid - 4-6 cards per row */
+        .rolls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            padding: 1rem 0;
+        }
+
+        .roll-card {
+            background: #fff;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .roll-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .roll-card__link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .roll-card__image-wrapper {
+            position: relative;
+            aspect-ratio: 4/3;
+            overflow: hidden;
+        }
+
+        .roll-card__image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .roll-card__count {
+            position: absolute;
+            bottom: 6px;
+            right: 6px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .roll-card__info {
+            padding: 8px 10px;
+        }
+
+        .roll-card__title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin: 0 0 2px 0;
+            color: #333;
+        }
+
+        .roll-card__date {
+            font-size: 0.75rem;
+            color: #666;
+            margin: 0;
+        }
+
+        .view-header {
+            margin-bottom: 1rem;
+        }
+
+        .view-header__title {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .view-header__description {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .test-label {
+            background: #3498db;
+            color: #fff;
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            display: inline-block;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title">Brendan Mulvany Photo Archive</h1>
+            <nav class="header__nav">
+                <a href="/" class="header__nav-link">All</a>
+                <a href="/index_rolls.html" class="header__nav-link header__nav-link--active">Rolls</a>
+                <a href="/index_years.html" class="header__nav-link">Years</a>
+                <a href="/index_themes.html" class="header__nav-link">Themes</a>
+                <a href="/index_featured.html" class="header__nav-link">Featured</a>
+                <a href="/index_minimal.html" class="header__nav-link">Minimal</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <span class="test-label">V1: Basic Compact Grid (180px min cards)</span>
+        <section class="view-header">
+            <h2 class="view-header__title">Rolls</h2>
+            <p class="view-header__description">Browse the archive by film roll.</p>
+        </section>
+
+        <section class="rolls-grid" id="rolls-grid">
+            <p class="loading-text">Loading rolls...</p>
+        </section>
+    </main>
+
+    <script>window.__STATIC_DATA__ = {"rolls": [{"roll_number": "7023", "count": 15, "images": [{"image_id": 375626239, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1545/thumb.avif", "capture_date": "1983"}]}, {"roll_number": "7019", "count": 20, "images": [{"image_id": 277190967, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1627/thumb.avif", "capture_date": "1986"}]}, {"roll_number": "6023", "count": 23, "images": [{"image_id": 150238477, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1491/thumb.avif", "capture_date": "1983-08-20"}]}, {"roll_number": "5084", "count": 16, "images": [{"image_id": 431647904, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-2-DSCF1557/thumb.avif", "capture_date": "1981"}]}, {"roll_number": "5082", "count": 24, "images": [{"image_id": 565722519, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1579/thumb.avif", "capture_date": "1981"}]}, {"roll_number": "5018", "count": 12, "images": [{"image_id": 354594844, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1608/thumb.avif", "capture_date": "1980-08-07"}]}, {"roll_number": "4081", "count": 31, "images": [{"image_id": 917038894, "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1526/thumb.avif", "capture_date": "1980-05-16"}]}]};</script>
+    <script src="/static/js/view_rolls.js"></script>
+</body>
+
+</html>
