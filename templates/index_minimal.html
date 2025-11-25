@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal - Brendan Mulvany Photo Archive</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Minimal specific overrides */
+        body {
+            background-color: #111;
+            color: #eee;
+        }
+
+        .header {
+            background-color: #111;
+            border-bottom: 1px solid #333;
+        }
+
+        .header__title {
+            color: #fff;
+        }
+
+        .header__nav-link {
+            color: #aaa;
+        }
+
+        .header__nav-link:hover,
+        .header__nav-link--active {
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title">Brendan Mulvany Photo Archive</h1>
+            <nav class="header__nav">
+                <a href="/" class="header__nav-link">All</a>
+                <a href="/index_rolls.html" class="header__nav-link">Rolls</a>
+                <a href="/index_years.html" class="header__nav-link">Years</a>
+                <a href="/index_themes.html" class="header__nav-link">Themes</a>
+                <a href="/index_featured.html" class="header__nav-link">Featured</a>
+                <a href="/index_minimal.html" class="header__nav-link header__nav-link--active">Minimal</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="minimal-container" id="minimal-container">
+            <p class="loading-text">Loading...</p>
+        </div>
+    </main>
+
+    <script>window.__STATIC_DATA__ = null;</script>
+    <script src="/static/js/view_minimal.js"></script>
+</body>
+
+</html>

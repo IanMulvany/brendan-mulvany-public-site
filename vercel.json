@@ -8,8 +8,16 @@
   ],
   "routes": [
     {
-      "src": "/(.*)",
+      "src": "/api/(auth|admin|annotations|public/search|public/similar)/(.*)",
       "dest": "/api/index.py"
+    },
+    {
+      "src": "/static/(.*)",
+      "dest": "/dist/static/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/dist/$1"
     }
   ],
   "env": {

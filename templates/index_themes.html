@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Themes - Brendan Mulvany Photo Archive</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title">Brendan Mulvany Photo Archive</h1>
+            <nav class="header__nav">
+                <a href="/" class="header__nav-link">All</a>
+                <a href="/index_rolls.html" class="header__nav-link">Rolls</a>
+                <a href="/index_years.html" class="header__nav-link">Years</a>
+                <a href="/index_themes.html" class="header__nav-link header__nav-link--active">Themes</a>
+                <a href="/index_featured.html" class="header__nav-link">Featured</a>
+                <a href="/index_minimal.html" class="header__nav-link">Minimal</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="view-header">
+            <h2 class="view-header__title">Themes</h2>
+            <p class="view-header__description">Curated collections and batches.</p>
+        </section>
+
+        <div class="themes-container" id="themes-container">
+            <p class="loading-text">Loading themes...</p>
+        </div>
+    </main>
+
+    <script>window.__STATIC_DATA__ = null;</script>
+    <script src="/static/js/view_themes.js"></script>
+</body>
+
+</html>

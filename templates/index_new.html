@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brendan Mulvany Photo Archive</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Navigation styling */
+        .header__title a {
+            color: #fff;
+            text-decoration: none;
+        }
+        .header__title a:hover {
+            opacity: 0.9;
+        }
+        .header__title a:visited {
+            color: #fff;
+        }
+        .header__nav-link {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .header__nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .header__nav-link--active {
+            background-color: rgba(255,255,255,0.2);
+            font-weight: 600;
+        }
+
+        .section {
+            margin-bottom: 3rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .section-link {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .section-link:hover {
+            color: #2980b9;
+        }
+
+        /* Compact Grid Styling */
+        .compact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 8px;
+        }
+
+        .grid-card {
+            background: #fff;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .grid-card:hover {
+            transform: scale(1.03);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        }
+
+        .grid-card__link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .grid-card__image-wrapper {
+            position: relative;
+            aspect-ratio: 1;
+            overflow: hidden;
+        }
+
+        .grid-card__image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .grid-card__count {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            font-size: 0.6rem;
+            padding: 1px 4px;
+            border-radius: 2px;
+        }
+
+        .grid-card__info {
+            padding: 4px 6px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            color: #fff;
+        }
+
+        .grid-card__title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin: 0;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .grid-card__subtitle {
+            font-size: 0.6rem;
+            opacity: 0.85;
+            margin: 0;
+        }
+
+        /* Featured Carousel */
+        .carousel {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto 3rem;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .carousel__container {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            overflow: hidden;
+        }
+
+        .carousel__slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+
+        .carousel__slide.active {
+            opacity: 1;
+            z-index: 1;
+        }
+
+        .carousel__image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
+
+        .carousel__caption {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.3));
+            color: white;
+            padding: 20px;
+        }
+
+        .carousel__caption-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .carousel__caption-date {
+            font-size: 0.9rem;
+            opacity: 0.85;
+        }
+
+        .carousel__nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            font-size: 2rem;
+            padding: 10px 15px;
+            cursor: pointer;
+            z-index: 2;
+            transition: background 0.2s;
+        }
+
+        .carousel__nav:hover {
+            background: rgba(0,0,0,0.8);
+        }
+
+        .carousel__nav--prev {
+            left: 10px;
+        }
+
+        .carousel__nav--next {
+            right: 10px;
+        }
+
+        .carousel__indicators {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 2;
+        }
+
+        .carousel__indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .carousel__indicator.active {
+            background: rgba(255,255,255,1);
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title"><a href="/">Brendan Mulvany Photo Archive</a></h1>
+            <nav class="header__nav">
+                <a href="/" class="header__nav-link header__nav-link--active">Home</a>
+                <a href="/rolls" class="header__nav-link">Rolls</a>
+                <a href="/years" class="header__nav-link">Years</a>
+                <a href="/about" class="header__nav-link">About</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <!-- Featured Carousel -->
+        <section class="carousel" id="featured-carousel">
+            <div class="carousel__container" id="carousel-container">
+                <!-- Slides will be inserted here by JavaScript -->
+            </div>
+            <button class="carousel__nav carousel__nav--prev" id="carousel-prev" aria-label="Previous">‹</button>
+            <button class="carousel__nav carousel__nav--next" id="carousel-next" aria-label="Next">›</button>
+            <div class="carousel__indicators" id="carousel-indicators"></div>
+        </section>
+
+        <!-- Rolls Section -->
+        <section class="section">
+            <div class="section-header">
+                <h2 class="section-title">Rolls</h2>
+                <a href="/rolls" class="section-link">View all →</a>
+            </div>
+            <div class="compact-grid" id="rolls-preview">
+                <p class="loading-text">Loading rolls...</p>
+            </div>
+        </section>
+
+        <!-- Years Section -->
+        <section class="section">
+            <div class="section-header">
+                <h2 class="section-title">Years</h2>
+                <a href="/years" class="section-link">View all →</a>
+            </div>
+            <div class="compact-grid" id="years-preview">
+                <p class="loading-text">Loading years...</p>
+            </div>
+        </section>
+    </main>
+
+    <script>window.__STATIC_DATA__ = null;</script>
+    <script src="/static/js/common.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const data = window.__STATIC_DATA__;
+
+            if (!data) {
+                document.getElementById('rolls-preview').innerHTML = '<p>No data available.</p>';
+                document.getElementById('years-preview').innerHTML = '<p>No data available.</p>';
+                return;
+            }
+
+            // Initialize Featured Carousel
+            if (data.featured && data.featured.length > 0) {
+                initCarousel(data.featured);
+            } else {
+                // Hide carousel if no featured images
+                document.getElementById('featured-carousel').style.display = 'none';
+            }
+
+            // Render Rolls Preview
+            if (data.rolls) {
+                const rollsPreview = document.getElementById('rolls-preview');
+                rollsPreview.innerHTML = '';
+
+                data.rolls.forEach(roll => {
+                    const card = document.createElement('div');
+                    card.className = 'grid-card';
+
+                    const coverImage = roll.images[0];
+                    const coverUrl = coverImage.thumbnail_url || coverImage.image_url;
+
+                    card.innerHTML = `
+                        <a href="/roll/${roll.roll_number}/index.html" class="grid-card__link">
+                            <div class="grid-card__image-wrapper">
+                                <img src="${coverUrl}" alt="Roll ${roll.roll_number}" class="grid-card__image" loading="lazy">
+                                <div class="grid-card__count">${roll.count}</div>
+                                <div class="grid-card__info">
+                                    <h3 class="grid-card__title">#${roll.roll_number}</h3>
+                                    <p class="grid-card__subtitle">${formatDate(coverImage.capture_date)}</p>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                    rollsPreview.appendChild(card);
+                });
+            }
+
+            // Render Years Preview
+            if (data.years) {
+                const yearsPreview = document.getElementById('years-preview');
+                yearsPreview.innerHTML = '';
+
+                // Sort years descending
+                const sortedYears = Object.keys(data.years).sort((a, b) => b - a);
+
+                sortedYears.forEach(year => {
+                    const images = data.years[year];
+                    const coverImage = images[0];
+                    const coverUrl = coverImage.thumbnail_url || coverImage.image_url;
+
+                    const card = document.createElement('div');
+                    card.className = 'grid-card';
+
+                    card.innerHTML = `
+                        <a href="/year/${year}/index.html" class="grid-card__link">
+                            <div class="grid-card__image-wrapper">
+                                <img src="${coverUrl}" alt="Year ${year}" class="grid-card__image" loading="lazy">
+                                <div class="grid-card__count">${images.length}</div>
+                                <div class="grid-card__info">
+                                    <h3 class="grid-card__title">${year}</h3>
+                                    <p class="grid-card__subtitle">${images.length} photos</p>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                    yearsPreview.appendChild(card);
+                });
+            }
+        });
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
+            } catch (e) {
+                return dateString;
+            }
+        }
+
+        // Carousel functionality
+        function initCarousel(featuredImages) {
+            if (featuredImages.length === 0) return;
+
+            const container = document.getElementById('carousel-container');
+            const indicatorsContainer = document.getElementById('carousel-indicators');
+            const prevBtn = document.getElementById('carousel-prev');
+            const nextBtn = document.getElementById('carousel-next');
+
+            let currentSlide = 0;
+            let autoPlayInterval;
+
+            // Create slides
+            featuredImages.forEach((img, index) => {
+                const slide = document.createElement('div');
+                slide.className = `carousel__slide ${index === 0 ? 'active' : ''}`;
+                slide.innerHTML = `
+                    <a href="/image/${img.image_id}/">
+                        <img src="${img.image_url}" alt="${img.image_name}" class="carousel__image">
+                        <div class="carousel__caption">
+                            <div class="carousel__caption-title">${img.image_name}</div>
+                            <div class="carousel__caption-date">${img.capture_date || ''}</div>
+                        </div>
+                    </a>
+                `;
+                container.appendChild(slide);
+
+                // Create indicator
+                const indicator = document.createElement('button');
+                indicator.className = `carousel__indicator ${index === 0 ? 'active' : ''}`;
+                indicator.setAttribute('aria-label', `Go to slide ${index + 1}`);
+                indicator.addEventListener('click', () => goToSlide(index));
+                indicatorsContainer.appendChild(indicator);
+            });
+
+            const slides = container.querySelectorAll('.carousel__slide');
+            const indicators = indicatorsContainer.querySelectorAll('.carousel__indicator');
+
+            function goToSlide(index) {
+                slides[currentSlide].classList.remove('active');
+                indicators[currentSlide].classList.remove('active');
+
+                currentSlide = index;
+
+                slides[currentSlide].classList.add('active');
+                indicators[currentSlide].classList.add('active');
+
+                resetAutoPlay();
+            }
+
+            function nextSlide() {
+                goToSlide((currentSlide + 1) % featuredImages.length);
+            }
+
+            function prevSlide() {
+                goToSlide((currentSlide - 1 + featuredImages.length) % featuredImages.length);
+            }
+
+            function resetAutoPlay() {
+                if (autoPlayInterval) {
+                    clearInterval(autoPlayInterval);
+                }
+                autoPlayInterval = setInterval(nextSlide, 5000); // Auto-advance every 5 seconds
+            }
+
+            // Event listeners
+            prevBtn.addEventListener('click', prevSlide);
+            nextBtn.addEventListener('click', nextSlide);
+
+            // Start auto-play
+            resetAutoPlay();
+
+            // Pause on hover
+            container.addEventListener('mouseenter', () => {
+                if (autoPlayInterval) {
+                    clearInterval(autoPlayInterval);
+                }
+            });
+
+            container.addEventListener('mouseleave', resetAutoPlay);
+        }
+    </script>
+</body>
+
+</html>

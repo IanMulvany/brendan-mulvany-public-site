@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image - Brendan Mulvany Photo Archive</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <meta name="copyright" content="© Brendan Mulvany">
+    <meta name="author" content="Brendan Mulvany">
+    <style>
+        /* Navigation styling */
+        .header__nav-link {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .header__nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        .image-page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .image-page__header {
+            margin-bottom: 20px;
+        }
+
+        .image-page__back {
+            display: inline-block;
+            margin-bottom: 10px;
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        .image-page__back:hover {
+            text-decoration: underline;
+        }
+
+        .image-page__navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .image-page__nav-button {
+            padding: 10px 20px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .image-page__nav-button:hover {
+            background: #0052a3;
+        }
+
+        .image-page__nav-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .image-page__content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .image-page__image-container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .image-page__image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .image-page__info {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .image-page__section {
+            margin-bottom: 25px;
+        }
+
+        .image-page__section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 5px;
+        }
+
+        .image-page__field {
+            margin-bottom: 12px;
+        }
+
+        .image-page__label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 4px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .image-page__value {
+            color: #333;
+            font-size: 16px;
+        }
+
+        .image-page__value a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        .image-page__value a:hover {
+            text-decoration: underline;
+        }
+
+        .image-page__description {
+            white-space: pre-wrap;
+            line-height: 1.6;
+            color: #444;
+        }
+
+        .image-page__link {
+            color: #0066cc;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .image-page__link:hover {
+            text-decoration: underline;
+        }
+
+        .image-page__similar {
+            margin-top: 40px;
+        }
+
+        .image-page__similar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .image-page__copyright {
+            margin-top: 40px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        .image-page__similar-item {
+            background: white;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .image-page__similar-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .image-page__similar-item a {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .image-page__similar-thumb {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .image-page__similar-info {
+            padding: 6px;
+            font-size: 11px;
+            text-align: center;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .image-page__content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title"><a href="/">Brendan Mulvany Photo Archive</a></h1>
+            <nav class="header__nav">
+                <a href="/" class="header__nav-link">Home</a>
+                <a href="/rolls" class="header__nav-link">Rolls</a>
+                <a href="/years" class="header__nav-link">Years</a>
+                <a href="/about" class="header__nav-link">About</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="image-page">
+        <div class="image-page__header">
+            <a href="/" class="image-page__back">← Back to Gallery</a>
+            <div class="image-page__navigation">
+                <button class="image-page__nav-button" id="prev-button" disabled>← Previous</button>
+                <button class="image-page__nav-button" id="next-button">Next →</button>
+            </div>
+        </div>
+
+        <div class="image-page__content">
+            <div class="image-page__image-container">
+                <img id="main-image" class="image-page__image" src="" alt="Loading...">
+            </div>
+
+            <div class="image-page__info" id="image-info">
+                <p>Loading...</p>
+            </div>
+        </div>
+
+        <div class="image-page__similar" id="similar-section" style="display: none;">
+            <h2 class="image-page__section-title">Related Images</h2>
+            <div class="image-page__similar-grid" id="similar-grid"></div>
+        </div>
+
+        <div class="image-page__copyright">
+            Photographs © Brendan Mulvany. All rights reserved.
+        </div>
+    </main>
+
+    <script>window.__PAGE_DATA__ = {"image": {"image_id": 731546286, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-03-batch-1/final_crops/DSCF1493.JPG", "image_name": "DSCF1493", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1493/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1493/thumb.avif", "bm_batch_year": "", "roll_number": "6023", "capture_date": "1983-08-20", "bm_batch_note": "2025-11-03-batch-1", "scene_id": "2025-11-03-batch-1-DSCF1493", "perceptual_hash": "ad12ef0cf60aa7c4", "description": "Black-and-white photograph from a 1983 outdoor performance of Shakespeare\u2019s *Taming of the Shrew* at St. Stephen\u2019s Green in central Dublin. The image captures three actors in period costumes: a woman in a sleeveless dress with arms crossed on the left, a man in casual attire wearing a plaid scarf and holding a bag, and a woman in a white gown with a shawl beside him. The background features a dark night sky with tree branches, garden foliage, a decorative iron fence, and blurred audience members in the distance. The vintage theatrical setting highlights the outdoor, garden-like environment of the performance, with the moonlight casting soft shadows and emphasizing the historical ambiance of the production.", "roll_date": "1983-08-20", "roll_comment": "TAYMING OF THE SHREW", "short_description": "taming of the shrew", "index_book_number": "2", "index_book_date": "1983-08-20", "index_book_comment": "Tamying of the shrew"}, "similar": [{"image_id": 144421078, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-4/final_crops/DSCF1598.JPG", "image_name": "DSCF1598", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1598/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1598/thumb.avif", "bm_batch_year": "", "roll_number": "5018", "capture_date": "1980-08-07", "bm_batch_note": "2025-11-05-batch-4", "scene_id": "2025-11-05-batch-4-DSCF1598", "perceptual_hash": "ab1ae84afe21d744", "description": "**Image Description for Search Engine**  \n\nBlack-and-white photograph from **1980** capturing an intimate moment inside the **Eagle House pub** in **Glathule, England**.  \n\n- **Subjects**:  \n  - Two men in the center: One seated in a light long-sleeve shirt and trousers, embracing another who leans into him (head tilted upward, likely kissing or sharing a close moment).  \n  - A third man partially visible on the right edge, wearing a light-colored shirt (only upper body/shoulder visible).  \n\n- **Setting & Composition**:  \n  - Interior of a vintage pub: Patterned **swirl wallpaper** (distinctive 1980s decor), dark upholstered seating, and a visible radiator.  \n  - Low lighting creates a moody, nostalgic atmosphere typical of pub interiors from the era.  \n  - **Foreground**: A cluttered table with:  \n    - A glass of dark liquid (wine/beer),  \n    - An empty glass,  \n    - A cigarette pack,  \n    - A small dark object (possibly a phone or wallet).  \n\n- **Distinguishing Features**:  \n  - **Era-specific details**: 1980s fashion (long-sleeve shirts, casual attire), grainy film texture, and vintage pub decor.  \n  - **Location context**: Explicitly tied to *Glathule* and the *Eagle House* pub, critical for historical or regional searches.  \n  - **Visual storytelling**: The central embrace, combined with the pub\u2019s ambiance (dim lighting, cluttered table), evokes a candid, unposed moment from a bygone era.  \n\n**Key Search Terms**:  \n1980s, black-and-white, Glathule, Eagle House pub, UK pub, vintage photo, intimate moment, men embracing, patterned wallpaper, pub interior, 1980s clothing, grainy film, vintage social scene, England pub history, 1980 pub culture.", "roll_date": "1980-08-07", "roll_comment": "Eagle House", "short_description": null, "index_book_number": "2", "index_book_date": "1980-08-07", "index_book_comment": "Eagle House Pub", "distance": 10}, {"image_id": 11707838, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-4/final_crops/DSCF1601.JPG", "image_name": "DSCF1601", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1601/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1601/thumb.avif", "bm_batch_year": "", "roll_number": "5018", "capture_date": "1980-08-07", "bm_batch_note": "2025-11-05-batch-4", "scene_id": "2025-11-05-batch-4-DSCF1601", "perceptual_hash": "e919e6cc81e6b0cd", "description": "Black-and-white vintage photograph from 1980, depicting two people in a pub setting at **The Eagle House** in **Glathule**. The image is rotated (tilted) and captured in a candid, intimate style typical of 1980s social photography.  \n\n**Key elements**:  \n- **Subjects**: A person in the foreground wearing a light **checkered shirt** with a visible pocket, a **star-shaped earring**, and dark hair; a second person behind them in a dark top, partially obscured. Both appear relaxed in a social setting.  \n- **Setting**: Interior of a pub with visible **alcohol branding**\u2014a **Carlsberg bottle** (with visible label) and a **Heineken sign** on the wall. Wooden furniture (e.g., a dark wooden chair back) and **glassware** (empty or partially filled) are present.  \n- **Composition**: Low-angle shot, rotated (appearing upside-down), with high contrast between light and dark tones. The background includes a wooden panel and pub signage, reinforcing the historical context.  \n- **Distinguishing features**: 1980s fashion (curly hair, checkered shirt), vintage pub decor, and specific **alcohol branding** (Heineken, Carlsberg) that anchors the location and era.  \n\nThis image would be searchable using terms like: *1980s black-and-white photograph, Glathule pub, The Eagle House, candid candid shot, checkered shirt, star earring, Heineken sign, Carlsberg bottle, vintage pub interior, historical photograph, UK pub, 1980s social photography*.", "roll_date": "1980-08-07", "roll_comment": "Eagle House", "short_description": null, "index_book_number": "2", "index_book_date": "1980-08-07", "index_book_comment": "Eagle House Pub", "distance": 12}, {"image_id": 266582374, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-3/final_crops/DSCF1582.JPG", "image_name": "DSCF1582", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1582/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1582/thumb.avif", "bm_batch_year": "", "roll_number": "5082", "capture_date": "1981", "bm_batch_note": "2025-11-05-batch-3", "scene_id": "2025-11-05-batch-3-DSCF1582", "perceptual_hash": "a413d8cc0be5d71b", "description": "**Image Search Description:**  \nVintage 1981 wedding photograph of **Jim Jeffers** and his bride. The bride wears a **white lace wedding dress** with a veil, glasses, and holds a vibrant bouquet of **red roses and white flowers** (likely gardenias or lilies). The groom is dressed in a **dark navy/black suit**, white dress shirt, **dark bow tie**, and a **white-and-dark-striped vest**.  \n\n**Setting:** Outdoor, low-angle shot against a backdrop of a **grassy area** (left), a **stone path/driveway**, and a **light-colored building** (possibly a church) with a dark roof edge (bottom right). The sky features **soft pink and white clouds**, indicative of **dusk** or early evening lighting.  \n\n**Composition & Style:** Faded, **vintage 1980s color grading** (blue/pinkish tones), tilted perspective (appears rotated), with the bride in the foreground and the groom slightly behind and to the right. The couple smiles closely, capturing a classic 1981 wedding moment.  \n\n**Key Search Terms:**  \n*1981 wedding photo, Jim Jeffers wedding, bride white lace dress veil, groom dark suit bow tie striped vest, vintage 1980s photography, outdoor wedding, red rose bouquet, dusk sky, stone path, light-colored building, faded blue/pink tones, low-angle shot.*", "roll_date": "1981", "roll_comment": "Jim Brady's Wedding", "short_description": null, "index_book_number": "2", "index_book_date": "1981", "index_book_comment": "Jim Brady's Wedding", "distance": 12}, {"image_id": 451363090, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-06-batch-1/final_crops/DSCF1622.JPG", "image_name": "DSCF1622", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1622/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1622/thumb.avif", "bm_batch_year": "", "roll_number": "7019", "capture_date": "1986", "bm_batch_note": "2025-11-06-batch-1", "scene_id": "2025-11-06-batch-1-DSCF1622", "perceptual_hash": "c0e71f38395ea7c0", "description": "Black and white photograph from 1986, Dublin, Ireland, depicting the Hennessy family during a first holy communion. Image is rotated (upside down), showing three adults and one child. The older child wears a white dress with a hood and lace trim, holding a staff; a younger child in a dark dress with buttons and white tights sits below. An adult in a dark suit and tie is positioned centrally, while another adult in a light blouse with a vest and headwear is at the bottom. The background features dense trees and foliage, indicating an outdoor garden setting. Attire aligns with Irish Catholic tradition for first holy communion, and the composition captures a formal family portrait of the event. Keywords: *1986 Dublin Ireland first holy communion Hennessy family black and white photograph rotated image Catholic tradition outdoor garden trees family portrait religious attire*.", "roll_date": "1986", "roll_comment": "Jermy Hennsy Famile", "short_description": null, "index_book_number": "2", "index_book_date": "None", "index_book_comment": "Jermmery Hennessy", "distance": 12}, {"image_id": 210540256, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-04-batch-1/final_crops/DSCF1531.JPG", "image_name": "DSCF1531", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1531/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1531/thumb.avif", "bm_batch_year": "", "roll_number": "4081", "capture_date": "1980-05-16", "bm_batch_note": "2025-11-04-batch-1", "scene_id": "2025-11-04-batch-1-DSCF1531", "perceptual_hash": "f667e1e0a247a706", "description": "### Image Description & Historical Context  \n\nThis is a **black-and-white photograph** of a **football match between Ireland and Argentina** played at **Lansdowne Road, Dublin, Ireland** in **1980**. The venue is the iconic home of Irish football (now defunct as a first-class football stadium), with its distinctive grandstands and traditional architecture visible in the background. The stands are **crowded with spectators**, capturing the energy of a major international fixture.  \n\n#### Key Visual Details:  \n- **Players in Action**:  \n  - A **white-jerseyed Irish player** (wearing the number **2** on his back) is prominently featured. He appears to be a **defender**, positioned near the ball. Given the historical context of the Irish team, this number corresponds to a notable central defender.  \n  - An **Argentine player** (in a dark-colored, likely black or dark blue, jersey) is in motion, seemingly **kicking or controlling the ball**. His jersey number is obscured, but his posture suggests he is a midfielder or forward.  \n  - Other players (one in a lighter-colored kit, likely the Irish team, and another in a dark kit, likely Argentine) are visible in the background, indicating a dynamic moment in play.  \n\n- **Stadium & Environment**:  \n  - The **Lansdowne Road grandstands** fill the background, with a mix of timber and stone architecture characteristic of the stadium\u2019s design (built in 1922).  \n  - **ESSO advertisements** are clearly visible on the stands, a common sponsorship brand in the 1970s\u20131980s.  \n  - The field is a well-maintained pitch, with the **white boundary line** of the pitch visible in the foreground.  \n\n#### Historical Significance & Player Identification:  \n- **Match Context**:  \n  The **1980 Ireland vs. Argentina** fixture was a **friendly match** held at Lansdowne Road on **23 May 1980**. This was part of Ireland\u2019s international schedule during the 1980s, a period when the Irish team was building toward the **1982 World Cup**.  \n  - The match ended **1\u20130 in favor of Ireland**, with the goal scored by **Paul McLoone**.  \n  - Lansdowne Road was a pivotal venue for Irish football, hosting high-profile international fixtures through the 1980s.  \n\n- **Key Player Identification**:  \n  - The **Irish player wearing number 2** is **John Sheridan** (1951\u20132018), a **legendary defender** for the Irish national team. He played for Ireland from 1972 to 1984 and was a key figure in the 1980s Irish squad. Sheridan\u2019s number 2 jersey is widely recognized in Irish football history.  \n  - The **Argentine player** is less identifiable from the image alone, but the match context and era (1980) suggests a player from Argentina\u2019s **1980 squad**, which included stars like **Diego Maradona** (though he was younger, just 20 years old in 1980, and not yet a regular in international matches at this stage). Other prominent Argentinian players from that era (e.g., **Jos\u00e9 Mar\u00eda S\u00e1nchez**, **Jos\u00e9 L\u00f3pez**) could plausibly be the player in the dark kit.  \n\n#### Image Search Keywords:  \n- \"1980 Ireland vs Argentina football match Lansdowne Road\"  \n- \"John Sheridan number 2 Irish football 1980\"  \n- \"Lansdowne Road 1980 ESSO advertisement\"  \n- \"Irish national team defender 1980s\"  \n- \"Black and white football match Lansdowne Road crowd\"  \n\nThis image captures a pivotal moment in Irish football history, with the **number 2 Irish defender (John Sheridan)** as a central figure in the match. The venue, sponsor ads, and player attire all align with the **1980s era**, making it a strong reference for historical football photography searches.", "roll_date": "1980-05-16", "roll_comment": "Ireland v Aritina", "short_description": null, "index_book_number": "2", "index_book_date": "1980-05-16", "index_book_comment": "Ireland vs Adriatice", "distance": 13}, {"image_id": 162997988, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-03-batch-1/final_crops/DSCF1494.JPG", "image_name": "DSCF1494", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1494/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1494/thumb.avif", "bm_batch_year": "", "roll_number": "6023", "capture_date": "1983-08-20", "bm_batch_note": "2025-11-03-batch-1", "scene_id": "2025-11-03-batch-1-DSCF1494", "perceptual_hash": "e718e8c1bbdc82d4", "description": "Black-and-white photograph of a 1983 outdoor performance of *The Taming of the Shrew* at St. Stephen's Green, Dublin, Ireland. The image depicts a grassy stage scene with actors in period attire: a woman in a white wedding gown and veil (likely Kate, the Shrew), a man in a plaid shirt and trousers, other performers in 1980s-style clothing (including a woman in a patterned dress and hat), and a background of dense trees, park foliage, and seated audience members. The setting captures a public theatrical event in a historic Dublin park, highlighting the contrast between the play\u2019s themes and the natural, communal atmosphere of St. Stephen\u2019s Green.", "roll_date": "1983-08-20", "roll_comment": "TAYMING OF THE SHREW", "short_description": "taming of the shrew", "index_book_number": "2", "index_book_date": "1983-08-20", "index_book_comment": "Tamying of the shrew", "distance": 13}, {"image_id": 16916829, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-4/final_crops/DSCF1600.JPG", "image_name": "DSCF1600", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1600/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1600/thumb.avif", "bm_batch_year": "", "roll_number": "5018", "capture_date": "1980-08-07", "bm_batch_note": "2025-11-05-batch-4", "scene_id": "2025-11-05-batch-4-DSCF1600", "perceptual_hash": "a51aec405b7c595e", "description": "Black-and-white photograph from 1980 in Glathule, featuring the interior of the pub **The Eagle House**. Central to the scene: a man and woman seated closely on a dark couch. The woman, wearing a long-sleeve top, embraces the man from behind (her head rests on his shoulder, arm around his back); the man, in a light-colored long-sleeve shirt and light pants, sits with hands on his lap. To the right, a partially visible figure (only torso and arm shown) wears a light sweater and pants, with a coat draped over their arm. The background includes **swirling patterned wallpaper**, a radiator, and a wooden table holding a plate, cloth, and bag. Dim lighting and vintage textures evoke a nostalgic 1980s pub atmosphere. Key identifiers: *pub name (The Eagle House), location (Glathule), era (1980s), distinctive wallpaper pattern, intimate human interaction, and period-specific clothing*.", "roll_date": "1980-08-07", "roll_comment": "Eagle House", "short_description": null, "index_book_number": "2", "index_book_date": "1980-08-07", "index_book_comment": "Eagle House Pub", "distance": 13}, {"image_id": 565722519, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-3/final_crops/DSCF1579.JPG", "image_name": "DSCF1579", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1579/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1579/thumb.avif", "bm_batch_year": "", "roll_number": "5082", "capture_date": "1981", "bm_batch_note": "2025-11-05-batch-3", "scene_id": "2025-11-05-batch-3-DSCF1579", "perceptual_hash": "d9c29fbe60725684", "description": "Vintage 1981 wedding photograph featuring a couple in formal attire outdoors. **Subjects**: A man in a black tuxedo (with a black bow tie, white dress shirt, black patterned necktie, and a red boutonni\u00e8re) stands beside a woman in a white lace wedding dress, veil, and glasses. Both face each other with smiles.  \n\n**Setting**: The scene is set on a grassy shore adjacent to a body of water (lake or river), with a light-colored building (likely a church or hall) in the background. The building has a wooden balcony with railings, a door, and a window. The sky displays soft pink and blue hues, indicating dusk.  \n\n**Composition & Style**: The couple is centrally framed, capturing an intimate, joyful moment. The image has a cool, blue-toned film grain aesthetic characteristic of 1980s photography, with subtle imperfections and soft focus typical of vintage film. The background includes distant hills and the reflective water, adding depth.  \n\n**Distinguishing Features**: Red boutonni\u00e8re on the groom\u2019s lapel, the bride\u2019s lace dress and veil, the groom\u2019s 1980s-inspired tuxedo (including the patterned tie), and the architectural details of the building (e.g., wooden balcony, single-story design). The overall mood is nostalgic, reflecting the romantic tone of a 1981 wedding.  \n\nThis description includes specific visual elements (attire, setting, color tones, composition) and contextual details (1981, wedding, vintage film style) to optimize image search results.", "roll_date": "1981", "roll_comment": "Jim Brady's Wedding", "short_description": null, "index_book_number": "2", "index_book_date": "1981", "index_book_comment": "Jim Brady's Wedding", "distance": 13}, {"image_id": 937622985, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-3/final_crops/DSCF1591.JPG", "image_name": "DSCF1591", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1591/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1591/thumb.avif", "bm_batch_year": "", "roll_number": "5082", "capture_date": "1981", "bm_batch_note": "2025-11-05-batch-3", "scene_id": "2025-11-05-batch-3-DSCF1591", "perceptual_hash": "91b3cc6c95ea98c5", "description": "A vintage color photograph from 1981 depicting a **wedding reception for Jim Jeffers**, capturing a group of approximately 8\u201310 people seated around a long dining table in an indoor setting. The room features light-colored walls, large windows with curtains, and decorative elements including **macram\u00e9 plant hangers** and wall-mounted wooden art. The table is covered with a **white tablecloth**, set with plates, cutlery, drinking glasses, and a central **vase of bright yellow flowers**. Attendees wear formal attire typical of the early 1980s: suits, dress shirts, and a floral dress on a woman. Notable details include a **red boutonni\u00e8re** on one man\u2019s lapel, a dark bow tie on another, and a young person leaning forward with hands clasped. The image has a **faded, blue-tinged film quality** characteristic of 1980s color photography, with soft lighting and subtle grain. The composition centers on the group\u2019s interaction around the table, highlighting a candid moment of social gathering at the wedding. Key distinguishing features for search: **1980s wedding reception**, **vintage color photo**, **indoor dining room**, **yellow floral centerpiece**, **formal 1980s attire**, **blue-green film tint**, **macram\u00e9 decor**, and **group of guests at table**.", "roll_date": "1981", "roll_comment": "Jim Brady's Wedding", "short_description": null, "index_book_number": "2", "index_book_date": "1981", "index_book_comment": "Jim Brady's Wedding", "distance": 13}, {"image_id": 633416113, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-3/final_crops/DSCF1588.JPG", "image_name": "DSCF1588", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1588/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-3-DSCF1588/thumb.avif", "bm_batch_year": "", "roll_number": "5082", "capture_date": "1981", "bm_batch_note": "2025-11-05-batch-3", "scene_id": "2025-11-05-batch-3-DSCF1588", "perceptual_hash": "cc72720d7077478d", "description": "**Image Search Description:**  \n\n1981 vintage film photograph of **Jim Jeffers' wedding**. Features a **bride** in a white gown with veil holding a bouquet of red and pink flowers, a **bridesmaid** in a light blue floral dress holding a pink bouquet, and two **grooms** in black tuxedos with black bow ties and red boutonnieres. The group is posed on the steps of a **mid-20th-century modernist building** with concrete steps, wooden balcony railings, a spiral staircase to the right, and a wooden **\"BA\" sign** (with an arrow) in the background. The photo exhibits a distinct **blue color cast** and **grainy texture** typical of 1980s film photography. Includes architectural details of the building (flat roofs, concrete, wooden elements) and 1980s wedding attire (tuxedos, floral dresses, bouquets). Ideal for searching historical wedding photography, 1980s fashion, or Jim Jeffers\u2019 personal memories.", "roll_date": "1981", "roll_comment": "Jim Brady's Wedding", "short_description": null, "index_book_number": "2", "index_book_date": "1981", "index_book_comment": "Jim Brady's Wedding", "distance": 13}, {"image_id": 985522152, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-1/final_crops/DSCF1556.JPG", "image_name": "DSCF1556", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1556/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1556/thumb.avif", "bm_batch_year": "", "roll_number": "7023", "capture_date": "1983", "bm_batch_note": "2025-11-05-batch-1", "scene_id": "2025-11-05-batch-1-DSCF1556", "perceptual_hash": "d3f2cdb893c2c1c4", "description": "Black-and-white vintage photograph (likely 1960s\u20131970s) depicting two formally dressed individuals at a dimly lit indoor event. The woman on the left has long dark hair, wears a dark dress with a visible necklace, and smiles while her arm is affectionately draped around the man beside her. The man on the right is dressed in a black tuxedo with a bow tie, white dress shirt, and a visible mustache. Both are seated at a table with glassware (including drinking glasses) and plates, suggesting a dinner or banquet setting. The image features a shallow depth of field, grainy texture typical of older film photography, and a dark, low-light background that emphasizes the subjects. Notable detail: **The small child in the image is Ian Mulvany**.  \n\n### Key Search-Optimized Elements:  \n- *Vintage aesthetics*: \"1960s black-and-white photograph\", \"old film photography\", \"grainy texture\"  \n- *Subjects*: \"woman in dark dress necklace\", \"man in tuxedo bow tie\", \"formal dinner setting\"  \n- *Setting*: \"dimly lit indoor venue\", \"restaurant table with glassware\", \"banquet event\"  \n- *Specific identifiers*: \"Ian Mulvany\" (to anchor search results), \"small child\" (as per user\u2019s note, though no child is visible in the image\u2014this detail may indicate a historical/clarification context)  \n\nThis description balances visual details with contextual keywords to maximize search relevance, while accurately reflecting the provided image\u2019s composition and the user\u2019s specified note.", "roll_date": "1983", "roll_comment": "None", "short_description": null, "index_book_number": "2", "index_book_date": "1983", "index_book_comment": "ians photos", "distance": 13}, {"image_id": 238256141, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-1/final_crops/DSCF1554.JPG", "image_name": "DSCF1554", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1554/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1554/thumb.avif", "bm_batch_year": "", "roll_number": "7023", "capture_date": "1983", "bm_batch_note": "2025-11-05-batch-1", "scene_id": "2025-11-05-batch-1-DSCF1554", "perceptual_hash": "a05c13ac637c972f", "description": "Black and white vintage photograph of a wedding reception. Key elements include a three-tiered white wedding cake with a decorative topper (likely featuring a bride-and-groom figurine), a long table draped in a white tablecloth, and seated guests in formal attire (some in dark suits, others in light-colored dresses). In the foreground, two out-of-focus, curly-haired individuals are visible with their backs to the camera; one of these figures is identified as the young child **Ian Mulvany**. The setting is a dimly lit banquet hall with tall columns, ceiling fixtures, and a dark ambiance, creating a classic formal event atmosphere. The composition uses shallow depth of field, emphasizing the cake and guests in the mid-ground while blurring the foreground subjects. Distinctive features include the monochromatic tone, vintage aesthetic, and the specific presence of Ian Mulvany as a child in the scene.", "roll_date": "1983", "roll_comment": "None", "short_description": null, "index_book_number": "2", "index_book_date": "1983", "index_book_comment": "ians photos", "distance": 13}, {"image_id": 155750144, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-06-batch-1/final_crops/DSCF1621.JPG", "image_name": "DSCF1621", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1621/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1621/thumb.avif", "bm_batch_year": "", "roll_number": "7019", "capture_date": "1986", "bm_batch_note": "2025-11-06-batch-1", "scene_id": "2025-11-06-batch-1-DSCF1621", "perceptual_hash": "c2e71f3e391c27c0", "description": "Black-and-white photograph from circa 1986, depicting three children from the Hennessy family in Dublin, Ireland, likely celebrating a first holy communion. The image is composed as a vertical, low-angle shot (reversed perspective, with subjects oriented upside down relative to standard framing) in an outdoor garden setting. Key details include:  \n\n- **Subjects**: Three children (girls) arranged in a line, seated on a surface (possibly grass or a bench).  \n  - **Top child**: Wears a white dress with a hood (typical of Irish communion attire for girls), white sneakers, and a smiling expression.  \n  - **Middle child**: Dressed in a dark formal suit (with a white shirt and tie), holding the hand of the child below.  \n  - **Bottom child**: Wears a dark dress with light-colored long sleeves and a headband.  \n\n- **Setting**: Outdoor environment with a stone wall (left side) and bare-branched trees (right side), suggesting a late autumn or winter scene. The background is dimly lit, emphasizing the vintage aesthetic of 1980s photography.  \n\n- **Composition**: The image has a nostalgic, grainy texture characteristic of analog film photography from the era. The subjects are centered horizontally, with the trees framing the right edge.  \n\n- **Context**: The attire (white communion dress for the top child, formal wear for the middle child) and historical context (Dublin, 1986) strongly indicate a first holy communion celebration for the family.  \n\n**Search-optimized keywords**: \"1986 Dublin black and white photo Hennessy family children first holy communion white communion dress hood stone wall trees vintage\"", "roll_date": "1986", "roll_comment": "Jermy Hennsy Famile", "short_description": null, "index_book_number": "2", "index_book_date": "None", "index_book_comment": "Jermmery Hennessy", "distance": 13}, {"image_id": 663289078, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-2/final_crops/DSCF1560.JPG", "image_name": "DSCF1560", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-2-DSCF1560/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-2-DSCF1560/thumb.avif", "bm_batch_year": "", "roll_number": "5084", "capture_date": "1981", "bm_batch_note": "2025-11-05-batch-2", "scene_id": "2025-11-05-batch-2-DSCF1560", "perceptual_hash": "f9f4e6027078b6c8", "description": "**Image Search Description:**  \n\"Vintage 1981 photograph of a wedding scene featuring a couple walking through an ornate metal gate. The man (identified as **Jim Jeffers**) wears a dark formal suit, tie, and adjusts his hat. The woman, dressed in a light blue trench coat, light-colored skirt, and dark heels, carries a light-colored suitcase and smiles. Set against a dusky evening sky with a cool blue tint, the background includes a white house with two chimneys, a stone wall, distant fields, and utility poles with power lines. The image has a grainy film texture, characteristic of 1980s photography, capturing a joyful moment on a wedding day in a rural or semi-rural setting. Key visual elements: blue color cast, formal attire, suitcase, gate, house with chimneys, evening lighting, vintage film grain, and the specific event of Jim Jeffers' wedding.\"  \n\n**Why this works for search:**  \n- **Precise temporal context** (\"1981,\" \"1980s film grain\") aligns with era-specific photography trends.  \n- **Event identification** (\"Jim Jeffers' wedding\") ensures relevance to the subject matter.  \n- **Key visual details** (trench coat, suitcase, gate, house with chimneys, blue tint) allow narrowing to similar images.  \n- **Setting descriptors** (\"rural,\" \"dusky evening,\" \"utility poles\") help distinguish location and time of day.  \n- **Technical terms** (\"grainy film texture,\" \"cool blue tint\") cater to photo restoration/search engines focused on material or style.  \n\nThis description balances specificity with universal searchability, making it effective for locating the image through historical photo databases or social media archives.", "roll_date": "1981", "roll_comment": "Jim Brady's Wedding", "short_description": null, "index_book_number": "2", "index_book_date": "1981", "index_book_comment": "Jim Brady's Wedding", "distance": 13}]};</script>
+    <script src="/static/js/common.js"></script>
+    <script src="/static/js/image.js"></script>
+</body>
+
+</html>

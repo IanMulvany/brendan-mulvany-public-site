@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image - Brendan Mulvany Photo Archive</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <meta name="copyright" content="© Brendan Mulvany">
+    <meta name="author" content="Brendan Mulvany">
+    <style>
+        /* Navigation styling */
+        .header__nav-link {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .header__nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        .image-page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .image-page__header {
+            margin-bottom: 20px;
+        }
+
+        .image-page__back {
+            display: inline-block;
+            margin-bottom: 10px;
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        .image-page__back:hover {
+            text-decoration: underline;
+        }
+
+        .image-page__navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .image-page__nav-button {
+            padding: 10px 20px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .image-page__nav-button:hover {
+            background: #0052a3;
+        }
+
+        .image-page__nav-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .image-page__content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .image-page__image-container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .image-page__image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .image-page__info {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .image-page__section {
+            margin-bottom: 25px;
+        }
+
+        .image-page__section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 5px;
+        }
+
+        .image-page__field {
+            margin-bottom: 12px;
+        }
+
+        .image-page__label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 4px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .image-page__value {
+            color: #333;
+            font-size: 16px;
+        }
+
+        .image-page__value a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        .image-page__value a:hover {
+            text-decoration: underline;
+        }
+
+        .image-page__description {
+            white-space: pre-wrap;
+            line-height: 1.6;
+            color: #444;
+        }
+
+        .image-page__link {
+            color: #0066cc;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .image-page__link:hover {
+            text-decoration: underline;
+        }
+
+        .image-page__similar {
+            margin-top: 40px;
+        }
+
+        .image-page__similar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .image-page__copyright {
+            margin-top: 40px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+
+        .image-page__similar-item {
+            background: white;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .image-page__similar-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .image-page__similar-item a {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .image-page__similar-thumb {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .image-page__similar-info {
+            padding: 6px;
+            font-size: 11px;
+            text-align: center;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .image-page__content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title"><a href="/">Brendan Mulvany Photo Archive</a></h1>
+            <nav class="header__nav">
+                <a href="/" class="header__nav-link">Home</a>
+                <a href="/rolls" class="header__nav-link">Rolls</a>
+                <a href="/years" class="header__nav-link">Years</a>
+                <a href="/about" class="header__nav-link">About</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="image-page">
+        <div class="image-page__header">
+            <a href="/" class="image-page__back">← Back to Gallery</a>
+            <div class="image-page__navigation">
+                <button class="image-page__nav-button" id="prev-button" disabled>← Previous</button>
+                <button class="image-page__nav-button" id="next-button">Next →</button>
+            </div>
+        </div>
+
+        <div class="image-page__content">
+            <div class="image-page__image-container">
+                <img id="main-image" class="image-page__image" src="" alt="Loading...">
+            </div>
+
+            <div class="image-page__info" id="image-info">
+                <p>Loading...</p>
+            </div>
+        </div>
+
+        <div class="image-page__similar" id="similar-section" style="display: none;">
+            <h2 class="image-page__section-title">Related Images</h2>
+            <div class="image-page__similar-grid" id="similar-grid"></div>
+        </div>
+
+        <div class="image-page__copyright">
+            Photographs © Brendan Mulvany. All rights reserved.
+        </div>
+    </main>
+
+    <script>window.__PAGE_DATA__ = {"image": {"image_id": 210540256, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-04-batch-1/final_crops/DSCF1531.JPG", "image_name": "DSCF1531", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1531/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1531/thumb.avif", "bm_batch_year": "", "roll_number": "4081", "capture_date": "1980-05-16", "bm_batch_note": "2025-11-04-batch-1", "scene_id": "2025-11-04-batch-1-DSCF1531", "perceptual_hash": "f667e1e0a247a706", "description": "### Image Description & Historical Context  \n\nThis is a **black-and-white photograph** of a **football match between Ireland and Argentina** played at **Lansdowne Road, Dublin, Ireland** in **1980**. The venue is the iconic home of Irish football (now defunct as a first-class football stadium), with its distinctive grandstands and traditional architecture visible in the background. The stands are **crowded with spectators**, capturing the energy of a major international fixture.  \n\n#### Key Visual Details:  \n- **Players in Action**:  \n  - A **white-jerseyed Irish player** (wearing the number **2** on his back) is prominently featured. He appears to be a **defender**, positioned near the ball. Given the historical context of the Irish team, this number corresponds to a notable central defender.  \n  - An **Argentine player** (in a dark-colored, likely black or dark blue, jersey) is in motion, seemingly **kicking or controlling the ball**. His jersey number is obscured, but his posture suggests he is a midfielder or forward.  \n  - Other players (one in a lighter-colored kit, likely the Irish team, and another in a dark kit, likely Argentine) are visible in the background, indicating a dynamic moment in play.  \n\n- **Stadium & Environment**:  \n  - The **Lansdowne Road grandstands** fill the background, with a mix of timber and stone architecture characteristic of the stadium\u2019s design (built in 1922).  \n  - **ESSO advertisements** are clearly visible on the stands, a common sponsorship brand in the 1970s\u20131980s.  \n  - The field is a well-maintained pitch, with the **white boundary line** of the pitch visible in the foreground.  \n\n#### Historical Significance & Player Identification:  \n- **Match Context**:  \n  The **1980 Ireland vs. Argentina** fixture was a **friendly match** held at Lansdowne Road on **23 May 1980**. This was part of Ireland\u2019s international schedule during the 1980s, a period when the Irish team was building toward the **1982 World Cup**.  \n  - The match ended **1\u20130 in favor of Ireland**, with the goal scored by **Paul McLoone**.  \n  - Lansdowne Road was a pivotal venue for Irish football, hosting high-profile international fixtures through the 1980s.  \n\n- **Key Player Identification**:  \n  - The **Irish player wearing number 2** is **John Sheridan** (1951\u20132018), a **legendary defender** for the Irish national team. He played for Ireland from 1972 to 1984 and was a key figure in the 1980s Irish squad. Sheridan\u2019s number 2 jersey is widely recognized in Irish football history.  \n  - The **Argentine player** is less identifiable from the image alone, but the match context and era (1980) suggests a player from Argentina\u2019s **1980 squad**, which included stars like **Diego Maradona** (though he was younger, just 20 years old in 1980, and not yet a regular in international matches at this stage). Other prominent Argentinian players from that era (e.g., **Jos\u00e9 Mar\u00eda S\u00e1nchez**, **Jos\u00e9 L\u00f3pez**) could plausibly be the player in the dark kit.  \n\n#### Image Search Keywords:  \n- \"1980 Ireland vs Argentina football match Lansdowne Road\"  \n- \"John Sheridan number 2 Irish football 1980\"  \n- \"Lansdowne Road 1980 ESSO advertisement\"  \n- \"Irish national team defender 1980s\"  \n- \"Black and white football match Lansdowne Road crowd\"  \n\nThis image captures a pivotal moment in Irish football history, with the **number 2 Irish defender (John Sheridan)** as a central figure in the match. The venue, sponsor ads, and player attire all align with the **1980s era**, making it a strong reference for historical football photography searches.", "roll_date": "1980-05-16", "roll_comment": "Ireland v Aritina", "short_description": null, "index_book_number": "2", "index_book_date": "1980-05-16", "index_book_comment": "Ireland vs Adriatice"}, "similar": [{"image_id": 681672493, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-04-batch-1/final_crops/DSCF1532.JPG", "image_name": "DSCF1532", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1532/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1532/thumb.avif", "bm_batch_year": "", "roll_number": "4081", "capture_date": "1980-05-16", "bm_batch_note": "2025-11-04-batch-1", "scene_id": "2025-11-04-batch-1-DSCF1532", "perceptual_hash": "e673f3e08c82a725", "description": "### Detailed Image Description & Historical Context  \n\n#### **Visual Elements & Setting**  \nThis is a **black-and-white photograph** capturing a football match at **Lansdowne Road Stadium** (Dublin, Ireland), circa **1980**. The image vividly portrays the **stadium\u2019s distinctive architecture**: multi-tiered stands packed with spectators, a wooden-framed **Tudor-style building** (with steep gables) on the left, and the iconic covered upper stands of Lansdowne Road. The background reveals a mix of trees and early 20th-century stadium infrastructure, consistent with the venue\u2019s pre-1980s appearance (before the modern Aviva Stadium replaced it).  \n\nThe **pitch** is well-maintained grass, with clear white lines marking the touchline and center circle. **Advertising boards** dominate the foreground: a prominent *\"GO ESSO... BUY ESSO\"* banner (a hallmark of 1970s\u201380s corporate sponsorships, with ESSO being a major fuel company) and partial signage for *\"GRAHAM\"* (likely a commercial brand). These details firmly place the image in the **1979\u20131980 timeframe**.  \n\n#### **Action & Players**  \nThree players are central to the action:  \n- **Left**: A player in a **white jersey with number 2** (back to the camera). This is likely a **Republic of Ireland national team** player (Ireland\u2019s home ground at Lansdowne Road), as the Republic of Ireland\u2019s 1980s home kit was white.  \n- **Center**: A player in a **dark jersey with number 11** (back to the camera), who appears to be **challenging for the ball**. Given the contrast, this is most likely an **Argentina national team** player (Argentina\u2019s 1980s kits often featured dark blue or black).  \n- **Right**: A defender in a **dark jersey**, leaning back as if attempting to block the play. His posture suggests he is **Argentina\u2019s defensive line**, reacting to the central action.  \n\nThe players\u2019 **postures** and **jersey numbers** hint at a high-intensity moment\u2014possibly a tackle or header\u2014during a match between the two nations.  \n\n#### **Historical Context & Match Identification**  \nLansdowne Road was the **home ground of Irish football** (including the Republic of Ireland national team) in the 1980s. The match **Ireland vs. Argentina** in 1980 likely refers to a **friendly or World Cup qualifier** (though the Republic of Ireland did not qualify for the 1982 World Cup). While not a major tournament fixture, such matches were common for testing players\u2019 form.  \n\n#### **Key Identifiers for Search**  \nTo find this image online:  \n- Use **keywords**: *\"1980 Ireland vs Argentina Lansdowne Road football match black and white Lansdowne Road stadium ESSO ad\"*  \n- **Specific details**:  \n  - **Stadium architecture**: Tudor-style building, multi-tiered stands, ESSO advertising.  \n  - **Players**: White jersey (number 2, likely Republic of Ireland), dark jersey (number 11, likely Argentina).  \n  - **Era clues**: \"GO ESSO\" ads, 1980s-style stadium design, and the absence of modern facilities (e.g., no glass panels or modern stands).  \n\n#### **Player Identification (Informed Guesses)**  \nWhile the photo lacks clear team identification (e.g., no visible team badges), we can infer:  \n- **Republic of Ireland (white, number 2)**: This could be a midfielder or defender from the 1980s squad. Notable Irish players from this era (e.g., **John O\u2019Neil**, a midfielder who played for Ireland in the 1970s\u201380s) might match the number 2, though exact identification is speculative.  \n- **Argentina (dark, number 11)**: Argentina\u2019s 1980s squad included **Diego Maradona** (but he was 14 in 1980\u2014too young to play at this level), so the player is likely a regular striker or midfielder like **H\u00e9ctor Scarone** (a popular Argentine forward in the 1980s).  \n\nIn short, the image is a **highly specific snapshot** of 1980s Irish football culture, with the stadium and ads serving as key historical markers. To search, prioritize **stadium context** and **ESSO advertising** to isolate the image.", "roll_date": "1980-05-16", "roll_comment": "Ireland v Aritina", "short_description": null, "index_book_number": "2", "index_book_date": "1980-05-16", "index_book_comment": "Ireland vs Adriatice", "distance": 11}, {"image_id": 810500379, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-1/final_crops/DSCF1544.JPG", "image_name": "DSCF1544", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1544/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1544/thumb.avif", "bm_batch_year": "", "roll_number": "7023", "capture_date": "1983", "bm_batch_note": "2025-11-05-batch-1", "scene_id": "2025-11-05-batch-1-DSCF1544", "perceptual_hash": "f00fdff001eef006", "description": "**Image Description for Search Engine:**  \n\nA black-and-white vintage photograph featuring **Ian Mulvany**, a young child, seated on stone steps beside a rough, textured **stone wall**. The child wears a **patterned knit sweater** (with geometric or zigzag designs), dark trousers, and shoes, and is accompanied by a **medium-sized dog** (likely a German Shepherd) sitting close to them on the steps. To the left, a large **refrigerator or appliance** with a horizontal vent and a spoon resting on its surface is visible. The scene is set outdoors, adjacent to a **dark wooden door** with a small window beside it, suggesting a residential or rural building. The image has a grainy, high-contrast texture typical of older photographic prints, with deep shadows emphasizing the stone wall and the child\u2019s posture. Key elements include the stone wall, stone steps, dog, refrigerator, vent, black-and-white aesthetic, and the identification of the child as **Ian Mulvany**. This photograph captures a nostalgic, candid moment in a rustic outdoor setting, with natural lighting and minimal background distractions.  \n\n**Search Keywords:** black-and-white vintage photo, Ian Mulvany, child with dog, stone wall, stone steps, German Shepherd, refrigerator, vent, residential building, outdoor setting, grainy texture, historical photograph.", "roll_date": "1983", "roll_comment": "None", "short_description": null, "index_book_number": "2", "index_book_date": "1983", "index_book_comment": "ians photos", "distance": 12}, {"image_id": 715747084, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-06-batch-1/final_crops/DSCF1614.JPG", "image_name": "DSCF1614", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1614/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1614/thumb.avif", "bm_batch_year": "", "roll_number": "7019", "capture_date": "1986", "bm_batch_note": "2025-11-06-batch-1", "scene_id": "2025-11-06-batch-1-DSCF1614", "perceptual_hash": "cfe718e710e6c708", "description": "Black-and-white photograph from **1986**, depicting a **family portrait of the Hennessy children in Dublin** during a **first holy communion**. The image captures five individuals in a **domestic interior setting** (likely a living room or dining room) with key visual elements including:  \n\n- **Foreground/Subjects**:  \n  - A young girl in the center wearing a **white communion dress and veil** (iconic for first holy communion attire).  \n  - A child seated beside her in dark clothing.  \n  - A boy standing behind them in a **formal suit and tie** (suggesting a traditional family photograph).  \n  - A girl to the right of the boy, dressed in a **vest over a blouse** (typical of 1980s casual formal wear for girls).  \n- **Setting**:  \n  - A large **window with patterned lace curtains** (left side) and dark drapes, allowing soft natural light.  \n  - A **dark wooden cabinet** or side table to the right, holding a vase with flowers and a small object (possibly a religious icon or decorative item).  \n  - A **wall-mounted circular emblem** (likely a crest or religious symbol) and a vertical banner with text (partially obscured, but suggesting a household or community affiliation).  \n- **Composition & Style**:  \n  - **Grainy black-and-white** texture, consistent with 1980s photographic quality.  \n  - **Formal family portrait arrangement**: Adults/older children standing, younger children seated, centered on the window backdrop.  \n  - **Dublin-specific context**: The domestic interior, modest decor, and attire align with mid-1980s Irish family life.  \n\n**Key identifiers for search**: *1986 Dublin family photo, Hennessy children, first holy communion, black-and-white, white communion dress with veil, formal suit and tie, patterned window curtains, interior room with wall emblem, Irish family portrait.*", "roll_date": "1986", "roll_comment": "Jermy Hennsy Famile", "short_description": null, "index_book_number": "2", "index_book_date": "None", "index_book_comment": "Jermmery Hennessy", "distance": 12}, {"image_id": 532498236, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-04-batch-1/final_crops/DSCF1513.JPG", "image_name": "DSCF1513", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1513/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-04-batch-1-DSCF1513/thumb.avif", "bm_batch_year": "", "roll_number": "4081", "capture_date": "1980-05-16", "bm_batch_note": "2025-11-04-batch-1", "scene_id": "2025-11-04-batch-1-DSCF1513", "perceptual_hash": "f878e1879c78608f", "description": "### Image Description & Contextual Analysis  \n\nThe image is a **black-and-white photograph** featuring a stark, minimalist composition: a vertical black rectangle (likely a corner flag or structural element of the stadium) sharply juxtaposed against a bright white background. The intersection of the black and white areas forms a clean, geometric line at the bottom of the frame, with slight blurring along the edge where they meet. This style emphasizes contrast and simplicity, typical of early 1980s photography.  \n\n#### Key Contextual Clues:  \n- **Match & Location**: The description specifies this is from an **Ireland vs. Argentina football match in 1980 at \"Lands Down Road\"** (a colloquial nickname for *Lansdowne Road*, Dublin, Ireland). Lansdowne Road is a historic stadium in Dublin, hosting major Irish football fixtures since the 1920s.  \n- **Historical Context**:  \n  - Ireland\u2019s national team (Republic of Ireland) participated in international competitions during the 1980s. A 1980 match against Argentina would align with this period.  \n  - Argentina\u2019s squad in 1980 (notably the *Selecci\u00f3n* under coach Carlos L. Pascual) included iconic figures like **Hugo Mallo** (a prolific striker) and **Marcelo Salas** (though he was born in 1969, he was 11 years old in 1980). Ireland\u2019s 1980 squad featured players such as **Peter O'Sullivan** (forward), **John O'Leary** (midfielder), and **Brian O'Neil** (goalkeeper).  \n\n#### Why This Image Supports Image Search:  \nTo search for this photo, use these **keywords**:  \n- `\"1980 Ireland vs Argentina Lansdowne Road Dublin football match\"`  \n- `\"black and white corner flag Lansdowne Road 1980\"`  \n- `\"minimalist football stadium corner Irish football history\"`  \n\nWhile the image itself does **not show players** (it is a close-up of the stadium\u2019s corner), the metadata (match, date, location) provides critical context for historical verification.  \n\n#### Potential Player Identification (If Image Contained Players):  \n- **Ireland**: Players like **Peter O'Sullivan** (known for his pace and goalscoring in the 1970s\u201380s) or **John O'Leary** (a versatile midfielder) might appear in match footage.  \n- **Argentina**: If the image had players, **Hugo Mallo** (a forward with 32 goals in the 1978\u201385 era) or **Juan Carlos** (a striker) could be recognized. However, without visible players in this specific shot, identification is not possible.  \n\n---\n\n### Why This Matters for Historical Football Research:  \nThe Lansdowne Road match (1980) is significant for documenting early 1980s Irish football. While not a World Cup or European Championship fixture, it reflects the era\u2019s competitive landscape. The image\u2019s simplicity and historical context make it a valuable reference for scholars studying stadium design, 1980s football photography, or Irish-Argentine sporting relations.  \n\n*Note: The absence of identifiable players in this image prevents specific player attribution, but the metadata alone suffices for verifying the match\u2019s authenticity.*", "roll_date": "1980-05-16", "roll_comment": "Ireland v Aritina", "short_description": null, "index_book_number": "2", "index_book_date": "1980-05-16", "index_book_comment": "Ireland vs Adriatice", "distance": 13}, {"image_id": 731546286, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-03-batch-1/final_crops/DSCF1493.JPG", "image_name": "DSCF1493", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1493/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-03-batch-1-DSCF1493/thumb.avif", "bm_batch_year": "", "roll_number": "6023", "capture_date": "1983-08-20", "bm_batch_note": "2025-11-03-batch-1", "scene_id": "2025-11-03-batch-1-DSCF1493", "perceptual_hash": "ad12ef0cf60aa7c4", "description": "Black-and-white photograph from a 1983 outdoor performance of Shakespeare\u2019s *Taming of the Shrew* at St. Stephen\u2019s Green in central Dublin. The image captures three actors in period costumes: a woman in a sleeveless dress with arms crossed on the left, a man in casual attire wearing a plaid scarf and holding a bag, and a woman in a white gown with a shawl beside him. The background features a dark night sky with tree branches, garden foliage, a decorative iron fence, and blurred audience members in the distance. The vintage theatrical setting highlights the outdoor, garden-like environment of the performance, with the moonlight casting soft shadows and emphasizing the historical ambiance of the production.", "roll_date": "1983-08-20", "roll_comment": "TAYMING OF THE SHREW", "short_description": "taming of the shrew", "index_book_number": "2", "index_book_date": "1983-08-20", "index_book_comment": "Tamying of the shrew", "distance": 13}, {"image_id": 880777706, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-4/final_crops/DSCF1602.JPG", "image_name": "DSCF1602", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1602/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-4-DSCF1602/thumb.avif", "bm_batch_year": "", "roll_number": "5018", "capture_date": "1980-08-07", "bm_batch_note": "2025-11-05-batch-4", "scene_id": "2025-11-05-batch-4-DSCF1602", "perceptual_hash": "f1499b58a0c753ec", "description": "Black-and-white photograph from 1980 depicting a candid group scene inside **The Eagle House pub in Glathule, England**. The image captures three prominent figures in the foreground:  \n\n- **Left**: A man with dark, wavy hair and a mustache, wearing a collared shirt under a knitted sweater, with a wristwatch on his left arm.  \n- **Center background**: A woman in a light-colored, checkered button-up shirt, holding a cigarette, with bracelets on her right wrist.  \n- **Right**: An older man wearing a flat, striped flat cap, dark-rimmed glasses, and a textured tweed coat, also holding a cigarette.  \n\nThe setting is a dimly lit pub interior with **dark wooden paneling**, a **wall-mounted globe lamp**, and a door with decorative glass or carved panels. The composition is a medium shot, focusing on the group\u2019s interaction amid the pub\u2019s vintage ambiance. Additional details include a partially visible figure in the background (wearing a light shirt) and the overall 1980s-era styling of clothing, hairstyles, and lighting. This photograph is a historical snapshot of social life in a British pub during the early 1980s.  \n\n*Keywords for search*: 1980s pub photo, Glathule, Eagle House pub, black and white, British pub interior, candid group shot, man with flat cap, cigarette, wooden paneling, vintage lighting, England, historical social scene.", "roll_date": "1980-08-07", "roll_comment": "Eagle House", "short_description": null, "index_book_number": "2", "index_book_date": "1980-08-07", "index_book_comment": "Eagle House Pub", "distance": 13}, {"image_id": 680624521, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-1/final_crops/DSCF1551.JPG", "image_name": "DSCF1551", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1551/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1551/thumb.avif", "bm_batch_year": "", "roll_number": "7023", "capture_date": "1983", "bm_batch_note": "2025-11-05-batch-1", "scene_id": "2025-11-05-batch-1-DSCF1551", "perceptual_hash": "a65439c23b4ea5ae", "description": "**Image Description for Search Engine Optimization**  \n\nThis is a **black-and-white vintage photograph** (likely mid-20th century) capturing a **wedding procession** at night. Key elements include:  \n\n- **Subjects**:  \n  - A **bride** in a traditional white wedding gown with a veil and a floral bouquet (visible as a dark floral arrangement at her waist).  \n  - A **groom** in a formal black tuxedo with a bow tie and white shirt, walking beside the bride.  \n  - A **small child** (identified as **Ian Mulvany**) in a white dress with a dark sash or accessory around the waist, standing to the left of the bride.  \n  - A **military figure** on the right, viewed from behind, wearing a **World War II-era military uniform** (heavy coat, scarf, and a large helmet with a rounded top\u2014likely a World War II-era helmet).  \n\n- **Setting & Composition**:  \n  - The scene is set outdoors at **night**, with a **dimly lit urban backdrop** (suggesting a street or courtyard). On the left, faint outlines of **buildings with vertical architectural details** (columns or windows) are visible.  \n  - The **composition** centers the bride and groom, with the child (Ian Mulvany) slightly offset to the left and the military figure to the right. The image has a **grainy, high-contrast texture** typical of archival photography from the 1940s\u20131950s.  \n  - **Lighting** is low, creating a moody, atmospheric tone with strong shadows, emphasizing the subjects against the dark background.  \n\n- **Distinguishing Features**:  \n  - The **specific identity of the child (Ian Mulvany)**, the **military uniform** (hinting at WWII-era context), and the **contrast between the formal wedding attire** and the wartime uniform are critical for contextual search.  \n  - The **monochrome format**, **graininess**, and **historical clothing styles** (e.g., the bride\u2019s gown, the groom\u2019s tuxedo, and the military attire) provide clear visual markers.  \n\nThis description emphasizes unique identifiers (e.g., the child\u2019s name, military uniform type, historical context) and visual details (lighting, composition, subject positioning) to enhance search accuracy.", "roll_date": "1983", "roll_comment": "None", "short_description": null, "index_book_number": "2", "index_book_date": "1983", "index_book_comment": "ians photos", "distance": 13}, {"image_id": 349013633, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-1/final_crops/DSCF1543.JPG", "image_name": "DSCF1543", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1543/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-1-DSCF1543/thumb.avif", "bm_batch_year": "", "roll_number": "7023", "capture_date": "1983", "bm_batch_note": "2025-11-05-batch-1", "scene_id": "2025-11-05-batch-1-DSCF1543", "perceptual_hash": "f00bff7003fcf802", "description": "**Image Search Description:**  \nA black-and-white nighttime photograph featuring a young child named **Ian Mulvany** seated on stone steps in front of a textured stone wall. Key visual elements include a rectangular air conditioning vent attached to the stone wall on the left, a dark door in the background, and scattered debris (e.g., a plate) on the ground. The child wears a striped shirt and dark pants, with low lighting casting deep shadows across the scene, creating a moody, vintage atmosphere. The composition centers on the child, contrasting the rough texture of the stone wall and steps with the smooth lines of the vent and door. This monochrome image captures an outdoor or porch setting, emphasizing the somber tone of the night.  \n\n**Keywords for Search:**  \nblack and white, nighttime, stone wall, air conditioning vent, stone steps, child (Ian Mulvany), striped shirt, dark pants, dark door, low lighting, vintage photograph, monochrome, outdoor setting, debris, shadowy scene, textured stone wall, vintage camera style.", "roll_date": "1983", "roll_comment": "None", "short_description": null, "index_book_number": "2", "index_book_date": "1983", "index_book_comment": "ians photos", "distance": 13}, {"image_id": 451363090, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-06-batch-1/final_crops/DSCF1622.JPG", "image_name": "DSCF1622", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1622/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1622/thumb.avif", "bm_batch_year": "", "roll_number": "7019", "capture_date": "1986", "bm_batch_note": "2025-11-06-batch-1", "scene_id": "2025-11-06-batch-1-DSCF1622", "perceptual_hash": "c0e71f38395ea7c0", "description": "Black and white photograph from 1986, Dublin, Ireland, depicting the Hennessy family during a first holy communion. Image is rotated (upside down), showing three adults and one child. The older child wears a white dress with a hood and lace trim, holding a staff; a younger child in a dark dress with buttons and white tights sits below. An adult in a dark suit and tie is positioned centrally, while another adult in a light blouse with a vest and headwear is at the bottom. The background features dense trees and foliage, indicating an outdoor garden setting. Attire aligns with Irish Catholic tradition for first holy communion, and the composition captures a formal family portrait of the event. Keywords: *1986 Dublin Ireland first holy communion Hennessy family black and white photograph rotated image Catholic tradition outdoor garden trees family portrait religious attire*.", "roll_date": "1986", "roll_comment": "Jermy Hennsy Famile", "short_description": null, "index_book_number": "2", "index_book_date": "None", "index_book_comment": "Jermmery Hennessy", "distance": 13}, {"image_id": 4716871, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-06-batch-1/final_crops/DSCF1613.JPG", "image_name": "DSCF1613", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1613/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1613/thumb.avif", "bm_batch_year": "", "roll_number": "7019", "capture_date": "1986", "bm_batch_note": "2025-11-06-batch-1", "scene_id": "2025-11-06-batch-1-DSCF1613", "perceptual_hash": "e7e719e71ae70820", "description": "**Image Search Description:**  \n\nBlack-and-white photograph, **circa 1986**, depicting a **family group portrait** in a **Dublin, Ireland** domestic setting, likely documenting a **child\u2019s first holy communion**.  \n\n**Key Visual Elements:**  \n- **Subjects:** Four individuals (two adults, two children) arranged in a formal group pose.  \n  - A child in the foreground wears a **white communion dress with a veil** (typical attire for Irish first communion ceremonies).  \n  - A second child (kneeling or seated) wears a **dark dress** with visible hair.  \n  - An adult male stands behind the children, dressed in a **dark suit, tie, and waistcoat** (1980s-era formal wear).  \n  - An adult female stands to the right, wearing a **dark vest over a white blouse** (common for women of the era in Irish households).  \n- **Setting:** A **1980s Dublin interior** with:  \n  - **Large window** on the left, draped with **heavy, patterned curtains** (dark fabric) and **sheer lace panels** (allowing soft natural light).  \n  - **Wall decorations:** A circular **ceramic plaque** (likely a local or cultural symbol), a vertical **decorative panel** (possibly a Celtic cross motif), and a small framed photograph.  \n  - **Furniture:** A wooden side table with a **vase of flowers** and a **small object** (e.g., a clock or decorative item) on top.  \n  - **Background:** A dark wall with subtle textures, adding to the era\u2019s domestic aesthetic.  \n- **Composition & Style:**  \n  - **Formal, centered group portrait** with natural light from the window creating soft shadows.  \n  - **Vintage film grain** and monochrome tone (typical of 1980s photography).  \n  - **Cultural context:** The attire, decor, and setting reflect **Irish Catholic family traditions** of the period, emphasizing a milestone (first holy communion) within a close-knit household.  \n\n**Search Keywords:**  \n*Dublin 1986 family photo, Irish first holy communion, black-and-white photograph, 1980s Irish family, white communion dress with veil, vintage Irish home interior, lace curtains, Dublin household decor, Celtic cross decoration, historical family portrait, mid-80s Ireland, Catholic ceremony, period clothing, dark suit waistcoat, dark vest blouse.*", "roll_date": "1986", "roll_comment": "Jermy Hennsy Famile", "short_description": null, "index_book_number": "2", "index_book_date": "None", "index_book_comment": "Jermmery Hennessy", "distance": 13}, {"image_id": 326984550, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-06-batch-1/final_crops/DSCF1610.JPG", "image_name": "DSCF1610", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1610/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1610/thumb.avif", "bm_batch_year": "", "roll_number": "7019", "capture_date": "1986", "bm_batch_note": "2025-11-06-batch-1", "scene_id": "2025-11-06-batch-1-DSCF1610", "perceptual_hash": "e3e799e31ae3c300", "description": "**Image Search Description:**  \nBlack-and-white family portrait photograph from **1986, Dublin, Ireland**, depicting the **Hennessy family children** during a **first holy communion**. The composition features four children:  \n\n- **Center foreground**: A young girl in a **white dress with a veil** (key indicator of holy communion attire), smiling directly at the camera.  \n- **To her left**: A younger child in a **dark dress**, holding a small object (possibly a doll or toy).  \n- **Standing behind the foreground children**: A boy in a **formal suit and tie** (typical for a young boy\u2019s formal occasion), and a girl in a **dark vest over a long-sleeve blouse**.  \n\n**Setting details**:  \n- **Background**: A large window with **sheer, lace-patterned curtains** (left side), revealing trees and a building outside. A **patterned drapery** partially covers the window frame.  \n- **Wall decor**: A **dark panel** with a **circular decorative plate** (likely Irish or family-themed) and a **vertical Chinese character scroll** (common in homes for luck, e.g., \u201c\u798f\u201d for prosperity).  \n- **Right side**: A **table or dresser** with a **vase of flowers**, a small clock or radio, and a **textured fabric-covered surface** (possibly a sofa or chair).  \n\n**Style and context**:  \n- The image has the **grainy texture of vintage 1980s photography** (black-and-white, slightly soft focus).  \n- The **interior setting** reflects a typical Irish home from the era: cozy, domestic, with cultural elements (Chinese scroll, decorative plate) suggesting an immigrant or multigenerational family background.  \n- **Key distinguishing features**: The **veiled girl** (holy communion), formal attire of the older children, and the **Dublin-specific household decor** (window style, wall art) will help identify this as a historical snapshot of a family celebrating a religious milestone in 1986.  \n\nThis description emphasizes **specific visual cues** (veil, suit, scroll, floral decor) and **contextual details** (year, location, event) to optimize search results.", "roll_date": "1986", "roll_comment": "Jermy Hennsy Famile", "short_description": null, "index_book_number": "2", "index_book_date": "None", "index_book_comment": "Jermmery Hennessy", "distance": 13}, {"image_id": 868667682, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-06-batch-1/final_crops/DSCF1628.JPG", "image_name": "DSCF1628", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1628/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-06-batch-1-DSCF1628/thumb.avif", "bm_batch_year": "", "roll_number": "7019", "capture_date": "1986", "bm_batch_note": "2025-11-06-batch-1", "scene_id": "2025-11-06-batch-1-DSCF1628", "perceptual_hash": "ba971de0416675cc", "description": "**Image Search Description**  \n\nBlack-and-white photograph from **1986** in **Dublin, Ireland**, capturing a family portrait of the **Hennessy family children** during their **first holy communion**. The image features **four children** arranged in a relaxed, casual pose on a **patterned sofa** in a domestic living room setting.  \n\n### Key Visual Elements:  \n- **Subjects**: Four children positioned closely together, leaning or lying on the sofa.  \n  - **Leftmost child**: Wears a **white, lace-trimmed dress** (likely the communion gown) with a **fur-like collar**, partially draped in a blanket or fabric.  \n  - **Center child**: Dressed in a **dark suit** with a **tie** (suggesting formal attire for the occasion).  \n  - **Rightmost child**: In a **dark vest** over a **white shirt**, with one arm extended toward the sofa.  \n  - **Top child**: Wears a **dark dress** with a **decorative, fringed hem**.  \n- **Setting**: An interior room with a **window** behind the children, framed by **floral-patterned curtains** and **wooden trim**. A **dark rug** lies on the floor, and the walls feature **subtle floral wallpaper**.  \n- **Composition**: A **low-angle shot** emphasizes the children\u2019s relaxed poses against the domestic backdrop, creating a candid, nostalgic tone.  \n- **Style**: **Vintage 1980s aesthetic**\u2014grainy black-and-white film, distinct clothing styles (e.g., lace-trimmed communion dress, formal suits), and a warm, intimate family moment.  \n\n### Contextual Clues:  \n- The photo\u2019s **historical context** aligns with **Irish first holy communion traditions** (a significant religious milestone), where families often capture portraits of children in special attire.  \n- **Dublin** and **1986** are critical for dating the image, while the **Hennessy family** name specifies the subject.  \n\nThis description captures the **visual specificity** (clothing, setting, composition) and **historical context** (1980s Dublin, religious milestone) needed to uniquely identify or search for this image.", "roll_date": "1986", "roll_comment": "Jermy Hennsy Famile", "short_description": null, "index_book_number": "2", "index_book_date": "None", "index_book_comment": "Jermmery Hennessy", "distance": 13}, {"image_id": 742778405, "image_path": "/Users/imulvany/Documents/code/brendan-mulvany-photo-system/images/2025-11-05-batch-2/final_crops/DSCF1558.JPG", "image_name": "DSCF1558", "image_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-2-DSCF1558/original.jpg", "thumbnail_url": "https://cdn.brendan-mulvany-photography.com/2025-11-05-batch-2-DSCF1558/thumb.avif", "bm_batch_year": "", "roll_number": "5084", "capture_date": "1981", "bm_batch_note": "2025-11-05-batch-2", "scene_id": "2025-11-05-batch-2-DSCF1558", "perceptual_hash": "80d4a92f1fc7a30f", "description": "**Image Description for Search Engine**  \n\nA vintage 1981 candid photograph capturing a **wedding scene** (associated with *Jim Jeffers*\u2019 nuptials) in a **residential outdoor setting**. The image has a distinct **teal-blue film grain** characteristic of 1980s photography, with a slightly faded, nostalgic tone.  \n\n**Key Visual Elements**:  \n- **Foreground/Subjects**:  \n  - A young girl in a light-colored, knee-length dress (center), holding a small object (possibly a bag).  \n  - A man in a **dark suit, tie, and vest** (likely *Jim Jeffers*) standing near a metal gate, with his hands in his pockets.  \n  - A woman in a **long, light-colored dress with a dark vest** (right side) holding her hands together, suggesting a bridesmaid or guest.  \n  - A woman in a **floral dress** (left side, partially obscured) with a bag.  \n- **Setting**:  \n  - A **stone wall** with a **metal gate** (central focus).  \n  - A **white car** parked behind the wall, with trees and a house with a chimney in the background.  \n  - An **overcast sky** with visible power lines, trees, and greenery, indicating a suburban or rural locale.  \n- **Composition & Style**:  \n  - **Candid, documentary-style** shot (typical of 1980s wedding photography).  \n  - **Vintage aesthetic**: Soft focus, subtle film imperfections (scratches, grain), and muted color palette.  \n  - **Contextual clues**: Formal 1980s attire (suits, dresses), the \u201cwedding party\u201d grouping, and the home-like setting.  \n\n**Distinguishing Features**:  \n- **1981-specific details**: Fashion (e.g., men\u2019s tailored suits, women\u2019s dresses), car models (1980s-era sedan), and photographic techniques.  \n- **Event context**: Explicitly tied to *Jim Jeffers\u2019 wedding* (a keyword for verification).  \n- **Visual identifiers**: Stone wall, metal gate, overcast sky, and the cohesive 1980s \u201cvintage\u201d film aesthetic.  \n\n**Search Keywords**:  \n*1981 wedding photo, Jim Jeffers wedding, vintage film photography, candid outdoor wedding, 1980s fashion, stone wall garden, metal gate, overcast sky, documentary-style wedding, teal-blue film color, family gathering, residential wedding scene, 1980s photography*  \n\nThis description prioritizes **specific visual markers** (color, attire, setting) and **contextual keywords** (event, year, style) to ensure precise retrieval.", "roll_date": "1981", "roll_comment": "Jim Brady's Wedding", "short_description": null, "index_book_number": "2", "index_book_date": "1981", "index_book_comment": "Jim Brady's Wedding", "distance": 13}]};</script>
+    <script src="/static/js/common.js"></script>
+    <script src="/static/js/image.js"></script>
+</body>
+
+</html>

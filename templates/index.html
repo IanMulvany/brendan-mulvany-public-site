@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Brendan Mulvany Photo Archive</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
+
 <body>
     <header class="header">
         <div class="header__container">
@@ -22,14 +24,8 @@
             <div class="search-container">
                 <form class="search-form" id="search-form" action="/search">
                     <div class="search-input-wrapper">
-                        <input 
-                            type="text" 
-                            class="search-input" 
-                            id="search-input"
-                            name="q"
-                            placeholder="Search descriptions, filenames, comments..."
-                            autocomplete="off"
-                        >
+                        <input type="text" class="search-input" id="search-input" name="q"
+                            placeholder="Search descriptions, filenames, comments..." autocomplete="off">
                         <button type="submit" class="search-button">Search</button>
                     </div>
                     <div class="search-suggestions" id="search-suggestions"></div>
@@ -66,12 +62,8 @@
                     <!-- Annotations will be inserted here -->
                 </div>
                 <form class="modal__annotation-form modal__annotation-form--hidden" id="annotation-form">
-                    <textarea 
-                        class="modal__annotation-input" 
-                        id="annotation-input"
-                        placeholder="Add a comment or annotation..."
-                        rows="3"
-                    ></textarea>
+                    <textarea class="modal__annotation-input" id="annotation-input"
+                        placeholder="Add a comment or annotation..." rows="3"></textarea>
                     <button type="submit" class="modal__annotation-submit">Add Annotation</button>
                 </form>
             </div>
@@ -96,7 +88,7 @@
                 <button type="submit" class="modal__submit">Login</button>
             </form>
             <p class="modal__switch">
-                Don't have an account? 
+                Don't have an account?
                 <button class="modal__link" id="show-register">Register</button>
             </p>
         </div>
@@ -124,13 +116,15 @@
                 <button type="submit" class="modal__submit">Register</button>
             </form>
             <p class="modal__switch">
-                Already have an account? 
+                Already have an account?
                 <button class="modal__link" id="show-login">Login</button>
             </p>
         </div>
     </div>
 
+    <script>window.__STATIC_DATA__ = null;</script>
+    <script src="/static/js/common.js"></script>
     <script src="/static/js/main.js"></script>
 </body>
-</html>
 
+</html>
