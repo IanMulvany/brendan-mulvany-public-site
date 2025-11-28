@@ -308,9 +308,9 @@ async function loadSimilarImages(sceneId, currentImageId) {
                     <div class="image-detail__similar-grid">
                         ${data.results.map(result => `
                             <div class="image-detail__similar-item">
-                                <a href="/image/${result.image_id || result.scene_id}/">
-                                    <img src="${result.thumbnail_url}"
-                                         alt="${result.base_filename}"
+                                <a href="/image/${result.image_id || result.scene_id}">
+                                    <img src="${result.thumbnail_url}" 
+                                         alt="${result.base_filename}" 
                                          class="image-detail__similar-thumb"
                                          loading="lazy">
                                     <div class="image-detail__similar-info">

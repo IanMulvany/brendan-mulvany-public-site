@@ -169,9 +169,9 @@ async function performSearch() {
             if (results.length > 0) {
                 resultsGrid.innerHTML = results.map(img => `
                     <div class="search-page__result-item">
-                        <a href="/image/${img.image_id}/">
-                            <img src="${img.thumbnail_url}"
-                                 alt="${img.base_filename}"
+                        <a href="/image/${img.image_id}">
+                            <img src="${img.thumbnail_url}" 
+                                 alt="${img.base_filename}" 
                                  class="search-page__result-thumb"
                                  loading="lazy">
                             <div class="search-page__result-info">
@@ -219,9 +219,9 @@ async function performSearch() {
                     if (results.length > 0) {
                         resultsGrid.innerHTML = results.map(img => `
                             <div class="search-page__result-item">
-                                <a href="/image/${img.image_id}/">
-                                    <img src="${img.thumbnail_url}"
-                                         alt="${img.base_filename}"
+                                <a href="/image/${img.image_id}">
+                                    <img src="${img.thumbnail_url}" 
+                                         alt="${img.base_filename}" 
                                          class="search-page__result-thumb"
                                          loading="lazy">
                                     <div class="search-page__result-info">
@@ -274,9 +274,9 @@ async function performSearch() {
         if (data.results && data.results.length > 0) {
             resultsGrid.innerHTML = data.results.map(img => `
                 <div class="search-page__result-item">
-                    <a href="/image/${img.image_id}/">
-                        <img src="${img.thumbnail_url}"
-                             alt="${img.image_name}"
+                    <a href="/image/${img.image_id}">
+                        <img src="${img.thumbnail_url}" 
+                             alt="${img.image_name}" 
                              class="search-page__result-thumb"
                              loading="lazy">
                         <div class="search-page__result-info">

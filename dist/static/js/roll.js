@@ -78,9 +78,9 @@ function displayRollData(data) {
         if (images.length > 0) {
             galleryEl.innerHTML = images.map(img => `
                 <div class="roll-page__item">
-                    <a href="/image/${img.image_id}/">
-                        <img src="${img.thumbnail_url}"
-                             alt="${img.base_filename}"
+                    <a href="/image/${img.image_id}">
+                        <img src="${img.thumbnail_url}" 
+                             alt="${img.base_filename}" 
                              class="roll-page__thumb"
                              loading="lazy">
                         <div class="roll-page__info">

@@ -212,9 +212,9 @@ function displaySimilarImages(similarImages) {
     if (similarImages && similarImages.length > 0) {
         similarGrid.innerHTML = similarImages.map(result => `
             <div class="image-page__similar-item">
-                <a href="/image/${result.image_id || result.scene_id}/">
-                    <img src="${result.thumbnail_url}"
-                         alt="${result.base_filename}"
+                <a href="/image/${result.image_id || result.scene_id}">
+                    <img src="${result.thumbnail_url}" 
+                         alt="${result.base_filename}" 
                          class="image-page__similar-thumb"
                          loading="lazy">
                     <div class="image-page__similar-info">

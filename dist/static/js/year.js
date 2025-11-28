@@ -52,7 +52,7 @@ function displayYearData(data) {
         if (images.length > 0) {
             galleryEl.innerHTML = images.map(img => `
                 <div class="year-page__item">
-                    <a href="/image/${img.image_id}/">
+                    <a href="/image/${img.image_id}">
                         <img src="${img.thumbnail_url || img.image_url}"
                              alt="${img.image_name || img.base_filename}"
                              class="year-page__thumb"
