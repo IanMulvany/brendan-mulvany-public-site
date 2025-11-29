@@ -515,6 +515,7 @@ class PublicSiteDatabase:
                     s.index_book_date,
                     s.index_book_comment,
                     s.short_description,
+                    s.description,
                     s.created_at AS scene_created_at,
                     s.updated_at AS scene_updated_at,
                     iv.version_id,

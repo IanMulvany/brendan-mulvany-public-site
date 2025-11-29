@@ -51,14 +51,14 @@
         }
 
         .section-link {
-            color: #3498db;
+            color: #1a73c7;
             text-decoration: none;
             font-size: 0.9rem;
             transition: color 0.2s;
         }
 
         .section-link:hover {
-            color: #2980b9;
+            color: #155a9c;
         }
 
         /* Compact Grid Styling */
@@ -260,7 +260,7 @@
         </div>
     </header>
 
-    <main class="main">
+    <main class="main" role="main">
         <!-- Featured Carousel -->
         <section class="carousel" id="featured-carousel">
             <div class="carousel__container" id="carousel-container">
@@ -397,13 +397,14 @@
             let currentSlide = 0;
             let autoPlayInterval;
 
-            // Create slides
+            // Create slides - use thumbnail_url with fallback to image_url
             featuredImages.forEach((img, index) => {
                 const slide = document.createElement('div');
                 slide.className = `carousel__slide ${index === 0 ? 'active' : ''}`;
+                const imageUrl = img.thumbnail_url || img.image_url;
                 slide.innerHTML = `
                     <a href="/image/${img.image_id}/">
-                        <img src="${img.image_url}" alt="${img.image_name}" class="carousel__image">
+                        <img src="${imageUrl}" alt="${img.image_name}" class="carousel__image">
                         <div class="carousel__caption">
                             <div class="carousel__caption-title">${img.image_name}</div>
                             <div class="carousel__caption-date">${img.capture_date || ''}</div>
