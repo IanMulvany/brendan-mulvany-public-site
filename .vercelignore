@@ -3,6 +3,7 @@
 
 # Local development files
 config.local.yaml
+.beads/
 *.db
 *.db-journal
 *.db-shm
