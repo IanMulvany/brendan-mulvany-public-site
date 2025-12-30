@@ -101,18 +101,18 @@ function renderImage(image) {
     if (image.base_url) {
         const base = image.base_url;
 
-        // Build srcset with AVIF (preferred) and WebP (fallback) variants
-        // Browser will automatically select best format and size
-        const srcset = [
-            `${base}/small.avif 800w`,
-            `${base}/large.avif 1600w`,
-            `${base}/small.webp 800w`,  // WebP fallback for browsers without AVIF
-            `${base}/large.webp 1600w`, // WebP fallback
-        ].join(', ');
+        // Update picture sources
+        const sourceLargeAvif = document.getElementById('source-large-avif');
+        const sourceLargeWebp = document.getElementById('source-large-webp');
+        const sourceSmallAvif = document.getElementById('source-small-avif');
+        const sourceSmallWebp = document.getElementById('source-small-webp');
 
-        imageEl.srcset = srcset;
-        imageEl.sizes = '(max-width: 1200px) 100vw, 1200px';
-        imageEl.src = `${base}/original.jpg`;  // Fallback for browsers without srcset support
+        if (sourceLargeAvif) sourceLargeAvif.srcset = `${base}/large.avif`;
+        if (sourceLargeWebp) sourceLargeWebp.srcset = `${base}/large.webp`;
+        if (sourceSmallAvif) sourceSmallAvif.srcset = `${base}/small.avif`;
+        if (sourceSmallWebp) sourceSmallWebp.srcset = `${base}/small.webp`;
+
+        imageEl.src = `${base}/original.jpg`;  // Fallback for browsers without picture support
     } else {
         // Fallback to old behavior
         imageEl.src = image.image_url;

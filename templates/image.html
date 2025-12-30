@@ -14,12 +14,15 @@
             color: #fff;
             text-decoration: none;
         }
+
         .header__title a:hover {
             opacity: 0.9;
         }
+
         .header__title a:visited {
             color: #fff;
         }
+
         .header__nav-link {
             color: #fff;
             text-decoration: none;
@@ -27,8 +30,9 @@
             border-radius: 4px;
             transition: background-color 0.2s;
         }
+
         .header__nav-link:hover {
-            background-color: rgba(255,255,255,0.1);
+            background-color: rgba(255, 255, 255, 0.1);
         }
 
         .image-page {
@@ -242,7 +246,18 @@
 
         <div class="image-page__content">
             <div class="image-page__image-container">
-                <img id="main-image" class="image-page__image" src="" alt="Loading...">
+                <picture>
+                    <!-- Large variants (desktop) -->
+                    <source srcset="" type="image/avif" id="source-large-avif" media="(min-width: 801px)">
+                    <source srcset="" type="image/webp" id="source-large-webp" media="(min-width: 801px)">
+
+                    <!-- Small variants (mobile/tablet) -->
+                    <source srcset="" type="image/avif" id="source-small-avif" media="(max-width: 800px)">
+                    <source srcset="" type="image/webp" id="source-small-webp" media="(max-width: 800px)">
+
+                    <!-- Fallback -->
+                    <img id="main-image" class="image-page__image" src="" alt="Loading...">
+                </picture>
             </div>
 
             <div class="image-page__info" id="image-info">
