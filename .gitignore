@@ -85,3 +85,4 @@ uv.lock
 *.shm
 *.wal
 meta_tags.json
+*.lock
