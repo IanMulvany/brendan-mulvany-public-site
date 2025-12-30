@@ -3,6 +3,7 @@
 
 # Local development files
 config.local.yaml
+.beads/
 *.db
 *.db-journal
 *.db-shm
@@ -47,4 +48,17 @@ images/
 
 # Code directory (not needed for public site deployment)
 code/
+
+# Build scripts and tools (not needed for serving the site)
+build_static.py
+featured_selector.py
+generate_featured.py
+build_config.json
+deploy.sh
+
+# Archive directory
+archive/
+
+# Design ideas (not needed in production)
+design-ideas/
 

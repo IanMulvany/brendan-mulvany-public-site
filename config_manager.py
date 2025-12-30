@@ -84,8 +84,8 @@ class ConfigManager:
             'directory_aliases': {},
             'batch_metadata': {},
             'storage': {
-                'type': 'cdn',
-                'public_url': os.getenv('CDN_PUBLIC_URL', '')
+                'type': 'local',
+                'base_path': './storage-test'
             },
             'similarity': {
                 'threshold': 13
@@ -284,10 +284,7 @@ class ConfigManager:
     
     def get_storage_config(self) -> Dict:
         """Get storage configuration"""
-        return self.config.get('storage', {
-            'type': 'local',
-            'base_path': './storage-test'
-        })
+        return self.config.get('storage', self._default_config()['storage'])
     
     def get_similarity_threshold(self) -> int:
         """Get similarity search threshold (Hamming distance)"""

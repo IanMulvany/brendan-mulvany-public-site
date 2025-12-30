@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Archive - Brendan Mulvany</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #fff;
+            --text: #000;
+            --accent: #ff0000;
+            --border: #000;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.4;
+        }
+
+        /* Brutalist Header */
+        .header {
+            border-bottom: 4px solid var(--border);
+            padding: 16px;
+        }
+
+        .header__inner {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .header__title {
+            font-size: 3rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -0.03em;
+            line-height: 0.9;
+        }
+
+        .header__title span {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 400;
+            letter-spacing: 0.3em;
+            margin-top: 8px;
+        }
+
+        .header__nav {
+            display: flex;
+            gap: 0;
+        }
+
+        .header__nav a {
+            color: var(--text);
+            text-decoration: none;
+            padding: 12px 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border: 2px solid var(--border);
+            margin-left: -2px;
+            transition: all 0.1s;
+        }
+
+        .header__nav a:first-child {
+            margin-left: 0;
+        }
+
+        .header__nav a:hover,
+        .header__nav a.active {
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        /* Stats Banner */
+        .stats {
+            background: var(--text);
+            color: var(--bg);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: center;
+            gap: 48px;
+        }
+
+        .stats__item {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .stats__item strong {
+            font-size: 1.2rem;
+            font-weight: 900;
+            margin-right: 8px;
+        }
+
+        /* Main */
+        .main {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 32px 16px;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 0;
+            margin-bottom: 32px;
+        }
+
+        .search-row input {
+            flex: 1;
+            padding: 16px 20px;
+            border: 2px solid var(--border);
+            font-size: 1rem;
+            font-weight: 500;
+            outline: none;
+        }
+
+        .search-row button {
+            padding: 16px 32px;
+            background: var(--text);
+            color: var(--bg);
+            border: 2px solid var(--border);
+            margin-left: -2px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        .search-row button:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* Section Label */
+        .section-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        /* Brutalist Grid */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0;
+            border: 2px solid var(--border);
+        }
+
+        .gallery__item {
+            aspect-ratio: 1;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+            border-right: 2px solid var(--border);
+            border-bottom: 2px solid var(--border);
+        }
+
+        .gallery__item:nth-child(6n) {
+            border-right: none;
+        }
+
+        .gallery__item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(100%);
+            transition: filter 0.2s;
+        }
+
+        .gallery__item:hover img {
+            filter: grayscale(0%);
+        }
+
+        .gallery__item::after {
+            content: attr(data-index);
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            font-size: 0.6rem;
+            font-weight: 900;
+            background: var(--bg);
+            padding: 2px 6px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .gallery__item:hover::after {
+            opacity: 1;
+        }
+
+        .gallery__info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--text);
+            color: var(--bg);
+            padding: 8px;
+            transform: translateY(100%);
+            transition: transform 0.2s;
+        }
+
+        .gallery__item:hover .gallery__info {
+            transform: translateY(0);
+        }
+
+        .gallery__title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .gallery__meta {
+            font-size: 0.6rem;
+            opacity: 0.7;
+        }
+
+        .loading-text {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: var(--text);
+            padding: 64px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .load-more {
+            text-align: center;
+            padding: 0;
+            margin-top: 32px;
+        }
+
+        .load-more button {
+            width: 100%;
+            padding: 20px;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            font-size: 0.8rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        .load-more button:hover {
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 64px;
+            padding: 24px 16px;
+            border-top: 4px solid var(--border);
+            text-align: center;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        @media (max-width: 1024px) {
+            .gallery { grid-template-columns: repeat(4, 1fr); }
+            .gallery__item:nth-child(6n) { border-right: 2px solid var(--border); }
+            .gallery__item:nth-child(4n) { border-right: none; }
+        }
+
+        @media (max-width: 640px) {
+            .header__inner { flex-direction: column; align-items: flex-start; gap: 16px; }
+            .header__title { font-size: 2rem; }
+            .gallery { grid-template-columns: repeat(2, 1fr); }
+            .gallery__item:nth-child(4n) { border-right: 2px solid var(--border); }
+            .gallery__item:nth-child(2n) { border-right: none; }
+            .stats { flex-wrap: wrap; gap: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header__inner">
+            <h1 class="header__title">
+                BM
+                <span>Photo Archive</span>
+            </h1>
+            <nav class="header__nav">
+                <a href="/" class="active">Index</a>
+                <a href="/index_rolls.html">Rolls</a>
+                <a href="/index_years.html">Years</a>
+                <a href="/index_themes.html">Themes</a>
+                <a href="/index_featured.html">Select</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="stats">
+        <div class="stats__item"><strong id="total-count">--</strong>Images</div>
+        <div class="stats__item"><strong id="roll-count">--</strong>Rolls</div>
+        <div class="stats__item"><strong id="year-range">--</strong>Years</div>
+    </div>
+
+    <main class="main">
+        <form class="search-row" id="search-form" action="/search">
+            <input type="text" name="q" placeholder="SEARCH ARCHIVE" id="search-input">
+            <button type="submit">Go</button>
+        </form>
+
+        <div class="section-label">All Photographs</div>
+
+        <div class="gallery" id="gallery-container">
+            <p class="loading-text">Loading...</p>
+        </div>
+
+        <div class="load-more" id="gallery-load-more" style="display:none;">
+            <button id="load-more-button">Load More Images</button>
+        </div>
+    </main>
+
+    <footer class="footer">
+        Brendan Mulvany Photo Archive - All Rights Reserved
+    </footer>
+
+    <script>window.__STATIC_DATA__ = null;</script>
+    <script src="/static/js/main.js"></script>
+    <script>
+        // Add index numbers to gallery items
+        const observer = new MutationObserver((mutations) => {
+            const items = document.querySelectorAll('.gallery__item');
+            items.forEach((item, i) => {
+                item.setAttribute('data-index', String(i + 1).padStart(3, '0'));
+            });
+        });
+        observer.observe(document.getElementById('gallery-container'), { childList: true });
+    </script>
+</body>
+</html>

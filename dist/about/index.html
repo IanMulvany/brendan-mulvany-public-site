@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - Brendan Mulvany Photo Archive</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Navigation styling */
+        .header__nav-link {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .header__nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .header__nav-link--active {
+            background-color: rgba(255,255,255,0.2);
+            font-weight: 600;
+        }
+
+        .about-content {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .about-content h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .about-content p {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title">Brendan Mulvany Photo Archive</h1>
+            <nav class="header__nav">
+                <a href="/" class="header__nav-link">Home</a>
+                <a href="/rolls" class="header__nav-link">Rolls</a>
+                <a href="/years" class="header__nav-link">Years</a>
+                <a href="/about" class="header__nav-link header__nav-link--active">About</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="about-content">
+            <h2>About This Archive</h2>
+            <p>This is the Brendan Mulvany Photo Archive.</p>
+            <p>More information coming soon...</p>
+        </div>
+    </main>
+</body>
+
+</html>

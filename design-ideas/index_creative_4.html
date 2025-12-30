@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Archive - Brendan Mulvany</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #f0ede8;
+            --text: #333;
+            --text-muted: #777;
+            --accent: #c9a227;
+            --border: #d5d0c6;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        /* Sidebar Layout */
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: white;
+            border-right: 1px solid var(--border);
+            padding: 32px 24px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar__title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .sidebar__subtitle {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 32px;
+        }
+
+        .sidebar__nav {
+            margin-bottom: 32px;
+        }
+
+        .sidebar__nav-title {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .sidebar__nav a {
+            display: block;
+            color: var(--text);
+            text-decoration: none;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            margin-bottom: 2px;
+            transition: all 0.2s;
+        }
+
+        .sidebar__nav a:hover {
+            background: var(--bg);
+        }
+
+        .sidebar__nav a.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .sidebar__search input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .sidebar__search input:focus {
+            border-color: var(--accent);
+        }
+
+        /* Main Content - Masonry */
+        .content {
+            flex: 1;
+            padding: 24px;
+        }
+
+        .content__header {
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .content__title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-muted);
+        }
+
+        .content__count {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Masonry Grid */
+        .masonry {
+            column-count: 4;
+            column-gap: 16px;
+        }
+
+        .masonry__item {
+            break-inside: avoid;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .masonry__item:hover {
+            transform: scale(1.02);
+        }
+
+        .masonry__item img {
+            width: 100%;
+            border-radius: 4px;
+            display: block;
+        }
+
+        .masonry__info {
+            padding: 8px 4px;
+        }
+
+        .masonry__title {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .masonry__meta {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .loading-text {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 64px;
+        }
+
+        .load-more {
+            text-align: center;
+            padding: 32px;
+        }
+
+        .load-more button {
+            padding: 12px 28px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .load-more button:hover {
+            opacity: 0.85;
+        }
+
+        @media (max-width: 1200px) {
+            .masonry { column-count: 3; }
+        }
+
+        @media (max-width: 900px) {
+            .masonry { column-count: 2; }
+            .sidebar { width: 220px; }
+        }
+
+        @media (max-width: 640px) {
+            .layout { flex-direction: column; }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+            .masonry { column-count: 2; column-gap: 8px; }
+            .masonry__item { margin-bottom: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <h1 class="sidebar__title">Brendan Mulvany</h1>
+            <p class="sidebar__subtitle">Photo Archive</p>
+
+            <div class="sidebar__search">
+                <input type="text" placeholder="Search..." id="search-input">
+            </div>
+
+            <nav class="sidebar__nav" style="margin-top: 24px;">
+                <p class="sidebar__nav-title">Browse</p>
+                <a href="/" class="active">All Photos</a>
+                <a href="/index_rolls.html">By Roll</a>
+                <a href="/index_years.html">By Year</a>
+                <a href="/index_themes.html">By Theme</a>
+                <a href="/index_featured.html">Featured</a>
+            </nav>
+        </aside>
+
+        <main class="content">
+            <div class="content__header">
+                <span class="content__title">All Photographs</span>
+                <span class="content__count" id="photo-count"></span>
+            </div>
+
+            <div class="masonry" id="gallery-container">
+                <p class="loading-text">Loading images...</p>
+            </div>
+
+            <div class="load-more" id="gallery-load-more" style="display:none;">
+                <button id="load-more-button">Load More</button>
+            </div>
+        </main>
+    </div>
+
+    <script>window.__STATIC_DATA__ = null;</script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

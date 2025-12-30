@@ -1,0 +1,5 @@
+{
+  "local_db_path": "./public_site.db",
+  "config_path": "config.local.yaml"
+}
+

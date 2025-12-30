@@ -148,10 +148,15 @@ sqlite3 public_site.db "SELECT COUNT(*) FROM image_versions WHERE r2_key IS NOT 
 When using local storage, images are stored in:
 ```
 storage-test/
-└── scenes/
-    ├── 2025-11-04-batch-1-DSCF1487.jpg
-    ├── 2025-11-04-batch-1-DSCF1488.jpg
-    └── ...
+└── {scene_id}/
+    ├── thumb.avif
+    ├── thumb.webp
+    ├── small.avif
+    ├── small.webp
+    ├── large.avif
+    ├── large.webp
+    ├── original.jpg
+    └── manifest.json
 ```
 
 ### R2 Storage (Production)
@@ -159,10 +164,17 @@ storage-test/
 When using R2, images are stored at:
 ```
 r2://bucket/
-└── scenes/
-    ├── {scene_id}.jpg
-    └── ...
+└── {scene_id}/
+    ├── thumb.avif
+    ├── thumb.webp
+    ├── small.avif
+    ├── small.webp
+    ├── large.avif
+    ├── large.webp
+    ├── original.jpg
+    └── manifest.json
 ```
+The manifest is also uploaded at the root key `{scene_id}` (no extension) for Cloudflare to serve.
 
 ## Database Schema
 
@@ -211,8 +223,8 @@ from pathlib import Path
 config = ConfigManager(Path("config.yaml"))
 storage = create_storage_backend(config.get_storage_config())
 
-# Download a scene
-storage.download_file("scenes/2025-11-04-batch-1-DSCF1487.jpg", 
+# Download a scene's original
+storage.download_file("2025-11-04-batch-1-DSCF1487/original.jpg",
                       Path("downloaded_image.jpg"))
 ```
 
@@ -244,8 +256,9 @@ storage = create_storage_backend(config.get_storage_config())
 
 # List all scenes in storage
 storage_path = Path(config.get_storage_config()['base_path'])
-for scene_file in (storage_path / "scenes").glob("*.jpg"):
-    print(f"Found: {scene_file.name}")
+for scene_dir in storage_path.iterdir():
+    if scene_dir.is_dir():
+        print(f"Found: {scene_dir.name}")
 ```
 
 ## Running the App
@@ -276,7 +289,7 @@ The app will:
 
 ### Images not showing in app
 - Verify version has `r2_key`: `SELECT scene_id, r2_key FROM image_versions WHERE is_current = 1 LIMIT 5;`
-- Check storage file exists: `ls storage-test/scenes/`
+- Check storage files exist: `ls storage-test/2025-11-04-batch-1-DSCF1487/`
 - Check app logs for errors
 
 ### Similarity search not working
@@ -306,4 +319,3 @@ python sync.py --images-dir ../images
 ```
 
 The storage abstraction layer makes it easy to swap implementations - no other code changes needed!
-

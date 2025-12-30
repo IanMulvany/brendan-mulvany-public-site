@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline - Brendan Mulvany Photo Archive</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Navigation styling */
+        .header__title a {
+            color: #fff;
+            text-decoration: none;
+        }
+        .header__title a:hover {
+            opacity: 0.9;
+        }
+        .header__title a:visited {
+            color: #fff;
+        }
+        .header__nav-link {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .header__nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .header__nav-link--active {
+            background-color: rgba(255,255,255,0.2);
+            font-weight: 600;
+        }
+
+        /* Ultra-Compact Grid for Years */
+        .years-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 8px;
+            padding: 1rem 0;
+        }
+
+        .year-card {
+            background: #fff;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .year-card:hover {
+            transform: scale(1.03);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        }
+
+        .year-card__link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .year-card__image-wrapper {
+            position: relative;
+            aspect-ratio: 1;
+            overflow: hidden;
+        }
+
+        .year-card__image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .year-card__count {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            font-size: 0.6rem;
+            padding: 1px 4px;
+            border-radius: 2px;
+        }
+
+        .year-card__info {
+            padding: 4px 6px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            color: #fff;
+        }
+
+        .year-card__title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin: 0;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .year-card__photos {
+            font-size: 0.6rem;
+            opacity: 0.85;
+            margin: 0;
+        }
+
+        .view-header {
+            margin-bottom: 1rem;
+        }
+
+        .view-header__title {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .view-header__description {
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title"><a href="/">Brendan Mulvany Photo Archive</a></h1>
+            <nav class="header__nav">
+                <a href="/" class="header__nav-link">Home</a>
+                <a href="/rolls" class="header__nav-link">Rolls</a>
+                <a href="/years" class="header__nav-link header__nav-link--active">Years</a>
+                <a href="/about" class="header__nav-link">About</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="view-header">
+            <h2 class="view-header__title">Timeline</h2>
+            <p class="view-header__description">Explore the archive chronologically by year.</p>
+        </section>
+
+        <section class="years-grid" id="years-grid">
+            <p class="loading-text">Loading years...</p>
+        </section>
+    </main>
+
+    <script>window.__STATIC_DATA__ = null;</script>
+    <script src="/static/js/common.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const yearsGrid = document.getElementById('years-grid');
+            const data = window.__STATIC_DATA__;
+
+            if (!data || !data.years) {
+                yearsGrid.innerHTML = '<p class="error-text">No data available.</p>';
+                return;
+            }
+
+            yearsGrid.innerHTML = '';
+
+            // Sort years descending
+            const sortedYears = Object.keys(data.years).sort((a, b) => b - a);
+
+            sortedYears.forEach(year => {
+                const images = data.years[year];
+                const coverImage = images[0];
+                const coverUrl = coverImage.thumbnail_url || coverImage.image_url;
+
+                const yearCard = document.createElement('div');
+                yearCard.className = 'year-card';
+
+                yearCard.innerHTML = `
+                    <a href="/year/${year}/index.html" class="year-card__link">
+                        <div class="year-card__image-wrapper">
+                            <img src="${coverUrl}" alt="Year ${year}" class="year-card__image" loading="lazy">
+                            <div class="year-card__count">${images.length}</div>
+                            <div class="year-card__info">
+                                <h3 class="year-card__title">${year}</h3>
+                                <p class="year-card__photos">${images.length} photos</p>
+                            </div>
+                        </div>
+                    </a>
+                `;
+                yearsGrid.appendChild(yearCard);
+            });
+        });
+    </script>
+</body>
+
+</html>

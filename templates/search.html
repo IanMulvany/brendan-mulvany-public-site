@@ -1,37 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Search - Brendan Mulvany Photo Archive</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
+        /* Navigation styling */
+        .header__title a {
+            color: #fff;
+            text-decoration: none;
+        }
+        .header__title a:hover {
+            opacity: 0.9;
+        }
+        .header__title a:visited {
+            color: #fff;
+        }
+        .header__nav-link {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .header__nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+
         .search-page {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
+
         .search-page__header {
             margin-bottom: 30px;
         }
+
         .search-page__back {
             display: inline-block;
             margin-bottom: 10px;
             color: #0066cc;
             text-decoration: none;
         }
+
         .search-page__back:hover {
             text-decoration: underline;
         }
+
         .search-page__title {
             font-size: 28px;
             margin-bottom: 20px;
         }
+
         .search-page__content {
             display: grid;
             grid-template-columns: 300px 1fr;
             gap: 30px;
         }
+
         .search-page__filters {
             background: #f9f9f9;
             padding: 20px;
@@ -40,6 +69,7 @@
             position: sticky;
             top: 20px;
         }
+
         .search-page__filters-title {
             font-size: 18px;
             font-weight: bold;
@@ -47,15 +77,18 @@
             border-bottom: 2px solid #0066cc;
             padding-bottom: 10px;
         }
+
         .search-page__filter-group {
             margin-bottom: 25px;
         }
+
         .search-page__filter-label {
             display: block;
             font-weight: 600;
             margin-bottom: 8px;
             color: #333;
         }
+
         .search-page__filter-input,
         .search-page__filter-select {
             width: 100%;
@@ -64,16 +97,19 @@
             border-radius: 4px;
             font-size: 14px;
         }
+
         .search-page__filter-input:focus,
         .search-page__filter-select:focus {
             outline: none;
             border-color: #0066cc;
         }
+
         .search-page__facet-list {
             max-height: 200px;
             overflow-y: auto;
             margin-top: 10px;
         }
+
         .search-page__facet-item {
             display: flex;
             justify-content: space-between;
@@ -81,77 +117,93 @@
             cursor: pointer;
             border-bottom: 1px solid #eee;
         }
+
         .search-page__facet-item:hover {
             background-color: #f0f0f0;
             margin: 0 -10px;
             padding-left: 10px;
             padding-right: 10px;
         }
+
         .search-page__facet-count {
             color: #666;
             font-size: 12px;
         }
+
         .search-page__facet-item.active {
             font-weight: bold;
             color: #0066cc;
         }
+
         .search-page__results {
             flex: 1;
         }
+
         .search-page__results-header {
             margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
+
         .search-page__results-count {
             color: #666;
             font-size: 14px;
         }
+
         .search-page__results-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 20px;
         }
+
         .search-page__result-item {
             background: white;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             transition: transform 0.2s, box-shadow 0.2s;
             cursor: pointer;
         }
+
         .search-page__result-item:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
+
         .search-page__result-item a {
             display: block;
             text-decoration: none;
             color: inherit;
         }
+
         .search-page__result-thumb {
             width: 100%;
             height: 200px;
             object-fit: cover;
             display: block;
         }
+
         .search-page__result-info {
             padding: 10px;
         }
+
         .search-page__result-filename {
             font-weight: 500;
             margin-bottom: 4px;
         }
+
         .search-page__result-meta {
             font-size: 12px;
             color: #666;
         }
+
         .search-page__no-results {
             text-align: center;
             padding: 60px 20px;
             color: #666;
         }
+
         .search-page__clear-filters {
             margin-top: 20px;
             padding: 10px 20px;
@@ -162,26 +214,32 @@
             cursor: pointer;
             width: 100%;
         }
+
         .search-page__clear-filters:hover {
             background: #5a6268;
         }
+
         @media (max-width: 768px) {
             .search-page__content {
                 grid-template-columns: 1fr;
             }
+
             .search-page__filters {
                 position: static;
             }
         }
     </style>
 </head>
+
 <body>
     <header class="header">
         <div class="header__container">
-            <h1 class="header__title">Brendan Mulvany Photo Archive</h1>
+            <h1 class="header__title"><a href="/">Brendan Mulvany Photo Archive</a></h1>
             <nav class="header__nav">
-                <button class="header__nav-button" id="login-btn">Login</button>
-                <button class="header__nav-button header__nav-button--hidden" id="logout-btn">Logout</button>
+                <a href="/" class="header__nav-link">Home</a>
+                <a href="/rolls" class="header__nav-link">Rolls</a>
+                <a href="/years" class="header__nav-link">Years</a>
+                <a href="/about" class="header__nav-link">About</a>
             </nav>
         </div>
     </header>
@@ -195,36 +253,23 @@
         <div class="search-page__content">
             <div class="search-page__filters" id="filters-panel">
                 <h2 class="search-page__filters-title">Filters</h2>
-                
+
                 <div class="search-page__filter-group">
                     <label class="search-page__filter-label">Search Text</label>
-                    <input 
-                        type="text" 
-                        class="search-page__filter-input" 
-                        id="search-query"
-                        placeholder="Search descriptions, filenames..."
-                    >
+                    <input type="text" class="search-page__filter-input" id="search-query"
+                        placeholder="Search descriptions, filenames...">
                 </div>
 
                 <div class="search-page__filter-group">
                     <label class="search-page__filter-label">Roll Number</label>
-                    <input 
-                        type="text" 
-                        class="search-page__filter-input" 
-                        id="filter-roll-number"
-                        placeholder="e.g., 5084"
-                    >
+                    <input type="text" class="search-page__filter-input" id="filter-roll-number"
+                        placeholder="e.g., 5084">
                     <div class="search-page__facet-list" id="facet-roll-numbers"></div>
                 </div>
 
                 <div class="search-page__filter-group">
                     <label class="search-page__filter-label">Roll Date</label>
-                    <input 
-                        type="text" 
-                        class="search-page__filter-input" 
-                        id="filter-roll-date"
-                        placeholder="e.g., 1981"
-                    >
+                    <input type="text" class="search-page__filter-input" id="filter-roll-date" placeholder="e.g., 1981">
                     <div class="search-page__facet-list" id="facet-roll-dates"></div>
                 </div>
 
@@ -261,7 +306,9 @@
         </div>
     </main>
 
+    <script>window.__SEARCH_INDEX__ = null;</script>
+    <script src="/static/js/common.js"></script>
     <script src="/static/js/search.js"></script>
 </body>
-</html>
 
+</html>

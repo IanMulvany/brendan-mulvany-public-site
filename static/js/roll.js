@@ -8,25 +8,38 @@ const rollNumber = pathParts[pathParts.length - 1];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    loadRollData(rollNumber);
+    // Check for embedded static data first
+    // Check for embedded static data first
+    const pageData = window.__PAGE_DATA__;
+    if (pageData) {
+        // Use static data - no API call needed
+        // Adapt structure if needed (build_static.py provides flat structure)
+        const data = {
+            roll_metadata: pageData.roll_metadata || {
+                roll_number: pageData.roll_number,
+                count: pageData.count
+            },
+            images: pageData.images || []
+        };
+        displayRollData(data);
+    } else {
+        // Fall back to API
+        loadRollData(rollNumber);
+    }
 });
 
-// Load roll data
-async function loadRollData(rollNumber) {
+// Display roll data (works with both static and API data)
+function displayRollData(data) {
     const titleEl = document.getElementById('roll-number');
     const metadataEl = document.getElementById('roll-metadata');
     const galleryEl = document.getElementById('roll-gallery');
-    
-    titleEl.textContent = rollNumber;
-    metadataEl.innerHTML = '<p>Loading...</p>';
-    galleryEl.innerHTML = '<p>Loading images...</p>';
-    
-    try {
-        const response = await fetch(`${API_BASE}/api/public/roll/${encodeURIComponent(rollNumber)}`);
-        const data = await response.json();
-        
-        // Display metadata
-        const meta = data.roll_metadata;
+
+    const meta = data.roll_metadata;
+    const images = data.images || [];
+
+    if (titleEl) titleEl.textContent = meta.roll_number || '';
+
+    if (metadataEl) {
         metadataEl.innerHTML = `
             ${meta.roll_date ? `
                 <div class="roll-page__metadata-item">
@@ -59,14 +72,15 @@ async function loadRollData(rollNumber) {
                 </div>
             ` : ''}
         `;
-        
-        // Display images
-        if (data.images && data.images.length > 0) {
-            galleryEl.innerHTML = data.images.map(img => `
+    }
+
+    if (galleryEl) {
+        if (images.length > 0) {
+            galleryEl.innerHTML = images.map(img => `
                 <div class="roll-page__item">
-                    <a href="/image/${img.image_id}">
-                        <img src="${img.thumbnail_url}" 
-                             alt="${img.base_filename}" 
+                    <a href="/image/${img.image_id}/">
+                        <img src="${img.thumbnail_url}"
+                             alt="${img.base_filename}"
                              class="roll-page__thumb"
                              loading="lazy">
                         <div class="roll-page__info">
@@ -79,17 +93,30 @@ async function loadRollData(rollNumber) {
         } else {
             galleryEl.innerHTML = '<p>No images found for this roll.</p>';
         }
+    }
+}
+
+// Load roll data from API
+async function loadRollData(rollNumber) {
+    const titleEl = document.getElementById('roll-number');
+    const metadataEl = document.getElementById('roll-metadata');
+    const galleryEl = document.getElementById('roll-gallery');
+
+    if (titleEl) titleEl.textContent = rollNumber;
+    if (metadataEl) metadataEl.innerHTML = '<p>Loading...</p>';
+    if (galleryEl) galleryEl.innerHTML = '<p>Loading images...</p>';
+
+    try {
+        const response = await fetch(`${API_BASE}/api/public/roll/${encodeURIComponent(rollNumber)}`);
+        const data = await response.json();
+        displayRollData(data);
     } catch (error) {
         console.error('Error loading roll data:', error);
-        metadataEl.innerHTML = '<p>Error loading roll information</p>';
-        galleryEl.innerHTML = '<p>Error loading images</p>';
+        if (metadataEl) metadataEl.innerHTML = '<p>Error loading roll information</p>';
+        if (galleryEl) galleryEl.innerHTML = '<p>Error loading images</p>';
     }
 }
 
 // Helper functions
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+
 

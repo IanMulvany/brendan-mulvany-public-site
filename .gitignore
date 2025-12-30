@@ -1,4 +1,8 @@
 # Python
+
+*.shm
+*.wal
+
 __pycache__/
 *.py[cod]
 *$py.class
@@ -6,7 +10,7 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
+# dist/ and public/ - We need public/ folder for Vercel static site
 downloads/
 eggs/
 .eggs/
@@ -63,11 +67,17 @@ logs/
 storage/
 storage-test/
 public_storage_mock_dir/
+public/
+# we are ignoring public as we are now deploying to vercel via `vercel --deploy` 
 
 # Temp files
 *.tmp
 .cache/
 
+# Archive folder (contains old scripts with secrets)
+archive/
+
 # OS
 Thumbs.db
 .vercel
+uv.lock

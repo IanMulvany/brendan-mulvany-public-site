@@ -56,7 +56,7 @@ This will:
 - ✅ Scan public batches
 - ✅ Create scene records in database
 - ✅ Create version records for all processing stages
-- ✅ Upload current versions to `storage-test/scenes/`
+- ✅ Upload current versions to `storage-test/{scene_id}/` (variants + manifest)
 - ✅ Mark versions as "live" in database
 
 ## Step 4: Start the App
@@ -83,7 +83,7 @@ sqlite3 public-site/public_site.db \
 
 2. **Check storage**:
 ```bash
-ls -la storage-test/scenes/
+ls -la storage-test/2025-11-04-batch-1-DSCF1487/
 ```
 
 3. **Check API**:
@@ -184,6 +184,5 @@ curl -X POST http://localhost:8001/api/admin/sync \
 
 **App not showing images?**
 - Verify versions are live: `SELECT COUNT(*) FROM image_versions WHERE r2_key IS NOT NULL;`
-- Check storage files exist: `ls storage-test/scenes/`
+- Check storage files exist: `ls storage-test/2025-11-04-batch-1-DSCF1487/`
 - Check app logs for errors
-

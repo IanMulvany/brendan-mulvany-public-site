@@ -34,6 +34,7 @@ from database import PublicSiteDatabase
 from config_manager import ConfigManager
 from storage import create_storage_backend
 import os
+from common import scene_id_to_image_id, image_id_to_scene_id, construct_image_urls
 
 # Configuration - support both local development and Vercel deployment
 # On Vercel, use environment variables; locally, use file paths
@@ -134,6 +135,28 @@ except Exception as e:
     logger.error(f"Failed to initialize storage backend: {e}")
     storage_backend = None
 
+# Add local storage route if configured
+if storage_config.get('type') == 'local':
+    @app.get("/api/storage/{path:path}")
+    async def serve_storage_file(path: str):
+        """Serve files from local storage (for testing)"""
+        base_path = Path(storage_config.get('base_path', './storage-test'))
+        file_path = base_path / path
+        
+        # Security check: ensure path is within base_path
+        try:
+            file_path = file_path.resolve()
+            base_path = base_path.resolve()
+            if not str(file_path).startswith(str(base_path)):
+                raise HTTPException(status_code=403, detail="Access denied")
+        except Exception:
+            raise HTTPException(status_code=403, detail="Access denied")
+            
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+            
+        return FileResponse(file_path)
+
 # Security
 security = HTTPBearer()
 
@@ -222,67 +245,6 @@ def get_current_user_optional(request: Request) -> Optional[Dict]:
     return public_db.get_user_by_id(payload["user_id"])
 
 
-def scene_id_to_image_id(scene_id: str) -> int:
-    """Convert scene_id to image_id using deterministic hash"""
-    # Use MD5 for deterministic hashing (same input = same output)
-    md5_hash = hashlib.md5(scene_id.encode('utf-8')).hexdigest()
-    # Convert to integer and mod to get 9-digit number
-    return int(md5_hash[:8], 16) % (10**9)
-
-
-def image_id_to_scene_id(image_id: int) -> Optional[str]:
-    """Find scene_id that hashes to the given image_id"""
-    # Get all scenes and find the one that hashes to this image_id
-    all_scenes = public_db.get_scenes(batch_name=None, limit=10000, offset=0)
-    
-    for scene in all_scenes:
-        if scene_id_to_image_id(scene['scene_id']) == image_id:
-            return scene['scene_id']
-    
-    # If not found by scene_id hash, try to find by old method (file path hash)
-    # This handles backward compatibility with old image_ids
-    all_scenes_with_versions = []
-    for scene in all_scenes:
-        version = public_db.get_current_version_for_scene(scene['scene_id'])
-        if version:
-            all_scenes_with_versions.append((scene, version))
-    
-    for scene, version in all_scenes_with_versions:
-        local_path = version.get('local_path', '')
-        if local_path:
-            # Try to reconstruct the old relative path format
-            # Old format was: batch_name/source_dir/filename
-            # Extract from local_path or construct from scene data
-            try:
-                path_obj = Path(local_path)
-                if path_obj.is_absolute():
-                    # Try to make it relative to IMAGES_DIR
-                    if IMAGES_DIR:
-                        try:
-                            rel_path = path_obj.relative_to(IMAGES_DIR)
-                        except ValueError:
-                            # If not under IMAGES_DIR, construct from scene data
-                            rel_path = None
-                    else:
-                        # On Vercel, images are in CDN, so use the path as-is
-                        rel_path = path_obj
-                    if not rel_path:
-                        # Construct from scene data
-                        rel_path = Path(scene['batch_name']) / version.get('version_type', 'final_crops') / scene['base_filename']
-                else:
-                    rel_path = path_obj
-                
-                # Use MD5 hash like the old system (but old system used Python hash())
-                # For backward compat, try both MD5 and check if it matches
-                old_hash = int(hashlib.md5(str(rel_path).encode('utf-8')).hexdigest()[:8], 16) % (10**9)
-                if old_hash == image_id:
-                    return scene['scene_id']
-            except Exception:
-                continue
-    
-    return None
-
-
 # Public endpoints
 @app.get("/", response_class=HTMLResponse)
 async def index():
@@ -331,23 +293,14 @@ async def list_images(
         local_path = record.get('local_path', '')
         r2_key = record.get('r2_key')
         
-        if r2_key and storage_backend:
-            image_url = storage_backend.get_file_url(r2_key)
-            if '.' in r2_key:
-                thumbnail_key = r2_key.rsplit('.', 1)[0] + '-thumb.jpg'
-            else:
-                thumbnail_key = r2_key + '-thumb.jpg'
-            thumbnail_url = storage_backend.get_file_url(thumbnail_key)
-        else:
-            image_url = f"/api/public/images/{image_id}/image"
-            thumbnail_url = f"/api/public/images/{image_id}/thumbnail"
+        urls = construct_image_urls(storage_backend, r2_key, image_id, scene_id)
         
         img_dict = {
             'image_id': image_id,
             'image_path': local_path,
             'image_name': record['base_filename'],
-            'image_url': image_url,
-            'thumbnail_url': thumbnail_url,
+            'image_url': urls['image_url'],
+            'thumbnail_url': urls['thumbnail_url'],
             'bm_batch_year': '',
             'roll_number': record.get('roll_number', ''),
             'capture_date': record.get('capture_date'),
@@ -371,7 +324,7 @@ async def list_images(
 async def get_image(image_id: int):
     """Get image details with all DB data (backward compatibility - uses scene-based lookup)"""
     # Find scene by image_id (image_id is hash of scene_id)
-    scene_id = image_id_to_scene_id(image_id)
+    scene_id = image_id_to_scene_id(image_id, public_db)
     
     if not scene_id:
         raise HTTPException(status_code=404, detail="Image not found")
@@ -457,21 +410,12 @@ async def get_image(image_id: int):
     # Get annotations
     annotations = public_db.get_annotations_for_image(image_id)
     
-    # Build URLs - use direct CDN URLs if available, otherwise use redirect URLs
-    r2_key = version.get('r2_key')
-    if r2_key and storage_backend:
-        # Use direct CDN URLs
-        image['image_url'] = storage_backend.get_file_url(r2_key)
-        # Thumbnail naming: scenes/{scene_id}-thumb.jpg
-        if '.' in r2_key:
-            thumbnail_key = r2_key.rsplit('.', 1)[0] + '-thumb.jpg'
-        else:
-            thumbnail_key = r2_key + '-thumb.jpg'
-        image['thumbnail_url'] = storage_backend.get_file_url(thumbnail_key)
-    else:
-        # Fallback to redirect URLs
-        image['image_url'] = f"/api/public/images/{image_id}/image"
-        image['thumbnail_url'] = f"/api/public/images/{image_id}/thumbnail"
+    # Build URLs
+    urls = construct_image_urls(storage_backend, version.get('r2_key'), image_id, scene_id)
+    if 'base_url' in urls:
+        image['base_url'] = urls['base_url']
+    image['image_url'] = urls['image_url']
+    image['thumbnail_url'] = urls['thumbnail_url']
     
     image['annotations'] = annotations
     
@@ -482,7 +426,7 @@ async def get_image(image_id: int):
 async def serve_image(image_id: int):
     """Serve full-size image (backward compatibility - uses scene-based lookup)"""
     # Find scene by image_id (image_id is hash of scene_id)
-    scene_id = image_id_to_scene_id(image_id)
+    scene_id = image_id_to_scene_id(image_id, public_db)
     
     if not scene_id:
         raise HTTPException(status_code=404, detail="Image not found")
@@ -528,13 +472,13 @@ async def serve_thumbnail(image_id: int, size: int = Query(300, ge=50, le=1000))
     """
     Serve thumbnail image (backward compatibility - uses scene-based lookup)
     
-    Thumbnails are pre-generated by management app and stored in R2/CDN.
-    Naming convention: scenes/{scene_id}-thumb.jpg
+    With R2 manifests, thumbnails are handled automatically by the manifest.
+    This endpoint redirects to the manifest URL which will serve the appropriate variant.
     """
     from fastapi.responses import RedirectResponse
     
     # Find scene by image_id (image_id is hash of scene_id)
-    scene_id = image_id_to_scene_id(image_id)
+    scene_id = image_id_to_scene_id(image_id, public_db)
     
     if not scene_id:
         raise HTTPException(status_code=404, detail="Image not found")
@@ -544,26 +488,11 @@ async def serve_thumbnail(image_id: int, size: int = Query(300, ge=50, le=1000))
     if not version:
         raise HTTPException(status_code=404, detail="No live version found for scene")
     
-    # If r2_key exists, serve thumbnail from CDN (management app should have uploaded it)
+    # If r2_key exists, redirect to manifest URL (manifest handles variant selection)
     if version.get('r2_key') and storage_backend:
-        # Thumbnail naming convention: scenes/{scene_id}-thumb.jpg
-        # Extract scene_id from r2_key (format: scenes/{scene_id}.jpg)
-        # Replace extension with -thumb.jpg
-        r2_key = version['r2_key']
-        if '.' in r2_key:
-            thumbnail_key = r2_key.rsplit('.', 1)[0] + '-thumb.jpg'
-        else:
-            thumbnail_key = r2_key + '-thumb.jpg'
-        
-        # For local storage, try to serve directly
-        if storage_config.get('type') == 'local':
-            storage_path = Path(storage_config.get('base_path', './storage-test')) / thumbnail_key
-            if storage_path.exists():
-                return FileResponse(storage_path)
-        else:
-            # For CDN/R2, redirect to CDN URL
-            cdn_url = storage_backend.get_file_url(thumbnail_key)
-            return RedirectResponse(url=cdn_url)
+        # r2_key is now just the scene_id (manifest at {scene_id}/manifest.json)
+        manifest_url = storage_backend.get_file_url(version['r2_key'])
+        return RedirectResponse(url=manifest_url)
     
     # Fallback: generate thumbnail on-the-fly (for backward compatibility during migration)
     from PIL import Image
@@ -614,16 +543,10 @@ async def search_images(
     """
     # If no query and no filters, return empty results
     if not q and not any([roll_number, roll_date, batch_name, date_source]):
-        metadata_snapshot = public_db.get_search_metadata_snapshot()
         return {
             "results": [],
-            "total": metadata_snapshot.get("total_scenes", 0),
-            "facets": {
-                "roll_numbers": metadata_snapshot.get("roll_numbers", []),
-                "roll_dates": metadata_snapshot.get("roll_dates", []),
-                "batch_names": metadata_snapshot.get("batch_names", []),
-                "date_sources": metadata_snapshot.get("date_sources", []),
-            },
+            "total": 0,
+            "facets": {},
             "query": q
         }
     
@@ -641,31 +564,18 @@ async def search_images(
     # Convert scenes to image format with image_ids
     images = []
     for scene in search_result['results']:
-        if not scene.get('version_id'):
+        version = public_db.get_current_version_for_scene(scene['scene_id'])
+        if not version:
             continue  # Skip scenes without live versions
-
-        scene_id = scene['scene_id']
-        image_id = scene_id_to_image_id(scene_id)
         
-        # Build URLs - use direct CDN URLs if available, otherwise use redirect URLs
-        r2_key = scene.get('r2_key')
-        if r2_key and storage_backend:
-            # Use direct CDN URLs
-            image_url = storage_backend.get_file_url(r2_key)
-            # Thumbnail naming: scenes/{scene_id}-thumb.jpg
-            if '.' in r2_key:
-                thumbnail_key = r2_key.rsplit('.', 1)[0] + '-thumb.jpg'
-            else:
-                thumbnail_key = r2_key + '-thumb.jpg'
-            thumbnail_url = storage_backend.get_file_url(thumbnail_key)
-        else:
-            # Fallback to redirect URLs
-            image_url = f"/api/public/images/{image_id}/image"
-            thumbnail_url = f"/api/public/images/{image_id}/thumbnail"
+        image_id = scene_id_to_image_id(scene['scene_id'])
+        
+        # Build URLs
+        urls = construct_image_urls(storage_backend, version.get('r2_key'), image_id, scene['scene_id'])
         
         images.append({
             'image_id': image_id,
-            'scene_id': scene_id,
+            'scene_id': scene['scene_id'],
             'image_name': scene['base_filename'],
             'base_filename': scene['base_filename'],
             'batch_name': scene['batch_name'],
@@ -674,8 +584,8 @@ async def search_images(
             'roll_date': scene.get('roll_date'),
             'roll_comment': scene.get('roll_comment'),
             'description': scene.get('description'),
-            'image_url': image_url,
-            'thumbnail_url': thumbnail_url
+            'image_url': urls['image_url'],
+            'thumbnail_url': urls['thumbnail_url']
         })
     
     return {
@@ -884,9 +794,10 @@ async def sync_data(
                     'r2_key': None  # Will be set below for current version
                 }
                 
-                # If this is the current version, set r2_key (trusting management app uploaded file)
+                # If this is the current version, set r2_key to manifest (trusting management app uploaded manifest)
                 if version_dict['is_current'] and not sync_data.dry_run:
-                    version_dict['r2_key'] = f"scenes/{scene_id}.jpg"
+                    # R2 manifest: the key is just the scene_id (manifest at {scene_id}/manifest.json)
+                    version_dict['r2_key'] = scene_id
                 
                 versions.append(version_dict)
             
@@ -1063,13 +974,15 @@ async def list_scenes(
     for scene in scenes[:limit]:
         version = public_db.get_current_version_for_scene(scene['scene_id'])
         if version:
+            urls = construct_image_urls(storage_backend, version.get('r2_key'), 0, scene['scene_id'])
+            
             scene_dict = {
                 'scene_id': scene['scene_id'],
                 'batch_name': scene['batch_name'],
                 'base_filename': scene['base_filename'],
                 'capture_date': scene.get('capture_date'),
-                'image_url': f"/api/public/scenes/{scene['scene_id']}/image",
-                'thumbnail_url': f"/api/public/scenes/{scene['scene_id']}/thumbnail",
+                'image_url': urls['image_url'],
+                'thumbnail_url': urls['thumbnail_url'],
                 'version_id': version['version_id'],
                 'version_type': version['version_type']
             }
@@ -1102,13 +1015,15 @@ async def get_scene(scene_id: str):
     scene_hash = hash(scene_id) % (10**9)
     annotations = public_db.get_annotations_for_image(scene_hash)
     
+    urls = construct_image_urls(storage_backend, version.get('r2_key'), 0, scene_id)
+    
     scene_dict = {
         'scene_id': scene['scene_id'],
         'batch_name': scene['batch_name'],
         'base_filename': scene['base_filename'],
         'capture_date': scene.get('capture_date'),
-        'image_url': f"/api/public/scenes/{scene_id}/image",
-        'thumbnail_url': f"/api/public/scenes/{scene_id}/thumbnail",
+        'image_url': urls['image_url'],
+        'thumbnail_url': urls['thumbnail_url'],
         'version_id': version['version_id'],
         'version_type': version['version_type'],
         'perceptual_hash': version.get('perceptual_hash'),
@@ -1165,8 +1080,8 @@ async def serve_scene_thumbnail(scene_id: str, size: int = Query(300, ge=50, le=
     """
     Serve thumbnail for a scene
     
-    Thumbnails are pre-generated by management app and stored in R2/CDN.
-    Naming convention: scenes/{scene_id}-thumb.jpg
+    With R2 manifests, thumbnails are handled automatically by the manifest.
+    This endpoint redirects to the manifest URL which will serve the appropriate variant.
     """
     from fastapi.responses import RedirectResponse
     
@@ -1178,26 +1093,11 @@ async def serve_scene_thumbnail(scene_id: str, size: int = Query(300, ge=50, le=
     if not version:
         raise HTTPException(status_code=404, detail="No live version found for scene")
     
-    # If r2_key exists, serve thumbnail from CDN (management app should have uploaded it)
+    # If r2_key exists, redirect to manifest URL (manifest handles variant selection)
     if version.get('r2_key') and storage_backend:
-        # Thumbnail naming convention: scenes/{scene_id}-thumb.jpg
-        # Extract scene_id from r2_key (format: scenes/{scene_id}.jpg)
-        # Replace extension with -thumb.jpg
-        r2_key = version['r2_key']
-        if '.' in r2_key:
-            thumbnail_key = r2_key.rsplit('.', 1)[0] + '-thumb.jpg'
-        else:
-            thumbnail_key = r2_key + '-thumb.jpg'
-        
-        # For local storage, try to serve directly
-        if storage_config.get('type') == 'local':
-            storage_path = Path(storage_config.get('base_path', './storage-test')) / thumbnail_key
-            if storage_path.exists():
-                return FileResponse(storage_path)
-        else:
-            # For CDN/R2, redirect to CDN URL
-            cdn_url = storage_backend.get_file_url(thumbnail_key)
-            return RedirectResponse(url=cdn_url)
+        # r2_key is now just the scene_id (manifest at {scene_id}/manifest.json)
+        manifest_url = storage_backend.get_file_url(version['r2_key'])
+        return RedirectResponse(url=manifest_url)
     
     # Fallback: generate thumbnail on-the-fly (for backward compatibility during migration)
     from PIL import Image
@@ -1248,26 +1148,30 @@ async def find_similar_scenes(
     similar = public_db.find_similar_scenes(target_hash, threshold=threshold, limit=limit)
     
     # Build response with scene details
+    # NOTE: find_similar_scenes() already returns batch_name, base_filename, capture_date, and r2_key
+    # from the JOIN query, so we don't need additional DB queries (fixes N+1 problem)
     results = []
     for item in similar:
         # Skip the scene itself
         if item['scene_id'] == scene_id:
             continue
         
-        similar_scene = public_db.get_scene(item['scene_id'])
-        if similar_scene:
-            # Convert scene_id to image_id for frontend navigation
-            similar_image_id = scene_id_to_image_id(item['scene_id'])
-            results.append({
-                'scene_id': item['scene_id'],
-                'image_id': similar_image_id,  # Add image_id for frontend navigation
-                'distance': item['distance'],
-                'batch_name': item['batch_name'],
-                'base_filename': item['base_filename'],
-                'capture_date': item.get('capture_date'),
-                'image_url': f"/api/public/scenes/{item['scene_id']}/image",
-                'thumbnail_url': f"/api/public/scenes/{item['scene_id']}/thumbnail"
-            })
+        similar_image_id = scene_id_to_image_id(item['scene_id'])
+        
+        # Generate direct CDN URLs if r2_key exists (same pattern as gallery endpoint)
+        # r2_key is already in item from find_similar_scenes() JOIN query
+        urls = construct_image_urls(storage_backend, item.get('r2_key'), similar_image_id, item['scene_id'])
+        
+        results.append({
+            'scene_id': item['scene_id'],
+            'image_id': similar_image_id,  # Add image_id for frontend navigation
+            'distance': item['distance'],
+            'batch_name': item['batch_name'],  # Already from JOIN
+            'base_filename': item['base_filename'],  # Already from JOIN
+            'capture_date': item.get('capture_date'),  # Already from JOIN
+            'image_url': urls['image_url'],
+            'thumbnail_url': urls['thumbnail_url']
+        })
     
     return {
         "query_scene_id": scene_id,
@@ -1307,14 +1211,17 @@ async def get_roll_images(roll_number: str):
             continue  # Skip scenes without live versions
         
         image_id = scene_id_to_image_id(scene['scene_id'])
+        
+        urls = construct_image_urls(storage_backend, version.get('r2_key'), image_id, scene['scene_id'])
+        
         images.append({
             'image_id': image_id,
             'scene_id': scene['scene_id'],
             'base_filename': scene['base_filename'],
             'batch_name': scene['batch_name'],
             'capture_date': scene.get('capture_date') or scene.get('roll_date'),
-            'image_url': f"/api/public/images/{image_id}/image",
-            'thumbnail_url': f"/api/public/images/{image_id}/thumbnail"
+            'image_url': urls['image_url'],
+            'thumbnail_url': urls['thumbnail_url']
         })
     
     return {
@@ -1327,4 +1234,3 @@ async def get_roll_images(roll_number: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
-
