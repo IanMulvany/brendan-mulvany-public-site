@@ -239,6 +239,7 @@
                 <a href="/" class="header__nav-link">Home</a>
                 <a href="/rolls" class="header__nav-link">Rolls</a>
                 <a href="/years" class="header__nav-link">Years</a>
+                <a href="/search" class="header__nav-link header__nav-link--active">Search</a>
                 <a href="/about" class="header__nav-link">About</a>
             </nav>
         </div>
@@ -257,39 +258,13 @@
                 <div class="search-page__filter-group">
                     <label class="search-page__filter-label">Search Text</label>
                     <input type="text" class="search-page__filter-input" id="search-query"
-                        placeholder="Search descriptions, filenames...">
-                </div>
-
-                <div class="search-page__filter-group">
-                    <label class="search-page__filter-label">Roll Number</label>
-                    <input type="text" class="search-page__filter-input" id="filter-roll-number"
-                        placeholder="e.g., 5084">
-                    <div class="search-page__facet-list" id="facet-roll-numbers"></div>
+                        placeholder="Search descriptions, filenames..." value="dublin">
                 </div>
 
                 <div class="search-page__filter-group">
                     <label class="search-page__filter-label">Roll Date</label>
                     <input type="text" class="search-page__filter-input" id="filter-roll-date" placeholder="e.g., 1981">
                     <div class="search-page__facet-list" id="facet-roll-dates"></div>
-                </div>
-
-                <div class="search-page__filter-group">
-                    <label class="search-page__filter-label">Batch Name</label>
-                    <select class="search-page__filter-select" id="filter-batch-name">
-                        <option value="">All batches</option>
-                    </select>
-                    <div class="search-page__facet-list" id="facet-batch-names"></div>
-                </div>
-
-                <div class="search-page__filter-group">
-                    <label class="search-page__filter-label">Date Source</label>
-                    <select class="search-page__filter-select" id="filter-date-source">
-                        <option value="">All sources</option>
-                        <option value="from_roll">From Roll</option>
-                        <option value="from_notebook">From Notebook</option>
-                        <option value="estimated">Estimated</option>
-                    </select>
-                    <div class="search-page__facet-list" id="facet-date-sources"></div>
                 </div>
 
                 <button class="search-page__clear-filters" id="clear-filters">Clear All Filters</button>
@@ -308,6 +283,9 @@
 
     <script>window.__SEARCH_INDEX__ = null;</script>
     <script src="/static/js/common.js"></script>
+    <script>
+        window.__USE_API_SEARCH__ = true;
+    </script>
     <script src="/static/js/search.js"></script>
 </body>
 
