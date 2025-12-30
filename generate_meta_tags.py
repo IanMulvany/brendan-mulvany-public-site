@@ -41,6 +41,7 @@ except ImportError:
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
 from database import PublicSiteDatabase
+from common import scene_id_to_image_id
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -401,14 +402,66 @@ class MetaTagGenerator:
                 meta_name = key.replace('dc:', 'dcterms.').replace('.', ':')
                 tags.append(f'    <meta name="{meta_name}" content="{self._escape_html(str(value))}">')
         
-        # Open Graph tags (optional but good for social sharing)
+        # Open Graph tags (for social sharing)
         tags.append(f'    <meta property="og:title" content="{self._escape_html(title)}">')
         tags.append(f'    <meta property="og:description" content="{self._escape_html(description)}">')
         tags.append(f'    <meta property="og:type" content="website">')
-        if base_url and scene.get('image_id'):
-            tags.append(f'    <meta property="og:url" content="{base_url}/image/{scene["image_id"]}">')
-        if scene.get('thumbnail_url'):
-            tags.append(f'    <meta property="og:image" content="{self._escape_html(scene["thumbnail_url"])}">')
+        # Construct og:url from image_id or scene_id
+        og_url = None
+        if base_url:
+            if scene.get('image_id'):
+                og_url = f"{base_url}/image/{scene['image_id']}"
+            elif scene.get('scene_id'):
+                image_id = scene_id_to_image_id(scene['scene_id'])
+                og_url = f"{base_url}/image/{image_id}"
+        if og_url:
+            tags.append(f'    <meta property="og:url" content="{og_url}">')
+        
+        # Construct image URL for social sharing
+        # Try to get image_url or thumbnail_url from scene, or construct from r2_key
+        og_image_url = scene.get('image_url') or scene.get('thumbnail_url')
+        
+        # If no URL but we have r2_key and base_url, construct URL
+        if not og_image_url and scene.get('r2_key') and base_url:
+            # Construct URL from scene_id/image_id
+            scene_id = scene.get('scene_id', '')
+            if scene_id:
+                image_id = scene_id_to_image_id(scene_id)
+                # Use relative URL that will be resolved by the site
+                og_image_url = f"{base_url}/image/{image_id}"
+        
+        if og_image_url:
+            # Make URL absolute if it's relative and we have base_url
+            if og_image_url.startswith('/') and base_url:
+                og_image_url = f"{base_url.rstrip('/')}{og_image_url}"
+            elif not og_image_url.startswith('http') and base_url:
+                # Relative URL without leading slash
+                og_image_url = f"{base_url.rstrip('/')}/{og_image_url.lstrip('/')}"
+            
+            tags.append(f'    <meta property="og:image" content="{self._escape_html(og_image_url)}">')
+            # Add image dimensions if available
+            if scene.get('width') and scene.get('height'):
+                tags.append(f'    <meta property="og:image:width" content="{scene["width"]}">')
+                tags.append(f'    <meta property="og:image:height" content="{scene["height"]}">')
+            # Add image alt text
+            image_alt = scene.get('short_description') or scene.get('base_filename', '')
+            if image_alt:
+                tags.append(f'    <meta property="og:image:alt" content="{self._escape_html(image_alt)}">')
+        
+        # Twitter Card tags (for Twitter/X sharing)
+        tags.append(f'    <meta name="twitter:card" content="summary_large_image">')
+        tags.append(f'    <meta name="twitter:title" content="{self._escape_html(title)}">')
+        tags.append(f'    <meta name="twitter:description" content="{self._escape_html(description)}">')
+        if og_image_url:
+            tags.append(f'    <meta name="twitter:image" content="{self._escape_html(og_image_url)}">')
+            # Add image alt for Twitter
+            image_alt = scene.get('short_description') or scene.get('base_filename', '')
+            if image_alt:
+                tags.append(f'    <meta name="twitter:image:alt" content="{self._escape_html(image_alt)}">')
+        # Optional: Add Twitter site/creator if you have Twitter handles
+        # Uncomment and set your Twitter handle:
+        # tags.append(f'    <meta name="twitter:site" content="@yourhandle">')
+        # tags.append(f'    <meta name="twitter:creator" content="@yourhandle">')
         
         return "\n".join(tags)
     

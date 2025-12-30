@@ -5,6 +5,7 @@ Generates static HTML files for the photo archive
 
 import os
 import json
+import re
 import shutil
 import logging
 from pathlib import Path
@@ -193,6 +194,7 @@ def load_featured_images(all_scenes: List[Dict], featured_json_path: Path) -> Li
 def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
     """Generate the static site"""
     logger.info(f"Generating static site to {output_dir}")
+    use_api_search = True
 
     # Ensure output directory exists
     if output_dir.exists():
@@ -238,6 +240,19 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
     years_data = prepare_years_data(all_scenes)
     featured_images = load_featured_images(all_scenes, CURRENT_DIR / "featured.json")
 
+    # Load meta tags if available
+    meta_tags_data = {}
+    meta_tags_path = CURRENT_DIR / "meta_tags.json"
+    if meta_tags_path.exists():
+        try:
+            with open(meta_tags_path, 'r') as f:
+                meta_tags_data = json.load(f)
+            logger.info(f"Loaded meta tags for {len(meta_tags_data)} scenes")
+        except Exception as e:
+            logger.warning(f"Could not load meta_tags.json: {e}")
+    else:
+        logger.info("meta_tags.json not found, skipping scene-specific meta tags")
+
     # Load templates
     with open(TEMPLATES_DIR / "image.html", "r") as f:
         image_template = f.read()
@@ -254,12 +269,35 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
     # Build timestamp for meta tags
     build_timestamp = datetime.now().isoformat()
 
-    def inject_meta_tags(html: str) -> str:
-        """Inject generator meta tags into HTML head"""
+    def inject_meta_tags(html: str, scene_meta_tags: Optional[str] = None) -> str:
+        """Inject generator meta tags and optionally scene-specific meta tags into HTML head"""
+        # Extract title from scene meta tags if present
+        scene_title = None
+        scene_meta_only = None
+        if scene_meta_tags:
+            # Extract title tag if present
+            title_match = re.search(r'<title>(.*?)</title>', scene_meta_tags, re.DOTALL)
+            if title_match:
+                scene_title = title_match.group(1).strip()
+                # Remove title tag from meta tags string
+                scene_meta_only = re.sub(r'<title>.*?</title>\s*', '', scene_meta_tags, flags=re.DOTALL).strip()
+            else:
+                scene_meta_only = scene_meta_tags
+        
+        # Replace title tag if scene-specific title is available
+        if scene_title:
+            # Replace existing title tag
+            html = re.sub(r'<title>.*?</title>', f'<title>{scene_title}</title>', html, flags=re.DOTALL | re.IGNORECASE)
+        
+        # Build generator meta tags
         meta_tags = f'''
     <meta name="generator" content="{BUILD_GENERATOR} v{BUILD_VERSION}">
     <meta name="build-date" content="{build_timestamp}">
     <meta name="build-method" content="static-site-generation">'''
+        
+        # Add scene-specific meta tags (without title) if provided
+        if scene_meta_only:
+            meta_tags += '\n' + scene_meta_only
 
         # Insert after <head> tag
         if '<head>' in html:
@@ -269,14 +307,14 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
         return html
 
     # Helper for rendering and writing templates
-    def render_and_write(template_str: str, data: Dict, output_path: Path, data_var: str = "window.__STATIC_DATA__"):
+    def render_and_write(template_str: str, data: Dict, output_path: Path, data_var: str = "window.__STATIC_DATA__", scene_meta_tags: Optional[str] = None):
         """Render template with data and write to file"""
         html = template_str.replace(
             f"{data_var} = null;",
             f"{data_var} = {json.dumps(data)};"
         )
-        # Add generator meta tags
-        html = inject_meta_tags(html)
+        # Add generator meta tags and optionally scene-specific meta tags
+        html = inject_meta_tags(html, scene_meta_tags)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w") as f:
             f.write(html)
@@ -369,15 +407,19 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
         logger.warning("about.html template not found, skipping about page generation")
 
     # Generate Search Page
-    search_index = [{
-        'id': s['image_id'],
-        'sid': s['scene_id'],
-        't': f"{s['image_name']} {s.get('description') or ''} {s.get('roll_number') or ''} {s.get('bm_batch_note') or ''}",
-        'd': s['capture_date']
-    } for s in all_scenes]
+    if use_api_search:
+        search_index = []
+    else:
+        search_index = [{
+            'id': s['image_id'],
+            'sid': s['scene_id'],
+            't': f"{s['image_name']} {s.get('description') or ''} {s.get('roll_number') or ''} {s.get('bm_batch_note') or ''}",
+            'd': s['capture_date']
+        } for s in all_scenes]
 
+    render_and_write(search_template, search_index, output_dir / "search" / "index.html", "window.__SEARCH_INDEX__")
     render_and_write(search_template, search_index, output_dir / "search.html", "window.__SEARCH_INDEX__")
-    logger.info("Generated search.html")
+    logger.info("Generated /search/index.html and /search.html")
     
     # Generate Image Pages
     images_dir = output_dir / "image"
@@ -386,6 +428,7 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
     count = 0
     for scene in all_scenes:
         image_id = scene['image_id']
+        scene_id = scene['scene_id']
         
         # Find similar scenes
         similar = find_similar_scenes(scene, all_scenes, threshold=config_manager.get_similarity_threshold())
@@ -396,10 +439,17 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
             'similar': similar
         }
         
+        # Look up meta tags for this scene if available
+        scene_meta_tags = None
+        if scene_id in meta_tags_data:
+            meta_tag_info = meta_tags_data[scene_id]
+            if 'html_meta_tags' in meta_tag_info:
+                scene_meta_tags = meta_tag_info['html_meta_tags']
+        
         # Write to image/{image_id}/index.html
         image_page_dir = images_dir / str(image_id)
         image_page_dir.mkdir(exist_ok=True)
-        render_and_write(image_template, page_data, image_page_dir / "index.html", "window.__PAGE_DATA__")
+        render_and_write(image_template, page_data, image_page_dir / "index.html", "window.__PAGE_DATA__", scene_meta_tags)
             
         count += 1
         if count % 100 == 0:
