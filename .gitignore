@@ -81,3 +81,6 @@ archive/
 Thumbs.db
 .vercel
 uv.lock
+*.sql
+*.shm
+*.wal
