@@ -44,6 +44,7 @@ if os.getenv("VERCEL"):
     CURRENT_DIR = Path(__file__).parent
     STATIC_DIR = CURRENT_DIR / "static"
     TEMPLATES_DIR = CURRENT_DIR / "templates"
+    PUBLIC_DIR = CURRENT_DIR / "public"
     # Database paths from environment variables
     PUBLIC_DB_PATH = os.getenv("PUBLIC_DB_PATH", "/tmp/public_site.db")
     PUBLIC_DB = Path(PUBLIC_DB_PATH)
@@ -62,6 +63,7 @@ else:
     PUBLIC_DB = CURRENT_DIR / "public_site.db"  # Database in same directory as main.py
     STATIC_DIR = CURRENT_DIR / "static"
     TEMPLATES_DIR = CURRENT_DIR / "templates"
+    PUBLIC_DIR = CURRENT_DIR / "public"
     # Try to load config from config.local.yaml first (local development), then config.yaml
     CONFIG_PATH = CURRENT_DIR / "config.local.yaml"
     if not CONFIG_PATH.exists():
@@ -551,49 +553,69 @@ async def search_images(
         }
     
     # Perform FTS5 search
-    search_result = public_db.search_scenes_fts(
-        query=q or "",
-        roll_number=roll_number,
-        roll_date=roll_date,
-        batch_name=batch_name,
-        date_source=date_source,
-        limit=limit,
-        offset=offset
-    )
+    try:
+        search_result = public_db.search_scenes_fts(
+            query=q or "",
+            roll_number=roll_number,
+            roll_date=roll_date,
+            batch_name=batch_name,
+            date_source=date_source,
+            limit=limit,
+            offset=offset
+        )
+    except Exception as e:
+        logger.error(f"Search error: {e}", exc_info=True)
+        # Check if it's a missing table error
+        error_msg = str(e).lower()
+        if "no such table" in error_msg or "scenes_fts" in error_msg:
+            raise HTTPException(
+                status_code=500,
+                detail="Search index not initialized. Please run the FTS5 setup script to create scenes_fts table."
+            )
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
     
     # Convert scenes to image format with image_ids
-    images = []
-    for scene in search_result['results']:
-        version = public_db.get_current_version_for_scene(scene['scene_id'])
-        if not version:
-            continue  # Skip scenes without live versions
+    try:
+        images = []
+        for scene in search_result['results']:
+            try:
+                version = public_db.get_current_version_for_scene(scene['scene_id'])
+                if not version:
+                    continue  # Skip scenes without live versions
+                
+                image_id = scene_id_to_image_id(scene['scene_id'])
+                
+                # Build URLs
+                urls = construct_image_urls(storage_backend, version.get('r2_key'), image_id, scene['scene_id'])
+                
+                images.append({
+                    'image_id': image_id,
+                    'scene_id': scene['scene_id'],
+                    'image_name': scene['base_filename'],
+                    'base_filename': scene['base_filename'],
+                    'batch_name': scene['batch_name'],
+                    'capture_date': scene.get('capture_date') or scene.get('roll_date'),
+                    'roll_number': scene.get('roll_number'),
+                    'roll_date': scene.get('roll_date'),
+                    'roll_comment': scene.get('roll_comment'),
+                    'description': scene.get('description'),
+                    'image_url': urls['image_url'],
+                    'thumbnail_url': urls['thumbnail_url']
+                })
+            except Exception as e:
+                logger.error(f"Error processing scene {scene.get('scene_id', 'unknown')}: {e}", exc_info=True)
+                # Continue with other scenes instead of failing completely
+                continue
         
-        image_id = scene_id_to_image_id(scene['scene_id'])
-        
-        # Build URLs
-        urls = construct_image_urls(storage_backend, version.get('r2_key'), image_id, scene['scene_id'])
-        
-        images.append({
-            'image_id': image_id,
-            'scene_id': scene['scene_id'],
-            'image_name': scene['base_filename'],
-            'base_filename': scene['base_filename'],
-            'batch_name': scene['batch_name'],
-            'capture_date': scene.get('capture_date') or scene.get('roll_date'),
-            'roll_number': scene.get('roll_number'),
-            'roll_date': scene.get('roll_date'),
-            'roll_comment': scene.get('roll_comment'),
-            'description': scene.get('description'),
-            'image_url': urls['image_url'],
-            'thumbnail_url': urls['thumbnail_url']
-        })
-    
-    return {
-        "results": images,
-        "total": search_result['total'],
-        "facets": search_result['facets'],
-        "query": q
-    }
+        return {
+            "results": images,
+            "total": search_result['total'],
+            "facets": search_result['facets'],
+            "query": q
+        }
+    except Exception as e:
+        logger.error(f"Error processing search results: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error processing search results: {str(e)}")
 
 
 @app.get("/api/public/search/suggestions")
@@ -1229,6 +1251,19 @@ async def get_roll_images(roll_number: str):
         'images': images,
         'total': len(images)
     }
+
+
+# ============================================================================
+# STATIC SITE HOSTING
+# ============================================================================
+
+# Mount public directory to serve static site (must be last, after all API routes)
+# This serves the pre-built static HTML files from the public/ directory
+if PUBLIC_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(PUBLIC_DIR), html=True), name="public")
+    logger.info(f"Mounted public directory: {PUBLIC_DIR}")
+else:
+    logger.warning(f"Public directory not found: {PUBLIC_DIR}")
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ Handles users, annotations, and sync logging
 """
 
 import sqlite3
+import re
 from pathlib import Path
 from typing import List, Dict, Optional
 from contextlib import contextmanager
@@ -578,7 +579,8 @@ class PublicSiteDatabase:
             # FTS5 search
             fts_query = None
             if query:
-                sanitized_query = re.sub(r'["\'\\]', ' ', query)
+                # Sanitize query: remove quotes and backslashes
+                sanitized_query = query.replace('"', ' ').replace("'", ' ').replace('\\', ' ')
                 query_terms = [term.strip() for term in sanitized_query.split() if term.strip()]
                 if query_terms:
                     fts_query = " OR ".join(f'"{term}"' for term in query_terms)
@@ -1133,4 +1135,3 @@ class PublicSiteDatabase:
                 raise
         
         return stats
-
