@@ -94,6 +94,12 @@ def construct_image_urls(
         urls['base_url'] = base_url
         urls['image_url'] = f"{base_url}/original.jpg"  # Fallback
         urls['thumbnail_url'] = f"{base_url}/thumb.avif"  # Correct directory-based path
+        
+        # Add responsive variants
+        urls['small_avif'] = f"{base_url}/small.avif"
+        urls['small_webp'] = f"{base_url}/small.webp"
+        urls['large_avif'] = f"{base_url}/large.avif"
+        urls['large_webp'] = f"{base_url}/large.webp"
     else:
         # Use local API endpoints
         if scene_id:

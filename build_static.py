@@ -61,6 +61,10 @@ def load_all_scenes(db: PublicSiteDatabase, storage_backend) -> List[Dict]:
             'image_name': record['base_filename'],
             'image_url': urls['image_url'],
             'thumbnail_url': urls['thumbnail_url'],
+            'small_avif': urls.get('small_avif'),
+            'small_webp': urls.get('small_webp'),
+            'large_avif': urls.get('large_avif'),
+            'large_webp': urls.get('large_webp'),
             'bm_batch_year': '',
             'roll_number': record.get('roll_number', ''),
             'capture_date': record.get('capture_date'),
@@ -198,6 +202,25 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
     # Copy static assets
     if STATIC_DIR.exists():
         shutil.copytree(STATIC_DIR, output_dir / "static")
+
+        # Minify JS files
+        try:
+            import rjsmin
+            js_dir = output_dir / "static" / "js"
+            if js_dir.exists():
+                logger.info("Minifying JS files...")
+                for js_file in js_dir.glob("*.js"):
+                    with open(js_file, 'r') as f:
+                        content = f.read()
+                    minified = rjsmin.jsmin(content)
+                    with open(js_file, 'w') as f:
+                        f.write(minified)
+                logger.info("Minified JS files")
+        except ImportError:
+            logger.warning("rjsmin not installed, skipping JS minification")
+        except Exception as e:
+            logger.warning(f"Failed to minify JS: {e}")
+
         logger.info("Copied static assets")
 
     # Initialize DB and Config

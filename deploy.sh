@@ -8,7 +8,7 @@ echo ""
 
 # Step 1: Build the static site
 echo "📦 Building static site..."
-python3 build_static.py --db public_site.db --config config.yaml --output dist
+python3 build_static.py --db public_site.db --config config.yaml --output public
 
 if [ $? -ne 0 ]; then
     echo "❌ Build failed. Please check the errors above."
@@ -18,15 +18,15 @@ fi
 echo "✅ Build completed successfully!"
 echo ""
 
-# Step 2: Check if dist folder exists
-if [ ! -d "dist" ]; then
-    echo "❌ dist folder not found. Build may have failed."
+# Step 2: Check if public folder exists
+if [ ! -d "public" ]; then
+    echo "❌ public folder not found. Build may have failed."
     exit 1
 fi
 
 echo "📊 Build stats:"
-echo "  - HTML files: $(find dist -name "*.html" | wc -l)"
-echo "  - Total files: $(find dist -type f | wc -l)"
+echo "  - HTML files: $(find public -name "*.html" | wc -l)"
+echo "  - Total files: $(find public -type f | wc -l)"
 echo ""
 
 # Step 3: Deploy to Vercel
