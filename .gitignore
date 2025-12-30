@@ -1,4 +1,8 @@
 # Python
+
+*.shm
+*.wal
+
 __pycache__/
 *.py[cod]
 *$py.class
@@ -76,3 +80,4 @@ archive/
 # OS
 Thumbs.db
 .vercel
+uv.lock
