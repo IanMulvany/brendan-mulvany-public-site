@@ -62,3 +62,22 @@ archive/
 # Design ideas (not needed in production)
 design-ideas/
 
+# Note: public/ MUST be deployed - it contains the static site files
+# dist/ can be ignored if not using it
+dist/
+
+# Vercel cache (should not be deployed)
+.vercel/
+
+# Large directories that shouldn't be in serverless function
+templates/
+static/
+documentation/
+design-ideas/
+archive/
+storage-test/
+
+# Exclude root pyproject.toml and uv.lock from API function (use api/pyproject.toml instead)
+pyproject.toml
+uv.lock
+
