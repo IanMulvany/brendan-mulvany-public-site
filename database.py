@@ -256,34 +256,17 @@ class PublicSiteDatabase:
     def get_connection(self):
         """Context manager for database connections"""
         if self.use_turso:
-            # Use Turso/libSQL connection
-            # For remote Turso, we use sync_url with a local cache database
-            # Use a file-based cache so schema can sync properly
-            import tempfile
-            cache_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
-            cache_path = cache_file.name
-            cache_file.close()
+            # Use Turso/libSQL direct HTTP connection (no local replica)
+            # Direct connection is better for serverless - no sync overhead
             conn = libsql_experimental.connect(
-                database=cache_path,  # Local file cache (allows schema sync)
-                sync_url=self.turso_url,
+                database=self.turso_url,
                 auth_token=self.turso_token
             )
-            # Sync schema and data from remote database
-            try:
-                conn.sync()
-            except Exception as e:
-                logger.warning(f"Sync warning (may be normal on first connection): {e}")
             # libsql connections return tuples, we'll convert to dicts in methods
             try:
                 yield conn
             finally:
                 conn.close()
-                # Clean up temp file
-                try:
-                    import os
-                    os.unlink(cache_path)
-                except:
-                    pass
         else:
             # Use local SQLite connection
             conn = sqlite3.connect(str(self.db_path))
@@ -613,20 +596,22 @@ class PublicSiteDatabase:
             
             where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
             
-            # Get matching scenes
+            # Get matching scenes - minimal columns for search results display
+            # Note: tuple() required for libsql/Turso compatibility
             cursor = conn.execute(
-                f"""SELECT * FROM scenes 
+                f"""SELECT scene_id, base_filename, roll_number, roll_date
+                   FROM scenes
                    WHERE {where_sql}
-                   ORDER BY updated_at DESC
+                   ORDER BY roll_date DESC, scene_id DESC
                    LIMIT ? OFFSET ?""",
-                params + [limit, offset]
+                tuple(params + [limit, offset])
             )
             results = [self._row_to_dict(row, cursor.description) for row in cursor.fetchall()]
             
             # Get total count
             cursor = conn.execute(
                 f"SELECT COUNT(*) FROM scenes WHERE {where_sql}",
-                params
+                tuple(params)
             )
             total = cursor.fetchone()[0]
             
@@ -636,52 +621,52 @@ class PublicSiteDatabase:
             # Roll number facets
             if not roll_number:
                 cursor = conn.execute(
-                    f"""SELECT roll_number, COUNT(*) as count 
-                       FROM scenes 
+                    f"""SELECT roll_number, COUNT(*) as count
+                       FROM scenes
                        WHERE {where_sql} AND roll_number IS NOT NULL
-                       GROUP BY roll_number 
+                       GROUP BY roll_number
                        ORDER BY count DESC, roll_number ASC
                        LIMIT 20""",
-                    params
+                    tuple(params)
                 )
                 facets['roll_numbers'] = [{'value': row[0], 'count': row[1]} for row in cursor.fetchall()]
             
             # Roll date facets
             if not roll_date:
                 cursor = conn.execute(
-                    f"""SELECT roll_date, COUNT(*) as count 
-                       FROM scenes 
+                    f"""SELECT roll_date, COUNT(*) as count
+                       FROM scenes
                        WHERE {where_sql} AND roll_date IS NOT NULL
-                       GROUP BY roll_date 
+                       GROUP BY roll_date
                        ORDER BY count DESC, roll_date DESC
                        LIMIT 20""",
-                    params
+                    tuple(params)
                 )
                 facets['roll_dates'] = [{'value': row[0], 'count': row[1]} for row in cursor.fetchall()]
             
             # Batch name facets
             if not batch_name:
                 cursor = conn.execute(
-                    f"""SELECT batch_name, COUNT(*) as count 
-                       FROM scenes 
+                    f"""SELECT batch_name, COUNT(*) as count
+                       FROM scenes
                        WHERE {where_sql}
-                       GROUP BY batch_name 
+                       GROUP BY batch_name
                        ORDER BY count DESC, batch_name ASC
                        LIMIT 20""",
-                    params
+                    tuple(params)
                 )
                 facets['batch_names'] = [{'value': row[0], 'count': row[1]} for row in cursor.fetchall()]
             
             # Date source facets
             if not date_source:
                 cursor = conn.execute(
-                    f"""SELECT date_source, COUNT(*) as count 
-                       FROM scenes 
+                    f"""SELECT date_source, COUNT(*) as count
+                       FROM scenes
                        WHERE {where_sql} AND date_source IS NOT NULL
-                       GROUP BY date_source 
+                       GROUP BY date_source
                        ORDER BY count DESC
                        LIMIT 10""",
-                    params
+                    tuple(params)
                 )
                 facets['date_sources'] = [{'value': row[0], 'count': row[1]} for row in cursor.fetchall()]
             

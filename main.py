@@ -247,35 +247,14 @@ def get_current_user_optional(request: Request) -> Optional[Dict]:
     return public_db.get_user_by_id(payload["user_id"])
 
 
-# Public endpoints
-@app.get("/", response_class=HTMLResponse)
-async def index():
-    """Serve the main page"""
-    return FileResponse(TEMPLATES_DIR / "index.html")
-
-
-@app.get("/image/{image_id}", response_class=HTMLResponse)
-async def image_page(image_id: int):
-    """User-friendly image page"""
-    return FileResponse(TEMPLATES_DIR / "image.html")
-
+# Public HTML endpoints are now served by StaticFiles mount at end of file
+# The mount serves pre-built static pages from PUBLIC_DIR (public/)
+# Only keep explicit routes for pages that need dynamic fallback to templates
 
 @app.get("/image_detail/{image_id}", response_class=HTMLResponse)
 async def image_detail_page(image_id: int):
-    """Technical detail page with all DB information"""
+    """Technical detail page with all DB information (not pre-built)"""
     return FileResponse(TEMPLATES_DIR / "image_detail.html")
-
-
-@app.get("/roll/{roll_number}", response_class=HTMLResponse)
-async def roll_page(roll_number: str):
-    """Page showing all images from a roll"""
-    return FileResponse(TEMPLATES_DIR / "roll.html")
-
-
-@app.get("/search", response_class=HTMLResponse)
-async def search_page():
-    """Advanced search page with faceted filters"""
-    return FileResponse(TEMPLATES_DIR / "search.html")
 
 
 @app.get("/api/public/images")
@@ -591,15 +570,9 @@ async def search_images(
                 images.append({
                     'image_id': image_id,
                     'scene_id': scene['scene_id'],
-                    'image_name': scene['base_filename'],
                     'base_filename': scene['base_filename'],
-                    'batch_name': scene['batch_name'],
-                    'capture_date': scene.get('capture_date') or scene.get('roll_date'),
                     'roll_number': scene.get('roll_number'),
                     'roll_date': scene.get('roll_date'),
-                    'roll_comment': scene.get('roll_comment'),
-                    'description': scene.get('description'),
-                    'image_url': urls['image_url'],
                     'thumbnail_url': urls['thumbnail_url']
                 })
             except Exception as e:
