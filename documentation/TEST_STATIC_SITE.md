@@ -55,8 +55,7 @@ dist/
 │   ├── js/
 │   └── images/
 └── api/
-    └── public/
-        └── search-index.json  # Search index for client-side search
+    └── public/              # API endpoints (search uses FTS5 database)
 ```
 
 ## What to Test
@@ -122,9 +121,9 @@ Or create `build_config.json`:
 ### Search doesn't work
 
 **Solution**:
-- Check that `dist/api/public/search-index.json` exists
-- Verify browser console for errors loading the index
-- Search falls back to API if index not found
+- Check that the FTS5 search index is set up in the database
+- Verify browser console for API errors
+- Ensure the `/api/public/search` endpoint is accessible
 
 ## Configuration
 
