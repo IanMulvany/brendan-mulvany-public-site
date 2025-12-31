@@ -71,7 +71,7 @@ dist/
 
 # Large directories that shouldn't be in serverless function
 templates/
-static/
+/static/
 documentation/
 design-ideas/
 archive/
