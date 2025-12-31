@@ -194,7 +194,6 @@ def load_featured_images(all_scenes: List[Dict], featured_json_path: Path) -> Li
 def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
     """Generate the static site"""
     logger.info(f"Generating static site to {output_dir}")
-    use_api_search = True
 
     # Ensure output directory exists
     if output_dir.exists():
@@ -406,19 +405,9 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
     except FileNotFoundError:
         logger.warning("about.html template not found, skipping about page generation")
 
-    # Generate Search Page
-    if use_api_search:
-        search_index = []
-    else:
-        search_index = [{
-            'id': s['image_id'],
-            'sid': s['scene_id'],
-            't': f"{s['image_name']} {s.get('description') or ''} {s.get('roll_number') or ''} {s.get('bm_batch_note') or ''}",
-            'd': s['capture_date']
-        } for s in all_scenes]
-
-    render_and_write(search_template, search_index, output_dir / "search" / "index.html", "window.__SEARCH_INDEX__")
-    render_and_write(search_template, search_index, output_dir / "search.html", "window.__SEARCH_INDEX__")
+    # Generate Search Page (uses FTS5 API, no embedded index needed)
+    render_and_write(search_template, {}, output_dir / "search" / "index.html")
+    render_and_write(search_template, {}, output_dir / "search.html")
     logger.info("Generated /search/index.html and /search.html")
     
     # Generate Image Pages
