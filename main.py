@@ -553,20 +553,17 @@ async def search_images(
             )
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
     
-    # Convert scenes to image format with image_ids
+    # Convert scenes to image format - r2_key now included via JOIN (no N+1)
     try:
         images = []
         for scene in search_result['results']:
             try:
-                version = public_db.get_current_version_for_scene(scene['scene_id'])
-                if not version:
-                    continue  # Skip scenes without live versions
-                
                 image_id = scene_id_to_image_id(scene['scene_id'])
-                
-                # Build URLs
-                urls = construct_image_urls(storage_backend, version.get('r2_key'), image_id, scene['scene_id'])
-                
+
+                # Build thumbnail URL from r2_key (already in results from JOIN)
+                r2_key = scene.get('r2_key')
+                urls = construct_image_urls(storage_backend, r2_key, image_id, scene['scene_id'])
+
                 images.append({
                     'image_id': image_id,
                     'scene_id': scene['scene_id'],
@@ -577,9 +574,8 @@ async def search_images(
                 })
             except Exception as e:
                 logger.error(f"Error processing scene {scene.get('scene_id', 'unknown')}: {e}", exc_info=True)
-                # Continue with other scenes instead of failing completely
                 continue
-        
+
         return {
             "results": images,
             "total": search_result['total'],

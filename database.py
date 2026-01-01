@@ -555,11 +555,11 @@ class PublicSiteDatabase:
             Dict with 'results' (list of scenes) and 'facets' (facet counts)
         """
         with self.get_connection() as conn:
-            # Build WHERE clause for filters
+            # Build WHERE clause for filters (with s. prefix for JOIN queries)
             where_clauses = []
             params = []
-            
-            # FTS5 search
+
+            # FTS5 search - subquery references scenes_fts, not aliased table
             fts_query = None
             if query:
                 # Sanitize query: remove quotes and backslashes
@@ -567,109 +567,78 @@ class PublicSiteDatabase:
                 query_terms = [term.strip() for term in sanitized_query.split() if term.strip()]
                 if query_terms:
                     fts_query = " OR ".join(f'"{term}"' for term in query_terms)
-            
+
             if query and fts_query:
+                # Note: subquery uses scene_id (not s.scene_id) since it's from scenes_fts table
                 where_clauses.append("""
-                    scene_id IN (
-                        SELECT scene_id FROM scenes_fts 
+                    s.scene_id IN (
+                        SELECT scene_id FROM scenes_fts
                         WHERE scenes_fts MATCH ?
                     )
                 """)
                 params.append(fts_query)
-            
-            # Faceted filters
+
+            # Faceted filters - use s. prefix for joined query
             if roll_number:
-                where_clauses.append("roll_number = ?")
+                where_clauses.append("s.roll_number = ?")
                 params.append(roll_number)
-            
+
             if roll_date:
-                where_clauses.append("roll_date = ?")
+                where_clauses.append("s.roll_date = ?")
                 params.append(roll_date)
-            
+
             if batch_name:
-                where_clauses.append("batch_name = ?")
+                where_clauses.append("s.batch_name = ?")
                 params.append(batch_name)
-            
+
             if date_source:
-                where_clauses.append("date_source = ?")
+                where_clauses.append("s.date_source = ?")
                 params.append(date_source)
-            
+
             where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-            
-            # Get matching scenes - minimal columns for search results display
+
+            # Get matching scenes with r2_key via JOIN (eliminates N+1 queries)
             # Note: tuple() required for libsql/Turso compatibility
             cursor = conn.execute(
-                f"""SELECT scene_id, base_filename, roll_number, roll_date
-                   FROM scenes
-                   WHERE {where_sql}
-                   ORDER BY roll_date DESC, scene_id DESC
+                f"""SELECT s.scene_id, s.base_filename, s.roll_number, s.roll_date, iv.r2_key
+                   FROM scenes s
+                   JOIN image_versions iv ON s.scene_id = iv.scene_id
+                   WHERE iv.is_current = 1 AND iv.r2_key IS NOT NULL
+                     AND {where_sql}
+                   ORDER BY s.roll_date DESC, s.scene_id DESC
                    LIMIT ? OFFSET ?""",
                 tuple(params + [limit, offset])
             )
             results = [self._row_to_dict(row, cursor.description) for row in cursor.fetchall()]
-            
-            # Get total count
+
+            # Get total count (only scenes with live versions)
             cursor = conn.execute(
-                f"SELECT COUNT(*) FROM scenes WHERE {where_sql}",
+                f"""SELECT COUNT(*) FROM scenes s
+                   JOIN image_versions iv ON s.scene_id = iv.scene_id
+                   WHERE iv.is_current = 1 AND iv.r2_key IS NOT NULL
+                     AND {where_sql}""",
                 tuple(params)
             )
             total = cursor.fetchone()[0]
-            
-            # Get facet counts (only if no filters applied, or for active filters)
+
+            # Get facet counts - only roll_date facet
             facets = {}
-            
-            # Roll number facets
-            if not roll_number:
-                cursor = conn.execute(
-                    f"""SELECT roll_number, COUNT(*) as count
-                       FROM scenes
-                       WHERE {where_sql} AND roll_number IS NOT NULL
-                       GROUP BY roll_number
-                       ORDER BY count DESC, roll_number ASC
-                       LIMIT 20""",
-                    tuple(params)
-                )
-                facets['roll_numbers'] = [{'value': row[0], 'count': row[1]} for row in cursor.fetchall()]
-            
-            # Roll date facets
+
             if not roll_date:
                 cursor = conn.execute(
-                    f"""SELECT roll_date, COUNT(*) as count
-                       FROM scenes
-                       WHERE {where_sql} AND roll_date IS NOT NULL
-                       GROUP BY roll_date
-                       ORDER BY count DESC, roll_date DESC
+                    f"""SELECT s.roll_date, COUNT(*) as count
+                       FROM scenes s
+                       JOIN image_versions iv ON s.scene_id = iv.scene_id
+                       WHERE iv.is_current = 1 AND iv.r2_key IS NOT NULL
+                         AND {where_sql}
+                         AND s.roll_date IS NOT NULL
+                       GROUP BY s.roll_date
+                       ORDER BY count DESC, s.roll_date DESC
                        LIMIT 20""",
                     tuple(params)
                 )
                 facets['roll_dates'] = [{'value': row[0], 'count': row[1]} for row in cursor.fetchall()]
-            
-            # Batch name facets
-            if not batch_name:
-                cursor = conn.execute(
-                    f"""SELECT batch_name, COUNT(*) as count
-                       FROM scenes
-                       WHERE {where_sql}
-                       GROUP BY batch_name
-                       ORDER BY count DESC, batch_name ASC
-                       LIMIT 20""",
-                    tuple(params)
-                )
-                facets['batch_names'] = [{'value': row[0], 'count': row[1]} for row in cursor.fetchall()]
-            
-            # Date source facets
-            if not date_source:
-                cursor = conn.execute(
-                    f"""SELECT date_source, COUNT(*) as count
-                       FROM scenes
-                       WHERE {where_sql} AND date_source IS NOT NULL
-                       GROUP BY date_source
-                       ORDER BY count DESC
-                       LIMIT 10""",
-                    tuple(params)
-                )
-                facets['date_sources'] = [{'value': row[0], 'count': row[1]} for row in cursor.fetchall()]
-            
+
             return {
                 'results': results,
                 'total': total,
