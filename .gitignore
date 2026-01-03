@@ -86,3 +86,5 @@ uv.lock
 *.wal
 meta_tags.json
 *.lock
+public_site.db-shm
+public_site.db-wal
