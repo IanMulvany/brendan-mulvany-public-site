@@ -1,7 +1,7 @@
 [project]
-name = "brendan-mulvany-public-site"
+name = "brendan-mulvany-public-site-api"
 version = "0.1.0"
-description = "Brendan Mulvany Photo Archive Public Site"
+description = "API dependencies only (excludes build-time dependencies)"
 requires-python = ">=3.9"
 dependencies = [
     "fastapi>=0.104.0",
@@ -13,8 +13,5 @@ dependencies = [
     "pillow>=10.0.0",
     "email-validator>=2.0.0",
     "libsql-experimental>=0.0.1",
-    "rjsmin>=1.2.0",
-    "spacy>=3.7.0",
-    "scikit-learn>=1.3.0",
 ]
 
