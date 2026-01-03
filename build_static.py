@@ -265,6 +265,9 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
     with open(TEMPLATES_DIR / "search.html", "r") as f:
         search_template = f.read()
 
+    with open(TEMPLATES_DIR / "image_detail.html", "r") as f:
+        image_detail_template = f.read()
+
     # Build timestamp for meta tags
     build_timestamp = datetime.now().isoformat()
 
@@ -350,8 +353,8 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
             ],  # Show first 12 rolls
             'years': {
                 k: [strip_metadata(img) for img in v[:6]]
-                for k, v in list(years_data['years'].items())[:6]
-            }  # Show first 6 years with 6 images each
+                for k, v in list(years_data['years'].items())[:10]
+            }  # Show up to 10 years with 6 images each
         }
         render_and_write(index_new_template, homepage_data, output_dir / "index.html")
         logger.info("Generated index.html")
@@ -409,11 +412,50 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
     render_and_write(search_template, {}, output_dir / "search" / "index.html")
     render_and_write(search_template, {}, output_dir / "search.html")
     logger.info("Generated /search/index.html and /search.html")
-    
+
+    # Build batch navigation index: group scenes by batch for prev/next navigation
+    # This is used for both /image/ and /image_detail/ pages
+    batch_scenes = {}
+    for scene in all_scenes:
+        batch = scene.get('bm_batch_note') or 'unknown'
+        if batch not in batch_scenes:
+            batch_scenes[batch] = []
+        batch_scenes[batch].append(scene)
+
+    # Sort scenes within each batch by image_name for consistent ordering
+    for batch in batch_scenes:
+        batch_scenes[batch].sort(key=lambda x: x['image_name'])
+
+    # Create lookup for prev/next within batch
+    def get_batch_navigation(scene: Dict) -> Dict:
+        """Get prev/next image IDs within the same batch"""
+        batch = scene.get('bm_batch_note') or 'unknown'
+        scenes_in_batch = batch_scenes.get(batch, [])
+
+        # Find current index
+        current_idx = None
+        for i, s in enumerate(scenes_in_batch):
+            if s['image_id'] == scene['image_id']:
+                current_idx = i
+                break
+
+        if current_idx is None:
+            return {'prev_image_id': None, 'next_image_id': None, 'batch_position': None, 'batch_total': 0}
+
+        prev_id = scenes_in_batch[current_idx - 1]['image_id'] if current_idx > 0 else None
+        next_id = scenes_in_batch[current_idx + 1]['image_id'] if current_idx < len(scenes_in_batch) - 1 else None
+
+        return {
+            'prev_image_id': prev_id,
+            'next_image_id': next_id,
+            'batch_position': current_idx + 1,
+            'batch_total': len(scenes_in_batch)
+        }
+
     # Generate Image Pages
     images_dir = output_dir / "image"
     images_dir.mkdir(exist_ok=True)
-    
+
     count = 0
     for scene in all_scenes:
         image_id = scene['image_id']
@@ -421,9 +463,13 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
         
         # Find similar scenes
         similar = find_similar_scenes(scene, all_scenes, threshold=config_manager.get_similarity_threshold())
-        
-        # Inject scene data and similar scenes
+
+        # Get batch navigation (prev/next within same batch)
+        nav = get_batch_navigation(scene)
+
+        # Inject scene data, navigation, and similar scenes
         page_data = {
+            'navigation': nav,
             'image': scene,
             'similar': similar
         }
@@ -443,9 +489,74 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
         count += 1
         if count % 100 == 0:
             logger.info(f"Generated {count} image pages...")
-            
+
     logger.info(f"Generated {count} image pages")
-    
+
+    # Generate Image Detail Pages (technical view with all versions)
+    image_details_dir = output_dir / "image_detail"
+    image_details_dir.mkdir(exist_ok=True)
+
+    count = 0
+    for scene in all_scenes:
+        image_id = scene['image_id']
+        scene_id = scene['scene_id']
+
+        # Get all versions for this scene
+        all_versions = db.get_all_versions_for_scene(scene_id)
+
+        # Find current version
+        current_version = None
+        for v in all_versions:
+            if v.get('is_current'):
+                current_version = v
+                break
+
+        # Find similar scenes (reuse from above logic)
+        similar = find_similar_scenes(scene, all_scenes, threshold=config_manager.get_similarity_threshold())
+
+        # Get batch navigation (prev/next within same batch)
+        nav = get_batch_navigation(scene)
+
+        # Build page data with full detail including versions
+        page_data = {
+            'navigation': nav,
+            'image': {
+                'image_id': image_id,
+                'image_name': scene['image_name'],
+                'image_url': scene['image_url'],
+                'thumbnail_url': scene['thumbnail_url'],
+                'bm_batch_note': scene.get('bm_batch_note', ''),
+                'capture_date': scene.get('capture_date'),
+                'scene_id': scene_id,
+                'batch_name': scene.get('bm_batch_note', ''),
+                'base_filename': scene['image_name'],
+                'description': scene.get('description'),
+                'description_model': scene.get('description_model'),
+                'description_timestamp': scene.get('description_timestamp'),
+                'roll_number': scene.get('roll_number'),
+                'roll_date': scene.get('roll_date'),
+                'roll_comment': scene.get('roll_comment'),
+                'index_book_number': scene.get('index_book_number'),
+                'index_book_date': scene.get('index_book_date'),
+                'index_book_comment': scene.get('index_book_comment'),
+                'short_description': scene.get('short_description'),
+                'current_version': current_version,
+                'all_versions': all_versions
+            },
+            'similar': similar
+        }
+
+        # Write to image_detail/{image_id}/index.html
+        detail_page_dir = image_details_dir / str(image_id)
+        detail_page_dir.mkdir(exist_ok=True)
+        render_and_write(image_detail_template, page_data, detail_page_dir / "index.html", "window.__PAGE_DATA__")
+
+        count += 1
+        if count % 100 == 0:
+            logger.info(f"Generated {count} image detail pages...")
+
+    logger.info(f"Generated {count} image detail pages")
+
     # Generate Individual Roll Pages
     rolls_dir = output_dir / "roll"
     rolls_dir.mkdir(exist_ok=True)

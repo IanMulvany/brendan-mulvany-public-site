@@ -2,7 +2,7 @@
 
 const API_BASE = '';
 let currentImageId = null;
-let allImageIds = [];
+let navigationData = null;  // Static navigation within batch
 
 // Get image ID from URL
 const pathParts = window.location.pathname.split('/');
@@ -12,7 +12,6 @@ const imageIdFromUrl = parseInt(pathParts[pathParts.length - 1]);
 document.addEventListener('DOMContentLoaded', () => {
     currentImageId = imageIdFromUrl;
 
-    // Check for embedded static data first
     // Check for embedded static data first
     const pageData = window.__PAGE_DATA__;
 
@@ -25,70 +24,18 @@ document.addEventListener('DOMContentLoaded', () => {
             displaySimilarImages(pageData.similar);
         }
 
-        // Try to load navigation data
-        loadAllImageIds().then(() => {
-            setupNavigation();
-            updateNavigation();
-        });
+        // Use embedded navigation data for prev/next within batch
+        navigationData = pageData.navigation || null;
+        setupNavigation();
+        updateNavigation();
+        setupFullscreen();
     } else {
         // Fall back to API
-        loadAllImageIds().then(() => {
-            loadImage(currentImageId);
-            setupNavigation();
-        });
+        loadImage(currentImageId);
+        setupNavigation();
+        setupFullscreen();
     }
 });
-
-const NAV_CACHE_KEY = 'image-nav::ids';
-const NAV_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-// Load all image IDs for navigation
-async function loadAllImageIds() {
-    const cachedIds = getCachedNavIds();
-    if (cachedIds && Array.isArray(cachedIds) && cachedIds.length > 0) {
-        allImageIds = cachedIds;
-        return;
-    }
-
-    const limit = 200;
-    let offset = 0;
-    let hasMore = true;
-    const ids = [];
-
-    try {
-        while (hasMore) {
-            const params = new URLSearchParams({
-                limit,
-                offset
-            });
-
-            const response = await fetch(`${API_BASE}/api/public/images?${params}`);
-            if (!response.ok) {
-                throw new Error(`Failed to load image IDs: ${response.status}`);
-            }
-
-            const data = await response.json();
-            const images = Array.isArray(data.images) ? data.images : [];
-
-            images.forEach(img => {
-                if (typeof img.image_id === 'number') {
-                    ids.push(img.image_id);
-                }
-            });
-
-            const pageHasMore = data.has_more ?? (images.length === limit);
-            hasMore = pageHasMore && images.length > 0;
-            if (hasMore) {
-                offset += limit;
-            }
-        }
-
-        allImageIds = ids;
-        cacheNavIds(ids);
-    } catch (error) {
-        console.error('Error loading image IDs:', error);
-    }
-}
 
 // Render image from data (works with both static and API data)
 function renderImage(image) {
@@ -256,66 +203,161 @@ function setupNavigation() {
 
     // Keyboard navigation
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft') {
-            navigateImage(-1);
+        if (e.key === 'Escape' && isFullscreen) {
+            closeFullscreen();
+        } else if (e.key === 'ArrowLeft') {
+            if (isFullscreen) {
+                navigateFullscreen(-1);
+            } else {
+                navigateImage(-1);
+            }
         } else if (e.key === 'ArrowRight') {
-            navigateImage(1);
+            if (isFullscreen) {
+                navigateFullscreen(1);
+            } else {
+                navigateImage(1);
+            }
         }
     });
 }
 
-// Update navigation buttons
+// Update navigation buttons based on static navigation data
 function updateNavigation() {
     const prevBtn = document.getElementById('prev-button');
     const nextBtn = document.getElementById('next-button');
 
     if (!prevBtn || !nextBtn) return;
 
-    const currentIndex = allImageIds.indexOf(currentImageId);
-    prevBtn.disabled = currentIndex <= 0;
-    nextBtn.disabled = currentIndex >= allImageIds.length - 1;
+    if (navigationData) {
+        // Use static batch navigation
+        prevBtn.disabled = !navigationData.prev_image_id;
+        nextBtn.disabled = !navigationData.next_image_id;
+    } else {
+        // No navigation data available
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+    }
 }
 
-// Navigate to next/previous image
+// Navigate to next/previous image within batch
 function navigateImage(delta) {
-    const currentIndex = allImageIds.indexOf(currentImageId);
-    const newIndex = currentIndex + delta;
+    if (!navigationData) return;
 
-    if (newIndex >= 0 && newIndex < allImageIds.length) {
-        const newImageId = allImageIds[newIndex];
-        window.location.href = `/image/${newImageId}`;
+    const targetId = delta < 0 ? navigationData.prev_image_id : navigationData.next_image_id;
+    if (targetId) {
+        window.location.href = `/image/${targetId}/`;
     }
 }
 
-// Helper functions
+// Fullscreen functionality
+let isFullscreen = false;
+const FULLSCREEN_KEY = 'image-fullscreen-mode';
 
+function setupFullscreen() {
+    const mainImage = document.getElementById('main-image');
+    const overlay = document.getElementById('fullscreen-overlay');
+    const fullscreenImage = document.getElementById('fullscreen-image');
+    const closeBtn = document.getElementById('fullscreen-close');
+    const prevBtn = document.getElementById('fullscreen-prev');
+    const nextBtn = document.getElementById('fullscreen-next');
+    const infoEl = document.getElementById('fullscreen-info');
 
-function cacheNavIds(ids) {
-    try {
-        const payload = {
-            ids,
-            cached_at: Date.now()
-        };
-        sessionStorage.setItem(NAV_CACHE_KEY, JSON.stringify(payload));
-    } catch (error) {
-        console.warn('Unable to cache navigation IDs:', error);
+    if (!mainImage || !overlay) return;
+
+    // Open fullscreen on image click
+    mainImage.addEventListener('click', () => openFullscreen());
+
+    // Close button
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeFullscreen);
     }
-}
 
-function getCachedNavIds() {
-    try {
-        const raw = sessionStorage.getItem(NAV_CACHE_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (!parsed || !Array.isArray(parsed.ids)) return null;
-        if (!parsed.cached_at || (Date.now() - parsed.cached_at) > NAV_CACHE_TTL) {
-            sessionStorage.removeItem(NAV_CACHE_KEY);
-            return null;
+    // Click outside image to close
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            closeFullscreen();
         }
-        return parsed.ids;
-    } catch (error) {
-        sessionStorage.removeItem(NAV_CACHE_KEY);
-        return null;
+    });
+
+    // Navigation buttons in fullscreen
+    if (prevBtn) {
+        prevBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigateFullscreen(-1);
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigateFullscreen(1);
+        });
+    }
+
+    // Check if we should auto-open fullscreen (navigated from fullscreen view)
+    if (sessionStorage.getItem(FULLSCREEN_KEY) === 'true') {
+        sessionStorage.removeItem(FULLSCREEN_KEY);
+        // Small delay to let image load
+        setTimeout(() => openFullscreen(), 100);
+    }
+}
+
+function openFullscreen() {
+    const overlay = document.getElementById('fullscreen-overlay');
+    const mainImage = document.getElementById('main-image');
+    const fullscreenImage = document.getElementById('fullscreen-image');
+    const infoEl = document.getElementById('fullscreen-info');
+    const prevBtn = document.getElementById('fullscreen-prev');
+    const nextBtn = document.getElementById('fullscreen-next');
+
+    if (!overlay || !mainImage || !fullscreenImage) return;
+
+    // Use the large image URL for fullscreen
+    const pageData = window.__PAGE_DATA__;
+    if (pageData && pageData.image) {
+        const img = pageData.image;
+        // Prefer large webp/avif, fall back to original
+        fullscreenImage.src = img.large_webp || img.large_avif || img.image_url || mainImage.src;
+    } else {
+        fullscreenImage.src = mainImage.src;
+    }
+    fullscreenImage.alt = mainImage.alt;
+
+    // Update info
+    if (infoEl && navigationData) {
+        infoEl.textContent = `${navigationData.batch_position} of ${navigationData.batch_total}`;
+    }
+
+    // Update nav button states
+    if (prevBtn) {
+        prevBtn.disabled = !navigationData || !navigationData.prev_image_id;
+    }
+    if (nextBtn) {
+        nextBtn.disabled = !navigationData || !navigationData.next_image_id;
+    }
+
+    overlay.classList.add('active');
+    isFullscreen = true;
+    document.body.style.overflow = 'hidden';
+}
+
+function closeFullscreen() {
+    const overlay = document.getElementById('fullscreen-overlay');
+    if (!overlay) return;
+
+    overlay.classList.remove('active');
+    isFullscreen = false;
+    document.body.style.overflow = '';
+    sessionStorage.removeItem(FULLSCREEN_KEY);
+}
+
+function navigateFullscreen(delta) {
+    if (!navigationData) return;
+
+    const targetId = delta < 0 ? navigationData.prev_image_id : navigationData.next_image_id;
+    if (targetId) {
+        // Remember fullscreen state for next page
+        sessionStorage.setItem(FULLSCREEN_KEY, 'true');
+        window.location.href = `/image/${targetId}/`;
     }
 }
 

@@ -219,6 +219,111 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Fullscreen overlay styles */
+        .fullscreen-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .fullscreen-overlay.active {
+            display: flex;
+        }
+
+        .fullscreen-overlay__image {
+            max-width: 95%;
+            max-height: 95%;
+            object-fit: contain;
+        }
+
+        .fullscreen-overlay__close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 32px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .fullscreen-overlay__close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .fullscreen-overlay__nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            width: 60px;
+            height: 80px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .fullscreen-overlay__nav:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .fullscreen-overlay__nav:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .fullscreen-overlay__nav--prev {
+            left: 20px;
+            border-radius: 8px;
+        }
+
+        .fullscreen-overlay__nav--next {
+            right: 20px;
+            border-radius: 8px;
+        }
+
+        .fullscreen-overlay__info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 16px;
+            border-radius: 4px;
+        }
+
+        .image-page__image {
+            cursor: zoom-in;
+        }
+
+        .image-page__fullscreen-hint {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
     </style>
 </head>
 
@@ -259,6 +364,7 @@
                     <!-- Fallback -->
                     <img id="main-image" class="image-page__image" src="" alt="Loading...">
                 </picture>
+                <div class="image-page__fullscreen-hint">Click image to view fullscreen</div>
             </div>
 
             <div class="image-page__info" id="image-info">
@@ -275,6 +381,15 @@
             Photographs © Brendan Mulvany. All rights reserved.
         </div>
     </main>
+
+    <!-- Fullscreen overlay -->
+    <div class="fullscreen-overlay" id="fullscreen-overlay">
+        <button class="fullscreen-overlay__close" id="fullscreen-close" aria-label="Close fullscreen">&times;</button>
+        <button class="fullscreen-overlay__nav fullscreen-overlay__nav--prev" id="fullscreen-prev" aria-label="Previous image">&#8249;</button>
+        <img class="fullscreen-overlay__image" id="fullscreen-image" src="" alt="">
+        <button class="fullscreen-overlay__nav fullscreen-overlay__nav--next" id="fullscreen-next" aria-label="Next image">&#8250;</button>
+        <div class="fullscreen-overlay__info" id="fullscreen-info"></div>
+    </div>
 
     <script>window.__PAGE_DATA__ = null;</script>
     <script src="/static/js/common.js"></script>
