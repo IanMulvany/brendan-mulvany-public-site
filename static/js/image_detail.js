@@ -327,11 +327,11 @@ function displaySimilarImagesStatic(similarImages) {
                     <div class="image-detail__similar-item">
                         <a href="/image/${result.image_id || result.scene_id}/">
                             <img src="${result.thumbnail_url}"
-                                 alt="${result.base_filename || result.image_name}"
+                                 alt="${result.image_name || result.base_filename}"
                                  class="image-detail__similar-thumb"
                                  loading="lazy">
                             <div class="image-detail__similar-info">
-                                <div class="image-detail__similar-filename">${result.base_filename || result.image_name}</div>
+                                <div class="image-detail__similar-filename">${result.image_name || result.base_filename}</div>
                                 ${result.distance !== undefined ? `<div class="image-detail__similar-distance">Distance: ${result.distance}</div>` : ''}
                                 ${result.batch_name ? `<div class="image-detail__similar-batch">${result.batch_name}</div>` : ''}
                             </div>
@@ -366,11 +366,11 @@ async function loadSimilarImages(sceneId, currentImageId) {
                             <div class="image-detail__similar-item">
                                 <a href="/image/${result.image_id || result.scene_id}/">
                                     <img src="${result.thumbnail_url}"
-                                         alt="${result.base_filename}"
+                                         alt="${result.image_name || result.base_filename}"
                                          class="image-detail__similar-thumb"
                                          loading="lazy">
                                     <div class="image-detail__similar-info">
-                                        <div class="image-detail__similar-filename">${result.base_filename}</div>
+                                        <div class="image-detail__similar-filename">${result.image_name || result.base_filename}</div>
                                         <div class="image-detail__similar-distance">Distance: ${result.distance}</div>
                                         ${result.batch_name ? `<div class="image-detail__similar-batch">${result.batch_name}</div>` : ''}
                                     </div>

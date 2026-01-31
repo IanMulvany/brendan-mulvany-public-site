@@ -34,10 +34,70 @@ logger = logging.getLogger(__name__)
 DIST_DIR = CURRENT_DIR / "public"
 STATIC_DIR = CURRENT_DIR / "static"
 TEMPLATES_DIR = CURRENT_DIR / "templates"
+SKIP_IMAGES_FILE = CURRENT_DIR / "skip_images.md"
 
 # Build metadata
 BUILD_GENERATOR = "build_static.py"
 BUILD_VERSION = "1.0"
+
+
+def load_skip_images(skip_file: Path) -> set:
+    """Load image keys to skip from skip_images.md file.
+
+    Parses markdown file, ignoring:
+    - Lines starting with # (comments)
+    - Blank lines
+    - Lines that are part of code blocks (``` markers)
+
+    Returns a set of image_id strings to skip.
+    """
+    skip_set = set()
+    if not skip_file.exists():
+        return skip_set
+
+    try:
+        with open(skip_file, 'r') as f:
+            in_code_block = False
+            in_skip_section = False
+
+            for line in f:
+                stripped = line.strip()
+
+                # Track code blocks to ignore example sections
+                if stripped.startswith('```'):
+                    in_code_block = not in_code_block
+                    continue
+
+                # Skip content inside code blocks (examples)
+                if in_code_block:
+                    continue
+
+                # Look for the "Images to Skip" section marker
+                if '## Images to Skip' in line:
+                    in_skip_section = True
+                    continue
+
+                # Only process lines after the skip section marker
+                if not in_skip_section:
+                    continue
+
+                # Skip blank lines and comments
+                if not stripped or stripped.startswith('#') or stripped.startswith('<!--'):
+                    continue
+
+                # Skip markdown formatting lines
+                if stripped.startswith('---') or stripped.startswith('```'):
+                    continue
+
+                # This is an image key to skip
+                skip_set.add(stripped)
+
+        if skip_set:
+            logger.info(f"Loaded {len(skip_set)} images to skip from {skip_file}")
+    except Exception as e:
+        logger.warning(f"Could not load skip_images.md: {e}")
+
+    return skip_set
 
 
 def load_all_scenes(db: PublicSiteDatabase, storage_backend) -> List[Dict]:
@@ -164,6 +224,34 @@ def prepare_years_data(all_scenes: List[Dict]) -> Dict:
     return {'years': years}
 
 
+def prepare_batches_data(all_scenes: List[Dict]) -> Dict:
+    """Prepare batches data for templates"""
+    batches = {}
+    for scene in all_scenes:
+        batch_name = scene.get('bm_batch_note')
+        if batch_name:
+            if batch_name not in batches:
+                batches[batch_name] = {
+                    'batch_name': batch_name,
+                    'roll_number': scene.get('roll_number'),
+                    'images': []
+                }
+            batches[batch_name]['images'].append(scene)
+
+    # Sort scenes within each batch
+    for batch_name in batches:
+        batches[batch_name]['images'].sort(key=lambda x: x.get('capture_date') or x['image_name'])
+        batches[batch_name]['count'] = len(batches[batch_name]['images'])
+
+    # Prepare batches list
+    batches_list = list(batches.values())
+
+    # Sort batches by name descending (most recent first)
+    batches_list.sort(key=lambda x: x['batch_name'], reverse=True)
+
+    return {'batches': batches_list, 'batches_dict': batches}
+
+
 def load_featured_images(all_scenes: List[Dict], featured_json_path: Path) -> List[Dict]:
     """Load featured images from featured.json"""
     featured_images = []
@@ -234,9 +322,19 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
     all_scenes = load_all_scenes(db, storage_backend)
     logger.info(f"Loaded {len(all_scenes)} scenes")
 
+    # Load and apply skip list
+    skip_images = load_skip_images(SKIP_IMAGES_FILE)
+    if skip_images:
+        original_count = len(all_scenes)
+        # image_id can be int or str, convert to str for comparison
+        all_scenes = [s for s in all_scenes if str(s['image_id']) not in skip_images]
+        skipped_count = original_count - len(all_scenes)
+        logger.info(f"Skipped {skipped_count} images, {len(all_scenes)} remaining")
+
     # Prepare data structures
     rolls_data = prepare_rolls_data(all_scenes)
     years_data = prepare_years_data(all_scenes)
+    batches_data = prepare_batches_data(all_scenes)
     featured_images = load_featured_images(all_scenes, CURRENT_DIR / "featured.json")
 
     # Load meta tags if available
@@ -395,6 +493,25 @@ def generate_static_site(output_dir: Path, db_path: Path, config_path: Path):
         logger.info("Generated /years/index.html")
     except FileNotFoundError:
         logger.warning("years_index.html template not found, skipping years index generation")
+
+    # Generate /batches/index.html (listing all batches, not in navigation)
+    try:
+        with open(TEMPLATES_DIR / "batches_index.html", "r") as f:
+            batches_index_template = f.read()
+
+        # Prepare data for batches page - only need cover image, strip metadata
+        batches_page_data = {
+            'batches': [{
+                'batch_name': b['batch_name'],
+                'roll_number': b['roll_number'],
+                'count': b['count'],
+                'images': [strip_metadata(img) for img in b['images'][:1]]  # Only cover image, minimal data
+            } for b in batches_data['batches']]
+        }
+        render_and_write(batches_index_template, batches_page_data, output_dir / "batches" / "index.html")
+        logger.info("Generated /batches/index.html")
+    except FileNotFoundError:
+        logger.warning("batches_index.html template not found, skipping batches index generation")
 
     # Generate /about/index.html
     try:

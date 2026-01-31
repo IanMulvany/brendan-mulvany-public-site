@@ -80,11 +80,11 @@ function displayRollData(data) {
                 <div class="roll-page__item">
                     <a href="/image/${img.image_id}/">
                         <img src="${img.thumbnail_url}"
-                             alt="${img.base_filename}"
+                             alt="${img.image_name || img.base_filename}"
                              class="roll-page__thumb"
                              loading="lazy">
                         <div class="roll-page__info">
-                            <div class="roll-page__filename">${img.base_filename}</div>
+                            <div class="roll-page__filename">${img.image_name || img.base_filename}</div>
                             ${img.capture_date ? `<div class="roll-page__date">${img.capture_date}</div>` : ''}
                         </div>
                     </a>

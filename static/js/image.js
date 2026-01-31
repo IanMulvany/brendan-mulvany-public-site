@@ -161,11 +161,11 @@ function displaySimilarImages(similarImages) {
             <div class="image-page__similar-item">
                 <a href="/image/${result.image_id || result.scene_id}/">
                     <img src="${result.thumbnail_url}"
-                         alt="${result.base_filename}"
+                         alt="${result.image_name || result.base_filename}"
                          class="image-page__similar-thumb"
                          loading="lazy">
                     <div class="image-page__similar-info">
-                        ${result.base_filename}
+                        ${result.image_name || result.base_filename}
                     </div>
                 </a>
             </div>

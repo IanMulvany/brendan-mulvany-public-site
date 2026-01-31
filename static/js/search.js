@@ -75,11 +75,11 @@ async function performSearch() {
                 <div class="search-page__result-item">
                     <a href="/image/${img.image_id}/">
                         <img src="${img.thumbnail_url}"
-                             alt="${img.base_filename}"
+                             alt="${img.image_name || img.base_filename}"
                              class="search-page__result-thumb"
                              loading="lazy">
                         <div class="search-page__result-info">
-                            <div class="search-page__result-filename">${escapeHtml(img.base_filename)}</div>
+                            <div class="search-page__result-filename">${escapeHtml(img.image_name || img.base_filename)}</div>
                             <div class="search-page__result-meta">
                                 ${img.roll_number ? `Roll: ${img.roll_number} • ` : ''}
                                 ${img.capture_date || img.roll_date || ''}
