@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batches - Brendan Mulvany Photo Archive</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Navigation styling */
+        .header__title a {
+            color: #fff;
+            text-decoration: none;
+        }
+        .header__title a:hover {
+            opacity: 0.9;
+        }
+        .header__title a:visited {
+            color: #fff;
+        }
+        .header__nav-link {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .header__nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .header__nav-link--active {
+            background-color: rgba(255,255,255,0.2);
+            font-weight: 600;
+        }
+
+        /* Ultra-Compact Grid for Batches */
+        .batches-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 8px;
+            padding: 1rem 0;
+        }
+
+        .batch-card {
+            background: #fff;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .batch-card:hover {
+            transform: scale(1.03);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        }
+
+        .batch-card__link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .batch-card__image-wrapper {
+            position: relative;
+            aspect-ratio: 1;
+            overflow: hidden;
+        }
+
+        .batch-card__image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .batch-card__count {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            font-size: 0.6rem;
+            padding: 1px 4px;
+            border-radius: 2px;
+        }
+
+        .batch-card__info {
+            padding: 4px 6px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            color: #fff;
+        }
+
+        .batch-card__title {
+            font-size: 0.65rem;
+            font-weight: 600;
+            margin: 0;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .batch-card__roll {
+            font-size: 0.6rem;
+            opacity: 0.85;
+            margin: 0;
+        }
+
+        .view-header {
+            margin-bottom: 1rem;
+        }
+
+        .view-header__title {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .view-header__description {
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="header__container">
+            <h1 class="header__title"><a href="/">Brendan Mulvany Photo Archive</a></h1>
+            <nav class="header__nav">
+                <a href="/" class="header__nav-link">Home</a>
+                <a href="/rolls" class="header__nav-link">Rolls</a>
+                <a href="/years" class="header__nav-link">Years</a>
+                <a href="/search" class="header__nav-link">Search</a>
+                <a href="/about" class="header__nav-link">About</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="view-header">
+            <h2 class="view-header__title">Batches</h2>
+            <p class="view-header__description">Browse the archive by scan batch. Each batch links to its associated roll.</p>
+        </section>
+
+        <section class="batches-grid" id="batches-grid">
+            <p class="loading-text">Loading batches...</p>
+        </section>
+    </main>
+
+    <script>window.__STATIC_DATA__ = null;</script>
+    <script src="/static/js/common.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const batchesGrid = document.getElementById('batches-grid');
+            const data = window.__STATIC_DATA__;
+
+            if (!data || !data.batches) {
+                batchesGrid.innerHTML = '<p class="error-text">No data available.</p>';
+                return;
+            }
+
+            batchesGrid.innerHTML = '';
+
+            data.batches.forEach(batch => {
+                const batchCard = document.createElement('div');
+                batchCard.className = 'batch-card';
+
+                const coverImage = batch.images[0];
+                const coverUrl = coverImage.thumbnail_url || coverImage.image_url;
+                const rollNumber = batch.roll_number || 'unknown';
+
+                batchCard.innerHTML = `
+                    <a href="/roll/${rollNumber}/index.html" class="batch-card__link">
+                        <div class="batch-card__image-wrapper">
+                            <img src="${coverUrl}" alt="Batch ${batch.batch_name}" class="batch-card__image" loading="lazy">
+                            <div class="batch-card__count">${batch.count}</div>
+                            <div class="batch-card__info">
+                                <h3 class="batch-card__title">${batch.batch_name}</h3>
+                                <p class="batch-card__roll">Roll #${rollNumber}</p>
+                            </div>
+                        </div>
+                    </a>
+                `;
+                batchesGrid.appendChild(batchCard);
+            });
+        });
+    </script>
+</body>
+
+</html>
