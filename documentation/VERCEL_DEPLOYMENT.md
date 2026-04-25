@@ -33,6 +33,8 @@ Vercel's serverless functions don't support persistent SQLite files. You have tw
 
 Turso provides serverless SQLite databases that work seamlessly with your existing code.
 
+This deployment uses direct remote Turso access from the API. Do not configure Turso database sync, embedded replicas, or the new Turso Sync push/pull packages for this Vercel app unless the architecture changes to require durable local/offline writes. The `/api/admin/sync/data` endpoint is application-level metadata ingestion, not Turso database replication.
+
 1. **Sign up for Turso**: https://turso.tech
 2. **Create a database**:
    ```bash
@@ -58,9 +60,9 @@ Turso provides serverless SQLite databases that work seamlessly with your existi
    ```
 
 4. **Update your code** (if needed):
-   - Turso uses `libsql` which is SQLite-compatible
-   - You may need to install: `pip install libsql-experimental`
-   - Update `database.py` to use Turso connection if needed
+   - Turso is SQLite-compatible for this app's query patterns.
+   - The current code uses `libsql-experimental` for direct remote access. Track Turso Python client changes separately from Turso database sync migration work.
+   - Update `database.py` only if the Turso client package changes.
 
 ### Option 2: Vercel Postgres
 
@@ -549,7 +551,7 @@ Response:
 2. **Use token for admin endpoints:**
 
 ```bash
-# Example: Sync data
+# Example: ingest metadata into the public-site database
 curl -X POST https://your-domain.com/api/admin/sync/data \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
@@ -598,4 +600,3 @@ For issues specific to this deployment:
 2. Review environment variables
 3. Test locally first to isolate issues
 4. Check Cloudflare DNS configuration
-

@@ -58,15 +58,17 @@ The server will start on `http://localhost:8001`
 
 ### Admin Endpoints (Requires Admin Role)
 
-- `POST /api/admin/sync` - Sync metadata from local archive
-- `GET /api/admin/sync/status` - Get sync status
+- `POST /api/admin/sync/data` - Ingest metadata from the management/archive workflow
+- `GET /api/admin/sync/status` - Get latest ingest status
+
+The admin "sync" endpoints are application-level ingestion endpoints. They do not use Turso database sync, embedded replicas, or Turso Sync `push()`/`pull()` APIs.
 
 ## Database
 
 The public site uses a separate SQLite database (`public_site.db`) for:
 - User accounts
 - Annotations
-- Sync logs
+- Ingest logs
 
 The archive database (`code/bm_image_archive.db`) is read-only for image metadata.
 
@@ -94,4 +96,3 @@ The public site uses `config.yaml` to control which batches and directories are 
 ## Production Deployment
 
 See `PUBLIC_SITE_ARCHITECTURE.md` for deployment recommendations.
-

@@ -8,6 +8,10 @@ We are evolving the public photo archive to deliver sub-10 ms search on Turso/
 - **Prepared, covering queries** that fetch scenes + current image versions without N+1 lookups.
 - **Edge-friendly caching**: precomputed facet metadata and static JSON snapshots so the frontend avoids re-querying the database for common views.
 
+### Turso Access Model
+
+The production API uses direct remote Turso access. The ingestion code named "sync" is a batch metadata upsert workflow, not Turso database sync or libSQL embedded replicas. Do not migrate this app to Turso Sync packages (`@tursodatabase/sync`, `pyturso`, `turso-go`) unless the public site later needs a durable local database that accepts offline writes and explicitly calls `push()`/`pull()`.
+
 ### Current Architecture
 - `scenes`: minimal columns (id, batch, filename, capture date, timestamps).
 - `scene_descriptions`, `scene_metadata`, `scene_tags`, `scene_people`: hold large text and multi-valued attributes.
@@ -28,11 +32,10 @@ We are evolving the public photo archive to deliver sub-10 ms search on Turso/
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
 | Migration script misses data (e.g., people/tags not mapped) | Missing facets / incomplete search results | Script generates from existing tables; run on staging first, compare counts (`scene_people`, `scene_tags`, FTS row counts). |
-| FTS not refreshed after ingestion | Stale search results | Triggers cover `scenes`, `scene_metadata`, `scene_descriptions`, `scene_tags`, `scene_people`. Batch sync clears cached metadata automatically. |
+| FTS not refreshed after ingestion | Stale search results | Triggers cover `scenes`, `scene_metadata`, `scene_descriptions`, `scene_tags`, `scene_people`. Batch ingest clears cached metadata automatically. |
 | Large captions slowing queries | Higher I/O, slower scans | `scene_descriptions` keeps captions out of the narrow `scenes` table; FTS handles text search. |
 | Turso replica inconsistency during writes | Temporary stale reads | Turso WAL handles replication; batch writes grouped in transactions; consider read-after-write delays when verifying immediately. |
 | Cache serving stale facets | Incorrect counts in UI | Metadata cache expires every 5 minutes; force refresh after bulk updates. |
 | Client code expecting old columns on `scenes` | Runtime errors post-compact | Leave legacy columns until deployment verified; only run `--compact-scenes` after application code proves stable. |
 
-With these pieces in place, Turso becomes the single source of truth for fast, filtered search while keeping ingestion and pagination predictable.
-
+With these pieces in place, Turso remains the remote source of truth for fast, filtered search while keeping ingestion and pagination predictable.

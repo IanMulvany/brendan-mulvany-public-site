@@ -1,12 +1,14 @@
 # Public Site Sync Guide
 
-Complete guide for syncing scenes and images to the public site, including database sync and image storage sync.
+Complete guide for ingesting scenes and images into the public site, including metadata upserts and image storage uploads.
 
 ## Overview
 
-The public site uses a two-phase sync process:
-1. **Database Sync**: Scans local batches and populates the `scenes` and `image_versions` tables
-2. **Image Sync**: Uploads current versions of images to storage (local filesystem for testing, R2 for production)
+The public site uses a two-phase ingestion process:
+1. **Metadata ingest**: Scans local batches and populates the `scenes` and `image_versions` tables
+2. **Image upload**: Uploads current versions of images to storage (local filesystem for testing, R2 for production)
+
+This is not Turso database sync. The public-site API writes directly to SQLite/Turso and records application-level ingest events in `sync_log`. It does not use libSQL embedded replicas, Turso Sync, `push()`, `pull()`, or local-first database replication.
 
 ## Configuration
 
@@ -31,7 +33,7 @@ storage:
 
 ### Batch Configuration
 
-Images are synced based on the batch configuration database (`code/public_site_batch_config.db`). Only batches marked as `is_public = 1` will be synced.
+Images are selected for public-site ingestion based on the batch configuration database (`code/public_site_batch_config.db`). Only batches marked as `is_public = 1` will be included.
 
 To configure which batches are public, use the batch manager app:
 ```bash
@@ -44,28 +46,28 @@ Or manually update the database:
 UPDATE public_site_batches SET is_public = 1 WHERE batch_name = '2025-11-04-batch-1';
 ```
 
-## Sync Methods
+## Ingestion Methods
 
 ### Method 1: Command Line Script (Recommended)
 
-The sync script provides full control and detailed logging:
+The ingest script provides full control and detailed logging:
 
 ```bash
 cd public-site
 
-# Full sync (database + images)
+# Full ingest (metadata + images)
 python sync.py --images-dir ../images
 
-# Sync specific batch
+# Ingest specific batch
 python sync.py --images-dir ../images --batch 2025-11-04-batch-1
 
-# Dry run (see what would be synced without actually doing it)
+# Dry run (see what would be ingested without actually doing it)
 python sync.py --images-dir ../images --dry-run
 
-# Database only (no image upload)
+# Metadata only (no image upload)
 python sync.py --images-dir ../images --db-only
 
-# Images only (skip database sync)
+# Images only (skip metadata ingest)
 python sync.py --images-dir ../images --images-only
 ```
 
@@ -73,14 +75,14 @@ python sync.py --images-dir ../images --images-only
 - `--images-dir PATH`: Path to images directory (default: `../images`)
 - `--config PATH`: Path to config file (default: `config.yaml`)
 - `--db PATH`: Path to database file (default: `public_site.db`)
-- `--batch NAME`: Sync specific batch (can be used multiple times)
-- `--dry-run`: Show what would be synced without actually syncing
-- `--db-only`: Only sync database, skip image upload
-- `--images-only`: Only sync images, skip database sync
+- `--batch NAME`: Ingest specific batch (can be used multiple times)
+- `--dry-run`: Show what would be ingested without actually writing changes
+- `--db-only`: Only ingest metadata, skip image upload
+- `--images-only`: Only upload images, skip metadata ingest
 
 ### Method 2: API Endpoint (Admin Only)
 
-Use the admin API endpoint for programmatic sync:
+Use the admin API endpoint for programmatic metadata ingestion:
 
 ```bash
 # Get admin token first
@@ -88,7 +90,7 @@ curl -X POST http://localhost:8001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "your-password"}'
 
-# Run sync
+# Run ingest
 curl -X POST http://localhost:8001/api/admin/sync \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
@@ -100,7 +102,7 @@ curl -X POST http://localhost:8001/api/admin/sync \
   }'
 ```
 
-## Sync Workflow
+## Ingestion Workflow
 
 ### Step 1: Configure Storage
 
@@ -115,7 +117,7 @@ storage:
 
 Use the batch manager to mark batches as public, or update the database directly.
 
-### Step 3: Run Sync
+### Step 3: Run Ingest
 
 ```bash
 cd public-site
