@@ -4,6 +4,7 @@
 *.wal
 
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -62,6 +63,12 @@ config.local.yaml
 # Logs
 *.log
 logs/
+
+# Beads local state
+.beads/
+
+# Work in progress
+/newsite/
 
 # Storage directories
 storage/
