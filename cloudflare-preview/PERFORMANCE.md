@@ -1,64 +1,89 @@
-# Preview validation — 13 September 2026
+# Live Cloudflare preview — 13 September 2026
 
-The Cloudflare implementation is complete and tested locally. Deployment is
-pending access to the Cloudflare account holding the photography domain. The
-initial Wrangler default profile belonged to BMJ and its zone lookup returned no
-`brendan-mulvany-photography.com` or `brendan-mulvany-photogrophy.com` zone. No remote
-Worker, D1 database, DNS record, Vercel configuration or Turso data was changed.
+The preview is live at https://new.brendan-mulvany-photography.com/ with three
+collections and 114 photographs. It uses a Cloudflare Worker, static assets,
+and a dedicated D1 SQLite full-text index in Western Europe. D1 read replication
+is disabled for this trial. The original Vercel/Turso site remains available.
 
-## Existing site: measured HTTP responses
+Deployment version: `25cd33bd-5f06-498c-99e8-a5529b46b883`.
+Worker name: `brendan-mulvany-cloudflare-preview`.
+D1: `brendan-mulvany-preview`, 782,336 bytes after import.
+Cloudflare reported a 5 ms Worker startup time and a 5.30 KiB bundle (2.09 KiB gzip).
 
-Measured from this development machine, 7 sequential GET requests per endpoint,
-20-second timeout, 13 September 2026. All 35 requests returned HTTP 200 with gzip.
-“Initial” means first observed in this run; it does not establish a cold origin.
-The median and observed p95 use the subsequent 6 requests. Six samples provide
-only a rough tail estimate, not a robust performance percentile.
+## Live comparison
 
-| Endpoint | Initial total | Subsequent median | Observed p95 |
-| --- | ---: | ---: | ---: |
-| Homepage | 75 ms | 78 ms | 96 ms |
-| Roll 3071 | 77 ms | 68 ms | 81 ms |
-| Search `pope` | 3,004 ms | 950 ms | 1,009 ms |
-| Search `football` | 967 ms | 956 ms | 1,925 ms |
-| Search `1979` | 1,073 ms | 955 ms | 1,196 ms |
+Measured at 21:39 UTC on 13 September 2026 from one development machine, with
+seven sequential GET requests per endpoint, no throttling and a 20-second timeout.
+All 84 requests returned HTTP 200. Initial means first observed in this run, not
+necessarily a cold provider process. Warm statistics use the following six
+requests; medians average the middle two values.
 
-Pages consistently reported Vercel HIT; search reported MISS. Measurements exclude
-rendering, images and typing delay. Search requested `limit=24`. Raw results are
-in generated `data/baseline.json`.
+| Endpoint | Preview initial | Preview warm median | Existing site initial | Existing warm median |
+| --- | ---: | ---: | ---: | ---: |
+| Homepage | See raw observations | 24 ms | See raw observations | 34 ms |
+| Collection 3071 | See raw observations | 23 ms | See raw observations | 28 ms |
+| Search `pope` | 282 ms | 25 ms | 3,353 ms | 925 ms |
+| Search `football` | 69 ms | 25 ms | 994 ms | 901 ms |
+| Search `1979` | 65 ms | 23 ms | 916 ms | 942 ms |
+| Search `pope ireland` | 48 ms | 26 ms | 1,011 ms | 939 ms |
 
-Current code opens a remote Turso connection for each request, performs separate
-result/count/facet queries sequentially, and the search UI has a 500 ms debounce.
-These are confirmed implementation differences, not a measured attribution of
-latency to a particular provider. D1 deployment must be measured before choosing
-a production migration.
+All four initial preview searches were confirmed Cache API MISS responses. Their
+D1 query durations were 6.40, 2.98, 3.35 and 1.18 ms respectively. All subsequent
+preview searches were confirmed HIT responses, with 3–6 ms reported Worker time
+and no database query. Existing search responses consistently reported Vercel
+MISS. Cache entries are local to the serving Cloudflare data centre.
 
-## Preview: implementation and local checks
+These are response-transfer timings, excluding typing delay, rendering and image
+loads. Raw observations are in generated `data/benchmark.json`. The benchmark
+script now computes even-sized medians correctly; existing observations were
+recalculated from their raw samples without repeating or replacing requests.
+The six-request warm sample is too small for a robust tail-latency estimate.
 
-- Homepage HTML is 6,541 bytes versus 122,215 bytes for the existing homepage:
-  94.6% smaller uncompressed. Locally gzipped: 1,662 versus 11,381 bytes. This
-  reflects reduced content and embedded metadata as well as a smaller UI.
-- CSS is about 12 KB; search JavaScript about 7.7 KB, loaded only on search pages.
-  Browsing and photo detail pages need no JavaScript. Worker upload in the dry run
-  was 5.30 KiB / 2.09 KiB gzip.
-- Existing CDN variants verified: thumbnail 200 px, small 800 px, large 1600 px.
-  Images use responsive AVIF/WebP and reserved boxes; originals are not loaded.
-- Local D1 full-text query plan uses the FTS virtual index plus primary-key photo
-  lookups. Ordering equal-rank results deterministically still uses a temporary
-  sort. Collection browsing has a `(collection_id, id)` index.
-- One local `french` search: initial 34 ms total, subsequent cache hits about
-  2–4 ms. These are localhost emulator timings, **not deployed Cloudflare speed**.
-- 10 automated tests pass: real SQLite query execution, pagination, public-only
-  export, publication allowlist, repeated seed, Unicode, input validation and
-  collection/year/roll/prefix/AND search.
-- TypeScript validation and Cloudflare deployment dry run pass. Local Workers+D1
-  HTTP checks pass for paging, filters, cache/HEAD, input errors, unsupported
-  methods, API404, static404 and noindex headers.
-- Browser checks pass for desktop search and paging; mobile collection/detail
-  at 390×844 have no horizontal overflow and working previous/next navigation.
+The preview searches 114 photographs rather than the full archive, uses AND/prefix
+matching rather than exact-token/OR matching, and omits total counts and facets.
+The results demonstrate this trial's behavior; they do not establish that moving
+the unchanged full site would produce the same improvement. An equal-data,
+equal-query comparison and representative multi-region traffic are needed before
+choosing a production migration. No Lighthouse or Core Web Vitals claim is made.
 
-This is a 114-photo trial, whereas the existing site searches the wider archive.
-Preview prefix/AND search also differs from the existing exact-token/OR search.
-No equal-dataset comparison, deployed D1 benchmark, multi-region test or Core Web
-Vitals/Lighthouse claim has been made. Run the benchmark again against the real
-custom domain after deployment; use equal data and representative traffic before
-a full migration.
+## Pages and images
+
+- Homepage HTML: 7,712 decoded bytes versus 122,215 bytes (93.7% smaller).
+- Pope collection HTML: 49,701 bytes versus 121,549 bytes.
+- CSS: 12,091 bytes; search JavaScript: 7,802 bytes, loaded only on search pages.
+  Browsing and photo detail pages render and work without JavaScript.
+- Hashed CSS/JS have a verified one-year immutable cache policy. HTML revalidates.
+- All 120 checked CDN image URLs returned HTTP 200. GET responses have a four-hour
+  browser cache lifetime; repeat GETs are Cloudflare HIT. HEAD responses omitted
+  those cache headers, so GET was used to verify actual cache behavior.
+- For three representative covers, WebP small images totalled 108 KB versus
+  203 KB AVIF; large WebP totalled 561 KB versus 1,092 KB AVIF. The preview therefore
+  prefers WebP and keeps AVIF fallback. This measures bytes, not equal visual
+  quality. Derivative targets are 200/800/1600 pixels, capped by original size.
+- Fixed image boxes, lazy loading and responsive derivatives reduce loading work
+  and layout movement. Large originals are not part of initial page loads.
+
+Image observations are in generated `data/image-health.json` and `data/cdn-get.json`.
+
+## Correctness and deployment checks
+
+- Every selected photograph and original image URL matched the existing live roll
+  pages before export. No users, annotations, credentials or local paths exported.
+- The offline exporter validates a stable checkpointed source and queries a
+  disposable copy, avoiding a read-only SQLite WAL issue without modifying the
+  source file. Active journals or source changes cause export to stop.
+- Ten automated tests pass: real SQLite SQL, pagination, collection isolation,
+  year/roll/prefix/AND search, Unicode, input bounds, publication allowlist,
+  deterministic public export, repeatable seeding and FTS integrity.
+- TypeScript validation and deployment dry run pass. Live D1 counts are 43,36,35.
+- Live HTTPS smoke tests pass for all collections, paging, filters, malformed
+  input, unsupported methods, API/static404, noindex and hashed-asset caching.
+- Live browser search returned photographs with a cached timing label. Opening
+  a result loaded its WebP and full detail page successfully. Mobile layout and
+  previous/next navigation were checked locally at 390×844 without overflow.
+- The FTS query plan uses the virtual full-text index and primary-key photo
+  lookups; deterministic ranking ties still require a temporary sort. Collection
+  browsing uses `(collection_id, id)`.
+
+The trial is intentionally public and marked noindex, with no write endpoints.
+It is a deployment and usability trial, not a full archive migration.

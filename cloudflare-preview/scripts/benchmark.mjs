@@ -32,7 +32,7 @@ for (const [platform, origin, endpoints] of [['preview',target,paths], ['vercel'
     }
     const values=runs.slice(1).filter(r=>r.status===200).map(r=>r.totalMs).sort((a,b)=>a-b);
     const result={platform,name,url:new URL(path,origin).href,first:runs[0],
-      warmMedianMs:values.length ? values[Math.floor(values.length/2)] : null,
+      warmMedianMs:values.length ? (values[Math.floor((values.length - 1)/2)] + values[Math.floor(values.length/2)])/2 : null,
       warmP95Ms:values.length ? values[Math.ceil(values.length*.95)-1] : null,runs};
     all.push(result);
     console.log(JSON.stringify({...result,runs:undefined}));

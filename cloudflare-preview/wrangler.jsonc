@@ -25,7 +25,7 @@
     {
       "binding": "DB",
       "database_name": "brendan-mulvany-preview",
-      "database_id": "00000000-0000-0000-0000-000000000001",
+      "database_id": "125bb205-0451-4572-992c-30ba852fdf10",
       "migrations_dir": "migrations"
     }
   ],
@@ -34,5 +34,6 @@
       "pattern": "new.brendan-mulvany-photography.com",
       "custom_domain": true
     }
-  ]
+  ],
+  "account_id": "91d1175698c21b3e4febe0a1b4642e4c"
 }

@@ -30,7 +30,7 @@ const image = (photo, { large = false, eager = false, className = '', sizes = '(
   const width = Number(photo.width) || 1500;
   const height = Number(photo.height) || 1000;
   const variant = large ? 'large' : 'small';
-  return `<picture${className ? ` class="${escape(className)}"` : ''}><source type="image/avif" srcset="${base}/thumb.avif 200w, ${base}/small.avif 800w${large ? `, ${base}/large.avif 1600w` : ''}" sizes="${escape(sizes)}"><img src="${base}/${variant}.webp" srcset="${base}/small.webp 800w${large ? `, ${base}/large.webp 1600w` : ''}" sizes="${escape(sizes)}" width="${width}" height="${height}" alt="${escape(title(photo))}" loading="${eager ? 'eager' : 'lazy'}" decoding="async"${eager ? ' fetchpriority="high"' : ''}></picture>`;
+  return `<picture${className ? ` class="${escape(className)}"` : ''}><source type="image/webp" srcset="${base}/thumb.webp 200w, ${base}/small.webp 800w${large ? `, ${base}/large.webp 1600w` : ''}" sizes="${escape(sizes)}"><source type="image/avif" srcset="${base}/thumb.avif 200w, ${base}/small.avif 800w${large ? `, ${base}/large.avif 1600w` : ''}" sizes="${escape(sizes)}"><img src="${base}/${variant}.webp" srcset="${base}/small.webp 800w${large ? `, ${base}/large.webp 1600w` : ''}" sizes="${escape(sizes)}" width="${width}" height="${height}" alt="${escape(title(photo))}" loading="${eager ? 'eager' : 'lazy'}" decoding="async"${eager ? ' fetchpriority="high"' : ''}></picture>`;
 };
 const photoCard = (photo, index) => `<article class="photo-card"><a class="photo-card__link" href="/photos/${encodeURIComponent(photo.id)}/">${image(photo, { eager: index < 3, className: 'photo-card__image' })}<div class="photo-card__caption"><h3>${escape(title(photo))}</h3><p>${escape(photo.year || '')}</p></div></a></article>`;
 

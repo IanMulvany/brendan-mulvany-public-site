@@ -1,6 +1,7 @@
 # Cloudflare archive preview
 
-A separate Workers + D1 trial of three collections from the public archive:
+Live at https://new.brendan-mulvany-photography.com/ — a separate Workers + D1
+trial of three collections from the public archive:
 
 | Collection | Roll | Photos |
 | --- | --- | ---: |
@@ -34,41 +35,48 @@ npm run dev -- --port 8787
 Open http://localhost:8787. The manifest and SQL under `data/`, local D1 state,
 and `dist/` are generated and excluded from Git. Export stops if the approved
 photo count or its published URLs change, so updating the sample requires review.
+The source must be a stable checkpointed offline SQLite file: active WAL/journal
+files cause export to stop. SQLite queries run on a disposable copy, preserving
+the source file and avoiding read-only WAL compatibility problems.
 
 ## Deployment
 
-Deploy to the Cloudflare account that owns `brendan-mulvany-photography.com`.
-The BMJ credentials present during development do not have that zone; do not use
-that account as an accidental substitute. The zero UUID in `wrangler.jsonc` is a
-local-development placeholder and must be replaced with the new D1 database ID.
+The preview uses the `ian@mulvany.net` Cloudflare account and the confirmed domain
+`new.brendan-mulvany-photography.com`. Wrangler config records the dedicated D1
+ID and account ID; these identifiers are not credentials. The database is located
+in Western Europe (AMS observed during verification).
 
-1. Authenticate Wrangler to the correct account (a separate named profile can
-   preserve other projects' login). Verify its account and zone before creating
-   resources. `wrangler auth list` lists existing profiles.
-2. Create **one new** D1 database named `brendan-mulvany-preview`, with a Western
-   Europe location hint: `npx wrangler d1 create brendan-mulvany-preview --location weur`.
-   If using a named profile, append `--profile YOUR_PROFILE` to Wrangler commands.
-3. Set `account_id` and the returned `d1_databases[0].database_id` in
-   `wrangler.jsonc`. The user confirmed this custom domain, now included in the config:
-   `"routes": [{"pattern": "new.brendan-mulvany-photography.com", "custom_domain": true}]`.
-   Inspect any existing record for `new` first; preserve the apex, `www`, and CDN.
-4. Run `npm run db:remote` (or its two Wrangler commands with the named profile).
-   Seed only the dedicated preview DB. The seed replaces its photo snapshot,
-   rebuilds FTS, and is repeatable. It never connects to Turso.
-5. Run `npm run build`, `npm run check`, `npm test`, and
-   `npx wrangler deploy --dry-run`, then `npx wrangler deploy` with the same profile.
-6. Verify HTTPS, all three collections, a detail page, search and paging at the
-   custom domain. Test a second identical search to confirm `X-Search-Cache: HIT`.
-   The Worker uses D1 Sessions so it can use read replicas if enabled in D1.
-   Replication is optional for this trial; do not assume it is enabled by default.
-7. Run `npm run benchmark -- https://new.brendan-mulvany-photography.com` and save
-   the observed results. Do not call localhost measurements Cloudflare latency.
+For an update:
+
+```sh
+npx wrangler whoami
+python3 scripts/export-sample.py --verify-live-origin https://www.brendan-mulvany-photography.com
+npm run build
+npm run types
+npm run check
+npm test
+npm run db:remote
+npx wrangler deploy --dry-run
+npx wrangler deploy
+npm run benchmark -- https://new.brendan-mulvany-photography.com
+```
+
+Verify that `whoami` shows `ian@mulvany.net` before remote commands. If using a
+named profile, activate it for this directory or append `--profile YOUR_PROFILE`
+to Wrangler commands. Increment `CACHE_VERSION` whenever reseeding, and deploy
+static pages and the search snapshot together. The seed replaces only this preview
+DB's photo snapshot and rebuilds FTS. It never connects to Turso.
+
+The custom domain binds only `new`. The main site, `www`, and CDN continue using
+their existing configuration. The Worker uses D1 Sessions and can use read replicas
+if enabled later; read replication is not enabled for this small trial.
 
 ## Speed choices and limits
 
 - Static HTML for home, collections and details: no database call or JavaScript
   is needed to paint or browse. No framework or external font download.
-- Hashed CSS/JS, CDN image variants, fixed image boxes, lazy images below the fold.
+- Hashed CSS/JS, CDN WebP-first image variants with AVIF fallback, fixed image boxes,
+  lazy images below the fold.
   Large originals are never part of the initial page load.
 - Search uses one bound FTS5 query, relevance ordering, prefix matching, and a
   collection index. Words are joined with AND; the old search uses OR, so some
