@@ -1,0 +1,27 @@
+{
+  "name": "brendan-mulvany-cloudflare-preview",
+  "version": "1.0.0",
+  "description": "Small public archive trial on Cloudflare Workers and D1",
+  "scripts": {
+    "export": "python3 scripts/export-sample.py",
+    "build": "node scripts/build.mjs",
+    "types": "wrangler types",
+    "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "dev": "wrangler dev",
+    "deploy": "npm run build && wrangler deploy",
+    "db:local": "wrangler d1 migrations apply DB --local && wrangler d1 execute DB --local --file=data/seed.sql",
+    "db:remote": "wrangler d1 migrations apply DB --remote && wrangler d1 execute DB --remote --file=data/seed.sql",
+    "benchmark": "node scripts/benchmark.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^26.5.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.131.1"
+  },
+  "private": true
+}

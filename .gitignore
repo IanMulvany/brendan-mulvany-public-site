@@ -71,3 +71,7 @@ public_storage_mock_dir/
 # OS
 Thumbs.db
 .vercel
+
+# Cloudflare preview: track reproducible schema and npm lockfile
+!cloudflare-preview/migrations/*.sql
+!cloudflare-preview/package-lock.json
