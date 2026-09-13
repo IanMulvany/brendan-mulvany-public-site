@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 """Export an allowlisted, already-published archive sample into a fresh D1 DB.
 
-The source DB is opened read-only. Only scenes and current final-crop versions
-are read; account tables, annotations, filesystem paths and credentials are
-never exported. Every row must also be present in its public roll page.
+The source DB is copied without modification into an isolated, temporary
+snapshot. Only scenes and current final-crop versions are queried; account
+tables, annotations, filesystem paths and credentials are never exported.
+Every row must also be present in its public roll page.
 """
 
 import argparse
+from contextlib import contextmanager
 from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
 import re
+import shutil
 import sqlite3
 import sys
+import tempfile
 from urllib.request import Request, urlopen
 
 
@@ -85,6 +89,50 @@ def sql_value(value):
     return "'" + str(value).replace("'", "''") + "'"
 
 
+@contextmanager
+def public_snapshot(database):
+    """Query an unchanged, checkpointed source without creating source sidecars.
+
+    SQLite files retain WAL mode after their sidecars disappear. Some SQLite
+    builds cannot query such a file with mode=ro, because they need to create
+    fresh WAL/shared-memory files. Opening only our disposable copy read/write
+    permits that housekeeping; query_only still prohibits SQL writes.
+
+    This is an offline exporter, not an online backup facility. Never copy an
+    active WAL or rollback journal independently of its database: refuse it,
+    and require a separately checkpointed snapshot. Also reject replacement or
+    modification of the source while copying it.
+    """
+    source = database.resolve(strict=True)
+    sidecars = [Path(str(source) + suffix) for suffix in ("-wal", "-journal")]
+
+    def ensure_checkpointed():
+        if any(path.exists() for path in sidecars):
+            raise ValueError("Source database has a WAL or rollback journal. Export a checkpointed offline snapshot and pass it with --database.")
+
+    def identity(stat):
+        return (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+
+    ensure_checkpointed()
+    before = identity(source.stat())
+    with tempfile.TemporaryDirectory(prefix="bm-public-snapshot-") as directory:
+        snapshot = Path(directory) / "public.sqlite"
+        with source.open("rb") as reader, snapshot.open("wb") as writer:
+            if identity(source.stat()) != before:
+                raise ValueError("Source database changed before copying; retry with a stable offline snapshot.")
+            shutil.copyfileobj(reader, writer)
+        ensure_checkpointed()
+        if identity(source.stat()) != before or snapshot.stat().st_size != before[2]:
+            raise ValueError("Source database changed while copying; retry with a stable offline snapshot.")
+        connection = sqlite3.connect(str(snapshot))
+        try:
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA query_only=ON")
+            yield connection
+        finally:
+            connection.close()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--database", type=Path, default=REPO / "public_site.db")
@@ -100,10 +148,7 @@ def main():
 
     excluded = skipped_ids(REPO / "skip_images.md")
     photos, collections, sources = [], [], []
-    connection = sqlite3.connect(args.database.resolve().as_uri() + "?mode=ro", uri=True)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA query_only=ON")
-    try:
+    with public_snapshot(args.database) as connection:
         for collection in COLLECTIONS:
             page_path = args.public_dir / "roll" / collection["roll"] / "index.html"
             page_data, build_date = public_page_data(page_path.read_text(), str(page_path))
@@ -179,9 +224,6 @@ def main():
                 key: collection[key] for key in ["id", "roll", "title", "description", "date"]
             } | {"count": len(selected), "coverId": selected[0]["id"]})
             photos.extend(selected)
-    finally:
-        connection.close()
-
     if len({photo["id"] for photo in photos}) != len(photos):
         raise ValueError("Image ID collision or duplicate current version; refusing ambiguous export")
     payload = {

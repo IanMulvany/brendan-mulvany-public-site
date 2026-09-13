@@ -39,20 +39,27 @@ function card(photo, index) {
   const picture = node('picture', 'photo-card__image');
   const image = node('img');
   const source = node('source');
+  const avifSource = node('source');
   const base = String(photo.image_base || '').replace(/\/$/, '');
   // Only HTTPS image URLs are accepted. The response CSP limits the host.
   if (/^https:\/\//i.test(base)) {
-    source.type = 'image/avif';
-    source.srcset = `${base}/thumb.avif 200w, ${base}/small.avif 800w`;
-    source.sizes = '(max-width: 700px) 46vw, (max-width: 960px) 47vw, 31vw';
+    source.type = 'image/webp';
+    source.srcset = `${base}/thumb.webp 200w, ${base}/small.webp 800w`;
+    avifSource.type = 'image/avif';
+    avifSource.srcset = `${base}/thumb.avif 200w, ${base}/small.avif 800w`;
+    source.sizes = results.dataset.imageSizes;
+    avifSource.sizes = source.sizes;
     image.src = `${base}/small.webp`;
+    image.srcset = source.srcset;
+    image.sizes = source.sizes;
   }
   image.width = Number(photo.width) || 1500;
   image.height = Number(photo.height) || 1000;
   image.alt = photoTitle(photo);
   image.loading = index < 3 ? 'eager' : 'lazy';
+  image.fetchPriority = index === 0 ? 'high' : 'auto';
   image.decoding = 'async';
-  picture.append(source, image);
+  picture.append(source, avifSource, image);
   const caption = node('div', 'photo-card__caption');
   const detail = node('p', '', photo.year || '');
   caption.append(node('h3', '', photoTitle(photo)), detail);

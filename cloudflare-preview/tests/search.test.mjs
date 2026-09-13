@@ -52,6 +52,25 @@ test('browsing visits all 114 public photos once across stable pages', () => {
   assert.deepEqual(runSearch({page: '100'}), []);
 });
 
+test('search cards receive their render fields while full descriptions remain searchable', () => {
+  const fields = ['id', 'collection_id', 'title', 'year', 'image_base', 'width', 'height'].sort();
+  const results = allPages();
+  // "clover" occurs in archive descriptions, outside the card metadata. Reducing
+  // the response must not narrow the indexed text that can retrieve a photo.
+  const descriptionMatches = runSearch({q: 'clover'});
+  assert.ok(descriptionMatches.length > 0);
+  for (const photo of [...results, ...descriptionMatches]) {
+    assert.deepEqual(Object.keys(photo).sort(), fields);
+    assert.ok(Number.isSafeInteger(photo.id));
+    assert.ok(photo.title.trim(), 'card title must not need a description fallback');
+    assert.match(photo.year, /^\d{4}$/);
+    assert.match(photo.image_base, /^https:\/\/cdn\.brendan-mulvany-photography\.com\/[A-Za-z0-9_-]+$/);
+    assert.ok(photo.width === null || photo.width > 0);
+    assert.ok(photo.height === null || photo.height > 0);
+  }
+  assert.ok(descriptionMatches.every(photo => !photo.title.toLowerCase().includes('clover')));
+});
+
 test('collection browsing and full-text search never cross collection boundaries', () => {
   for (const collection of sample.collections) {
     const results = allPages({collection: collection.id});
