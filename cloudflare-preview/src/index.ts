@@ -1,4 +1,8 @@
 import {InvalidSearch, PAGE_SIZE, parseSearch, searchStatement} from './search';
+import {handleAuth, cleanupAuth} from './auth';
+import {handleCommunity} from './community';
+import {HttpError, json} from './http';
+import {isHeroPage, serveHeroPage} from './heroes';
 
 const baseHeaders = {
   'content-type': 'application/json; charset=utf-8',
@@ -10,7 +14,27 @@ const baseHeaders = {
 export default {
   async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
-    if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
+    if (!url.pathname.startsWith('/api/')) {
+      if (isHeroPage(url.pathname)) {
+        try { return await serveHeroPage(request, env, ctx); }
+        catch (error) {
+          console.error(JSON.stringify({event: 'hero_render_failed', type: error instanceof Error ? error.name : 'unknown'}));
+          // Browsing remains available if the independent community DB is down.
+          return env.ASSETS.fetch(request);
+        }
+      }
+      return env.ASSETS.fetch(request);
+    }
+    if (url.pathname !== '/api/search') {
+      try {
+        return await handleAuth(request, env) ?? await handleCommunity(request, env) ?? json({error: 'Not found.'}, 404);
+      } catch (error) {
+        if (error instanceof HttpError) return json({error: error.message}, error.status);
+        // Never log request bodies, email addresses, codes, cookies, or SQL errors.
+        console.error(JSON.stringify({event: 'community_request_failed', type: error instanceof Error ? error.name : 'unknown'}));
+        return json({error: 'This service is temporarily unavailable. Please try again.'}, 503);
+      }
+    }
     if (!['GET', 'HEAD'].includes(request.method)) {
       return Response.json({error: 'Method not allowed.'}, {status: 405, headers: {...baseHeaders, allow: 'GET, HEAD'}});
     }
@@ -62,5 +86,8 @@ export default {
         status: isInputError ? 400 : 503, headers: baseHeaders,
       });
     }
+  },
+  async scheduled(_event, env): Promise<void> {
+    await cleanupAuth(env);
   },
 } satisfies ExportedHandler<Env>;

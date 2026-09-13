@@ -5,10 +5,12 @@ version of the full published archive: 1,383 photographs across 74 collections.
 The homepage retains three featured collections; the collection directory exposes
 the complete archive with 24 collections per page.
 
-The Vercel site and Turso database remain the production system. This preview has
-no account, annotation, upload, or write API. Photos use the existing public R2
-CDN. No images are generated, uploaded, copied, or transformed by this project.
-Only public metadata and its full-text index go into the dedicated D1 database.
+The Vercel site and Turso database remain the production system. This preview now
+includes verified accounts, comments, likes, person annotations, newsletter signup
+and administration; see [COMMUNITY.md](COMMUNITY.md) for use and operations.
+Photos use the existing public R2 CDN. No images are generated, uploaded, copied,
+or transformed by this project. Public metadata and its full-text index go into
+the search D1 database; accounts and contributions use a separate community D1.
 Every photo ID and URL is checked against the published roll pages by the exporter.
 Existing machine-generated descriptions can contain historical inaccuracies;
 they remain searchable but are labelled on photo pages.
@@ -26,9 +28,12 @@ npm run types
 npm run check
 npm test
 npm run db:local
+npm run community:local
 npm run dev -- --port 8787
 ```
 
+Set a development `AUTH_SECRET` and `PUBLIC_ORIGIN=http://localhost:8787` in the
+ignored `.dev.vars` file as described in [COMMUNITY.md](COMMUNITY.md).
 Open http://localhost:8787. The manifest and SQL under `data/`, local D1 state,
 and `dist/` are generated and excluded from Git. The legacy filenames
 `scripts/export-sample.py` and `data/sample.json` now represent the complete
@@ -61,6 +66,7 @@ npm run types
 npm run check
 npm test
 npm run db:remote
+npm run community:remote
 npx wrangler deploy --dry-run
 npx wrangler deploy
 npm run verify:deployment -- https://new.brendan-mulvany-photography.com
@@ -82,8 +88,11 @@ It can be verified with `npx wrangler d1 info DB --json`.
 
 ## Speed choices and limits
 
-- Static HTML for home, collections and details: no database call or JavaScript
-  is needed to paint or browse. No framework or external font download.
+- Static HTML for photo and gallery pages. Homepage and collection-directory HTML
+  receive selected hero images at the edge, cached for 60 seconds; no JavaScript is
+  needed to paint or browse. No framework or external font download.
+- Account/community scripts load only on their own pages. Private account state
+  is fetched separately and is never mixed into shared HTML/search caches.
 - The homepage shows three featured collections. The directory has 24 collections
   per page; collection galleries are bounded at 48 photos per page, with static
   previous/next links. Every current collection fits on a single gallery page.
