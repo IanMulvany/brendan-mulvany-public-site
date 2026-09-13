@@ -27,8 +27,9 @@ export function searchStatement(input: ReturnType<typeof parseSearch>) {
   const args: (string | number)[] = [];
   if (input.match) { clauses.push('photos_fts MATCH ?'); args.push(input.match); }
   if (input.collection) { clauses.push('p.collection_id = ?'); args.push(input.collection); }
-  const sql = `SELECT p.id, p.collection_id, p.title, substr(p.description, 1, 240) AS description, p.date, p.year,
-      p.location, p.tags, p.image_base, p.width, p.height
+  // Return only card fields; the complete metadata remains searchable in FTS.
+  const sql = `SELECT p.id, p.collection_id, p.title, p.year,
+      p.image_base, p.width, p.height
     FROM photos AS p ${input.match ? 'JOIN photos_fts ON photos_fts.rowid = p.id' : ''}
     ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
     ORDER BY ${input.match ? 'photos_fts.rank, ' : ''}p.id

@@ -47,14 +47,17 @@ function card(photo, index) {
     source.srcset = `${base}/thumb.webp 200w, ${base}/small.webp 800w`;
     avifSource.type = 'image/avif';
     avifSource.srcset = `${base}/thumb.avif 200w, ${base}/small.avif 800w`;
-    source.sizes = '(max-width: 700px) 46vw, (max-width: 960px) 47vw, 31vw';
+    source.sizes = results.dataset.imageSizes;
     avifSource.sizes = source.sizes;
     image.src = `${base}/small.webp`;
+    image.srcset = source.srcset;
+    image.sizes = source.sizes;
   }
   image.width = Number(photo.width) || 1500;
   image.height = Number(photo.height) || 1000;
   image.alt = photoTitle(photo);
   image.loading = index < 3 ? 'eager' : 'lazy';
+  image.fetchPriority = index === 0 ? 'high' : 'auto';
   image.decoding = 'async';
   picture.append(source, avifSource, image);
   const caption = node('div', 'photo-card__caption');

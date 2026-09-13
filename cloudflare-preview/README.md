@@ -44,7 +44,8 @@ the source file and avoiding read-only WAL compatibility problems.
 The preview uses the `ian@mulvany.net` Cloudflare account and the confirmed domain
 `new.brendan-mulvany-photography.com`. Wrangler config records the dedicated D1
 ID and account ID; these identifiers are not credentials. The database is located
-in Western Europe (AMS observed during verification).
+in Western Europe (AMS observed during verification), with global read replication
+enabled. The Worker uses D1 Sessions to allow reads from available replicas.
 
 For an update:
 
@@ -68,8 +69,9 @@ static pages and the search snapshot together. The seed replaces only this previ
 DB's photo snapshot and rebuilds FTS. It never connects to Turso.
 
 The custom domain binds only `new`. The main site, `www`, and CDN continue using
-their existing configuration. The Worker uses D1 Sessions and can use read replicas
-if enabled later; read replication is not enabled for this small trial.
+their existing configuration. Read replication is configured on the D1 database
+(`read_replication.mode: auto`), separately from Wrangler's binding configuration.
+It can be verified with `npx wrangler d1 info DB --json`.
 
 ## Speed choices and limits
 
@@ -82,8 +84,9 @@ if enabled later; read replication is not enabled for this small trial.
   collection index. Words are joined with AND; the old search uses OR, so some
   multiword results differ deliberately. No fuzzy spelling or semantic search.
 - The API fetches 25 rows for a 24-photo page, avoiding separate count/facet
-  queries. Input length, token count and page range are bounded. Only a short
-  description excerpt is returned; full metadata lives in static detail pages.
+  queries. Input length, token count and page range are bounded. Only fields used
+  by result cards are returned; full descriptions remain indexed and live in
+  static detail pages. This cuts result payloads by about 63% before compression.
 - A 180 ms debounce and request cancellation prevent obsolete results appearing.
 - Search responses use a five-minute, per-data-centre Cache API entry. Cached
   database durations are historical; the UI labels cached responses and reports

@@ -16,7 +16,7 @@
     "not_found_handling": "404-page"
   },
   "vars": {
-    "CACHE_VERSION": "2026-09-13-v1"
+    "CACHE_VERSION": "2026-09-13-v2"
   },
   "observability": {
     "enabled": true
