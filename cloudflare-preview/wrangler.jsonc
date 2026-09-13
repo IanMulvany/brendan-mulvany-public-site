@@ -11,12 +11,18 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "run_worker_first": [
-      "/api/*"
+      "/api/*",
+      "/",
+      "/collections/",
+      "/collections/page/*"
     ],
     "not_found_handling": "404-page"
   },
   "vars": {
-    "CACHE_VERSION": "2026-09-13-full-v1"
+    "CACHE_VERSION": "2026-09-13-community-v1",
+    "PUBLIC_ORIGIN": "https://new.brendan-mulvany-photography.com",
+    "ADMIN_EMAIL": "ian@mulvany.net",
+    "EMAIL_FROM": "no-reply@brendan-mulvany-photography.com"
   },
   "observability": {
     "enabled": true
@@ -27,6 +33,12 @@
       "database_name": "brendan-mulvany-preview-full",
       "database_id": "6d3afe2d-34ec-4193-98ca-6cef32e699e5",
       "migrations_dir": "migrations"
+    },
+    {
+      "binding": "COMMUNITY",
+      "database_name": "brendan-mulvany-community",
+      "database_id": "c5aeec54-17ff-4710-8902-acd42210f8fe",
+      "migrations_dir": "community-migrations"
     }
   ],
   "routes": [
@@ -35,5 +47,23 @@
       "custom_domain": true
     }
   ],
-  "account_id": "91d1175698c21b3e4febe0a1b4642e4c"
+  "account_id": "91d1175698c21b3e4febe0a1b4642e4c",
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "allowed_sender_addresses": [
+        "no-reply@brendan-mulvany-photography.com"
+      ]
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "17 3 * * *"
+    ]
+  },
+  "secrets": {
+    "required": [
+      "AUTH_SECRET"
+    ]
+  }
 }
