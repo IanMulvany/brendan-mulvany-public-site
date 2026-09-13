@@ -95,3 +95,7 @@ meta_tags.json
 *.lock
 public_site.db-shm
 public_site.db-wal
+
+# Cloudflare preview: track reproducible schema and npm lockfile
+!cloudflare-preview/migrations/*.sql
+!cloudflare-preview/package-lock.json
