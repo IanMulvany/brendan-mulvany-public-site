@@ -1,5 +1,9 @@
 # Live Cloudflare preview — 13 September 2026
 
+This report preserves the original **114-photo sample** measurements. The preview
+has since been expanded; see [FULL_ARCHIVE.md](FULL_ARCHIVE.md) for the current
+archive scope and verification.
+
 The preview is live at https://new.brendan-mulvany-photography.com/ with three
 collections and 114 photographs. It uses a Cloudflare Worker, static assets,
 and a dedicated D1 SQLite full-text index with its primary in Western Europe.
