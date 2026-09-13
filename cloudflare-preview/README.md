@@ -49,7 +49,7 @@ local-development placeholder and must be replaced with the new D1 database ID.
    Europe location hint: `npx wrangler d1 create brendan-mulvany-preview --location weur`.
    If using a named profile, append `--profile YOUR_PROFILE` to Wrangler commands.
 3. Set `account_id` and the returned `d1_databases[0].database_id` in
-   `wrangler.jsonc`. Add only this custom domain after confirming the spelling:
+   `wrangler.jsonc`. The user confirmed this custom domain, now included in the config:
    `"routes": [{"pattern": "new.brendan-mulvany-photography.com", "custom_domain": true}]`.
    Inspect any existing record for `new` first; preserve the apex, `www`, and CDN.
 4. Run `npm run db:remote` (or its two Wrangler commands with the named profile).

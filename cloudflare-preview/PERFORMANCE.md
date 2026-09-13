@@ -2,7 +2,7 @@
 
 The Cloudflare implementation is complete and tested locally. Deployment is
 pending access to the Cloudflare account holding the photography domain. The
-saved Wrangler default profile belongs to BMJ and its zone lookup returned no
+initial Wrangler default profile belonged to BMJ and its zone lookup returned no
 `brendan-mulvany-photography.com` or `brendan-mulvany-photogrophy.com` zone. No remote
 Worker, D1 database, DNS record, Vercel configuration or Turso data was changed.
 
