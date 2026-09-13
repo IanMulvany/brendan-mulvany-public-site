@@ -1,17 +1,14 @@
 # Cloudflare archive preview
 
-Live at https://new.brendan-mulvany-photography.com/ — a separate Workers + D1
-trial of three collections from the public archive:
-
-| Collection | Roll | Photos |
-| --- | --- | ---: |
-| The Pope’s visit | 3071 | 43 |
-| Ireland at Wembley | 4083 | 36 |
-| The French Grand Prix | 5005 | 35 |
+Preview URL: https://new.brendan-mulvany-photography.com/ — a separate Workers + D1
+version of the full published archive: 1,383 photographs across 74 collections.
+The homepage retains three featured collections; the collection directory exposes
+the complete archive with 24 collections per page.
 
 The Vercel site and Turso database remain the production system. This preview has
 no account, annotation, upload, or write API. Photos use the existing public R2
-CDN. Only public metadata for the selected 114 photos goes into its own D1 DB.
+CDN. No images are generated, uploaded, copied, or transformed by this project.
+Only public metadata and its full-text index go into the dedicated D1 database.
 Every photo ID and URL is checked against the published roll pages by the exporter.
 Existing machine-generated descriptions can contain historical inaccuracies;
 they remain searchable but are labelled on photo pages.
@@ -33,8 +30,10 @@ npm run dev -- --port 8787
 ```
 
 Open http://localhost:8787. The manifest and SQL under `data/`, local D1 state,
-and `dist/` are generated and excluded from Git. Export stops if the approved
-photo count or its published URLs change, so updating the sample requires review.
+and `dist/` are generated and excluded from Git. The legacy filenames
+`scripts/export-sample.py` and `data/sample.json` now represent the complete
+published archive. Export validates publication membership and URLs before
+writing data; the explicit `skip_images.md` exclusion remains in force.
 The source must be a stable checkpointed offline SQLite file: active WAL/journal
 files cause export to stop. SQLite queries run on a disposable copy, preserving
 the source file and avoiding read-only WAL compatibility problems.
@@ -44,8 +43,13 @@ the source file and avoiding read-only WAL compatibility problems.
 The preview uses the `ian@mulvany.net` Cloudflare account and the confirmed domain
 `new.brendan-mulvany-photography.com`. Wrangler config records the dedicated D1
 ID and account ID; these identifiers are not credentials. The database is located
-in Western Europe (AMS observed during verification), with global read replication
+in Western Europe, with global read replication
 enabled. The Worker uses D1 Sessions to allow reads from available replicas.
+
+The full archive uses `brendan-mulvany-preview-full`
+(`6d3afe2d-34ec-4193-98ca-6cef32e699e5`). It was prepared separately from the original
+114-photo database, then bound to the Worker together with the complete static
+build. The original database remains available for rollback.
 
 For an update:
 
@@ -59,6 +63,7 @@ npm test
 npm run db:remote
 npx wrangler deploy --dry-run
 npx wrangler deploy
+npm run verify:deployment -- https://new.brendan-mulvany-photography.com
 npm run benchmark -- https://new.brendan-mulvany-photography.com
 ```
 
@@ -67,6 +72,8 @@ named profile, activate it for this directory or append `--profile YOUR_PROFILE`
 to Wrangler commands. Increment `CACHE_VERSION` whenever reseeding, and deploy
 static pages and the search snapshot together. The seed replaces only this preview
 DB's photo snapshot and rebuilds FTS. It never connects to Turso.
+For a change in archive membership, stage and verify a separate D1 snapshot before
+switching its binding and static assets together, as done for this expansion.
 
 The custom domain binds only `new`. The main site, `www`, and CDN continue using
 their existing configuration. Read replication is configured on the D1 database
@@ -77,6 +84,9 @@ It can be verified with `npx wrangler d1 info DB --json`.
 
 - Static HTML for home, collections and details: no database call or JavaScript
   is needed to paint or browse. No framework or external font download.
+- The homepage shows three featured collections. The directory has 24 collections
+  per page; collection galleries are bounded at 48 photos per page, with static
+  previous/next links. Every current collection fits on a single gallery page.
 - Hashed CSS/JS, CDN WebP-first image variants with AVIF fallback, fixed image boxes,
   lazy images below the fold.
   Large originals are never part of the initial page load.
@@ -86,20 +96,24 @@ It can be verified with `npx wrangler d1 info DB --json`.
 - The API fetches 25 rows for a 24-photo page, avoiding separate count/facet
   queries. Input length, token count and page range are bounded. Only fields used
   by result cards are returned; full descriptions remain indexed and live in
-  static detail pages. This cuts result payloads by about 63% before compression.
+  static detail pages. Search pages contain 24 results and support up to 100 pages;
+  tests fail if the archive exceeds this 2,400-photo capacity.
 - A 180 ms debounce and request cancellation prevent obsolete results appearing.
 - Search responses use a five-minute, per-data-centre Cache API entry. Cached
   database durations are historical; the UI labels cached responses and reports
   current browser request duration separately. Search fetches bypass the browser's
   HTTP cache to make this measurement useful.
 - Increment `CACHE_VERSION` in Wrangler config whenever reseeding. This selects a
-  new cache namespace. Static pages and search must be built from the same sample.
+  new cache namespace. Static pages and search must be built from the same snapshot.
 - All preview pages and API responses have `noindex`; `robots.txt` disallows
   crawling. This is a public trial, not password-protected private storage.
 
-A 114-photo trial tests usability and deployment; it cannot establish full-archive
-performance, multi-region latency, production traffic capacity, or Core Web Vitals.
-Compare an equal-sized dataset and representative traffic before migrating.
+Full-archive counts and timings are recorded in [FULL_ARCHIVE.md](FULL_ARCHIVE.md).
+The earlier [PERFORMANCE.md](PERFORMANCE.md) preserves measurements from the
+114-photo trial. Timings from one client do not establish multi-region latency,
+production traffic capacity, or Core Web Vitals. Search semantics still differ
+from Vercel's implementation. Use `PREVIEW_ONLY=1` to benchmark only this preview
+and `OUTPUT_FILE=data/full-archive-benchmark.json` to keep a separate result file.
 
 ## References
 

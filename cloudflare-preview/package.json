@@ -1,7 +1,7 @@
 {
   "name": "brendan-mulvany-cloudflare-preview",
   "version": "1.0.0",
-  "description": "Small public archive trial on Cloudflare Workers and D1",
+  "description": "Full public photography archive preview on Cloudflare Workers and D1",
   "scripts": {
     "export": "python3 scripts/export-sample.py",
     "build": "node scripts/build.mjs",
@@ -12,7 +12,8 @@
     "deploy": "npm run build && wrangler deploy",
     "db:local": "wrangler d1 migrations apply DB --local && wrangler d1 execute DB --local --file=data/seed.sql",
     "db:remote": "wrangler d1 migrations apply DB --remote && wrangler d1 execute DB --remote --file=data/seed.sql",
-    "benchmark": "node scripts/benchmark.mjs"
+    "benchmark": "node scripts/benchmark.mjs",
+    "verify:deployment": "node scripts/verify-deployment.mjs"
   },
   "keywords": [],
   "author": "",

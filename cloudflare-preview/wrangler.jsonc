@@ -16,7 +16,7 @@
     "not_found_handling": "404-page"
   },
   "vars": {
-    "CACHE_VERSION": "2026-09-13-v2"
+    "CACHE_VERSION": "2026-09-13-full-v1"
   },
   "observability": {
     "enabled": true
@@ -24,8 +24,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "brendan-mulvany-preview",
-      "database_id": "125bb205-0451-4572-992c-30ba852fdf10",
+      "database_name": "brendan-mulvany-preview-full",
+      "database_id": "6d3afe2d-34ec-4193-98ca-6cef32e699e5",
       "migrations_dir": "migrations"
     }
   ],

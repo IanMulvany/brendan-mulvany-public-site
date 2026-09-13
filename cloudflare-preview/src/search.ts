@@ -1,4 +1,7 @@
 export const PAGE_SIZE = 24;
+// 2,400 cards covers the published archive while bounding offset-query work.
+// The integration suite checks every exported photo fits within this limit.
+export const MAX_PAGE = 100;
 export class InvalidSearch extends Error {}
 
 export function parseSearch(url: URL) {
@@ -13,8 +16,8 @@ export function parseSearch(url: URL) {
     throw new InvalidSearch('Invalid collection.');
   }
   const pageValue = url.searchParams.get('page') ?? '1';
-  if (!/^[1-9]\d{0,2}$/.test(pageValue) || Number(pageValue) > 100) {
-    throw new InvalidSearch('Page must be between 1 and 100.');
+  if (!/^[1-9]\d{0,2}$/.test(pageValue) || Number(pageValue) > MAX_PAGE) {
+    throw new InvalidSearch(`Page must be between 1 and ${MAX_PAGE}.`);
   }
   const page = Number(pageValue);
   // Only extracted words reach FTS syntax; all values are bound parameters.

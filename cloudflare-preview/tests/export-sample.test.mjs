@@ -19,8 +19,8 @@ const sample = exportSample();
 
 test('the export contains only public image metadata with valid collection links', () => {
   const allowed = ['id', 'collectionId', 'title', 'description', 'date', 'year', 'location', 'tags', 'imageBase', 'width', 'height'].sort();
-  assert.equal(sample.photos.length, 114);
-  assert.equal(sample.collections.length, 3);
+  assert.equal(sample.photos.length, 1383);
+  assert.equal(sample.collections.length, 74);
   for (const photo of sample.photos) {
     assert.deepEqual(Object.keys(photo).sort(), allowed);
     assert.equal(Number.isSafeInteger(photo.id), true);
@@ -36,6 +36,11 @@ test('the export contains only public image metadata with valid collection links
     assert.equal(members.length, collection.count);
     assert.ok(members.some(photo => photo.id === collection.coverId));
   }
+  assert.deepEqual(sample.collections.slice(0, 3).map(collection => collection.id),
+    ['popes-visit', 'ireland-england', 'french-grand-prix']);
+  assert.deepEqual(sample.sourceValidation.audit.versionTypes, {final_crops: 1363, inverted_original_scans: 20});
+  assert.deepEqual(sample.sourceValidation.audit.skippedIds, [261093582]);
+  assert.equal(sample.sourceValidation.audit.currentDatabaseOnlyPhotos, 0);
 });
 
 test('same source creates identical public data and SQL; provenance may change', () => {
@@ -50,6 +55,8 @@ test('same source creates identical public data and SQL; provenance may change',
 test('export fails closed when a selected photograph is missing from its published roll', () => {
   const publicDir = join(output, 'changed-public');
   const destination = join(output, 'rejected-export');
+  mkdirSync(join(publicDir, 'rolls'), {recursive: true});
+  writeFileSync(join(publicDir, 'rolls', 'index.html'), readFileSync(join(root, '..', 'public', 'rolls', 'index.html')));
   for (const collection of sample.collections) {
     const directory = join(publicDir, 'roll', collection.roll);
     mkdirSync(directory, {recursive: true});
@@ -66,7 +73,7 @@ test('export fails closed when a selected photograph is missing from its publish
   assert.throws(() => execFileSync('python3', [
     'scripts/export-sample.py', '--public-dir', publicDir, '--output-dir', destination,
   ], {cwd: root, stdio: ['ignore', 'ignore', 'pipe']}), error => {
-    assert.match(error.stderr.toString(), /not published with this URL in the local roll page/);
+    assert.match(error.stderr.toString(), /Published photo count differs from the rolls index/);
     return true;
   });
   assert.equal(existsSync(join(destination, 'sample.json')), false);
@@ -83,14 +90,15 @@ for _ in range(2):
     connection.executescript(migration)
     connection.executescript(seed)
     connection.execute("INSERT INTO photos_fts(photos_fts, rank) VALUES ('integrity-check', 1)")
-    assert connection.execute('SELECT COUNT(*) FROM photos').fetchone()[0] == 114
-    assert connection.execute('SELECT COUNT(DISTINCT id) FROM photos').fetchone()[0] == 114
+    assert connection.execute('SELECT COUNT(*) FROM photos').fetchone()[0] == 1383
+    assert connection.execute('SELECT COUNT(DISTINCT id) FROM photos').fetchone()[0] == 1383
 counts = dict(connection.execute('SELECT collection_id, COUNT(*) FROM photos GROUP BY collection_id'))
 indexed = dict((term, connection.execute('SELECT COUNT(*) FROM photos_fts WHERE photos_fts MATCH ?', (term,)).fetchone()[0]) for term in ['tags:3071', 'tags:4083', 'tags:5005', 'date:1979'])
 tables = [row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")]
 print(json.dumps({'counts': counts, 'indexed': indexed, 'tables': tables}))
 `, join(output, 'seed.sql')], {cwd: root, encoding: 'utf8'}));
-  assert.deepEqual(result.counts, {'popes-visit': 43, 'ireland-england': 36, 'french-grand-prix': 35});
-  assert.deepEqual(result.indexed, {'tags:3071': 43, 'tags:4083': 36, 'tags:5005': 35, 'date:1979': 43});
+  assert.deepEqual(result.counts, Object.fromEntries(sample.collections.map(collection => [collection.id, collection.count])));
+  assert.deepEqual(result.indexed, {'tags:3071': 43, 'tags:4083': 36, 'tags:5005': 35,
+    'date:1979': sample.photos.filter(photo => photo.date.startsWith('1979')).length});
   assert.ok(result.tables.every(table => table === 'photos' || table.startsWith('photos_fts')));
 });

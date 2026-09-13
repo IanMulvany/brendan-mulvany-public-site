@@ -10,6 +10,7 @@ const pagination = document.querySelector('#search-pagination');
 const previous = document.querySelector('#search-previous');
 const next = document.querySelector('#search-next');
 const pageLabel = document.querySelector('#search-page');
+const collectionTitles = new Map([...collection.options].map(option => [option.value, option.text]));
 let controller;
 let sequence = 0;
 let debounce;
@@ -23,7 +24,7 @@ function node(tag, className, text) {
 }
 
 function collectionTitle(id) {
-  return [...collection.options].find(option => option.value === String(id))?.text || '';
+  return collectionTitles.get(String(id)) || '';
 }
 
 function photoTitle(photo) {
@@ -133,7 +134,7 @@ async function search(page = 1, { history = true } = {}) {
     const from = ((data.page || page) - 1) * (data.pageSize || 24) + 1;
     const term = input.value.trim();
     status.textContent = count ? `Showing ${from}–${from + count - 1}${term ? ` for “${term}”` : ` in ${collectionTitle(collection.value)}`}` : `No photographs found${term ? ` for “${term}”` : ''}.`;
-    if (!count) emptyState('No photographs found.', 'Try a broader word, another spelling or a different collection. This preview contains only three collections.');
+    if (!count) emptyState('No photographs found.', 'Try a broader word, another spelling or a different collection.');
     const cached = data.cache === 'HIT';
     const databaseMs = Number(data.timing?.databaseMs);
     timing.textContent = `${Math.round(requestMs)} ms request · ${cached ? 'Cached result' : Number.isFinite(databaseMs) ? `${databaseMs.toFixed(1)} ms database` : 'Fresh result'}`;

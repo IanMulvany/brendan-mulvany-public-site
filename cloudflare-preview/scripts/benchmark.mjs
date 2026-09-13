@@ -1,4 +1,4 @@
-import {writeFile} from 'node:fs/promises';
+import {readFile, writeFile} from 'node:fs/promises';
 import {performance} from 'node:perf_hooks';
 
 // Sequential samples keep load low and preserve the distinction between the
@@ -6,6 +6,8 @@ import {performance} from 'node:perf_hooks';
 const target = process.argv[2] || 'http://localhost:8787';
 const baseline = process.argv[3] || 'https://www.brendan-mulvany-photography.com';
 const samples = Number(process.env.SAMPLES || 7);
+if (!Number.isInteger(samples) || samples < 2 || samples > 20) throw new Error('SAMPLES must be between 2 and 20');
+const manifest = JSON.parse(await readFile(new URL('../data/sample.json', import.meta.url), 'utf8'));
 const paths = [['home', '/'], ['collection', '/collections/popes-visit/'],
   ['search-pope', '/api/search?q=pope'], ['search-football', '/api/search?q=football'],
   ['search-year', '/api/search?q=1979'], ['search-multiword', '/api/search?q=pope+ireland']];
@@ -16,7 +18,9 @@ const baselinePaths = [['home', '/'], ['collection', '/roll/3071/index.html'],
   ['search-multiword', '/api/public/search?q=pope+ireland&limit=24']];
 const round = value => Math.round(value * 10) / 10;
 const all = [];
-for (const [platform, origin, endpoints] of [['preview',target,paths], ['vercel',baseline,baselinePaths]]) {
+const platforms = [['preview', target, paths]];
+if (process.env.PREVIEW_ONLY !== '1') platforms.push(['vercel', baseline, baselinePaths]);
+for (const [platform, origin, endpoints] of platforms) {
   for (const [name,path] of endpoints) {
     const runs=[];
     for (let i=0; i<samples; i++) {
@@ -39,5 +43,6 @@ for (const [platform, origin, endpoints] of [['preview',target,paths], ['vercel'
   }
 }
 const output={measuredAt:new Date().toISOString(),samplesPerEndpoint:samples,
-  methodology:'One client, sequential requests, no throttling; first is not a guaranteed cold start. Warm statistics exclude first. Local preview results are not deployed edge latency. Different catalog sizes and search semantics prevent causal hosting comparison.',results:all};
-await writeFile('data/benchmark.json',JSON.stringify(output,null,2)+'\n');
+  previewPhotos:manifest.photos.length,previewCollections:manifest.collections.length,
+  methodology:'One client, sequential requests, no throttling; first is not a guaranteed cold start. Warm statistics exclude first. Local preview results are not deployed edge latency. Search semantics and content differences prevent causal hosting comparison.',results:all};
+await writeFile(process.env.OUTPUT_FILE || 'data/benchmark.json',JSON.stringify(output,null,2)+'\n');
