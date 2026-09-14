@@ -3,6 +3,7 @@ import {handleAuth, cleanupAuth} from './auth';
 import {handleCommunity} from './community';
 import {HttpError, json} from './http';
 import {isHeroPage, serveHeroPage} from './heroes';
+import {handleHomepageSettings} from './homepage-settings';
 
 const baseHeaders = {
   'content-type': 'application/json; charset=utf-8',
@@ -27,7 +28,7 @@ export default {
     }
     if (url.pathname !== '/api/search') {
       try {
-        return await handleAuth(request, env) ?? await handleCommunity(request, env) ?? json({error: 'Not found.'}, 404);
+        return await handleAuth(request, env) ?? await handleHomepageSettings(request, env) ?? await handleCommunity(request, env) ?? json({error: 'Not found.'}, 404);
       } catch (error) {
         if (error instanceof HttpError) return json({error: error.message}, error.status);
         // Never log request bodies, email addresses, codes, cookies, or SQL errors.

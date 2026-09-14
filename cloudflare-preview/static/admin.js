@@ -7,8 +7,21 @@ const collectionSelect = document.querySelector('#admin-collection');
 const heroGrid = document.querySelector('#admin-hero-grid');
 const heroSave = document.querySelector('#admin-hero-save');
 const heroStatus = document.querySelector('#admin-hero-status');
+const homepageSelect = document.querySelector('#admin-homepage-collection');
+const homepageList = document.querySelector('#admin-homepage-list');
+const homepageAdd = document.querySelector('#admin-homepage-add');
+const homepageSave = document.querySelector('#admin-homepage-save');
+const homepageStatus = document.querySelector('#admin-homepage-status');
 let user;
 let heroes = new Map();
+let collectionCatalog = new Map();
+let heroImages = new Map();
+let photoImages = new Map();
+let homepageIds = [];
+let savedHomepageIds = [];
+let maxHomepageAlbums = 6;
+let homepageReady = false;
+let homepageBusy = false;
 let selectedPhoto;
 let heroRequest = 0;
 
@@ -98,6 +111,98 @@ function updateHeroSelection() {
   heroSave.disabled = !selectedPhoto || selectedPhoto === heroes.get(collectionSelect.value);
 }
 
+function updateHomepageControls() {
+  for (const option of homepageSelect.options) option.disabled = homepageIds.includes(option.value);
+  homepageSelect.disabled = !homepageReady || homepageBusy || homepageIds.length >= maxHomepageAlbums;
+  homepageAdd.disabled = homepageSelect.disabled || !homepageSelect.value || homepageIds.includes(homepageSelect.value);
+  homepageSave.disabled = !homepageReady || homepageBusy || !homepageIds.length || JSON.stringify(homepageIds) === JSON.stringify(savedHomepageIds);
+  document.querySelector('#admin-homepage-count').textContent = homepageReady ? `${homepageIds.length} of ${maxHomepageAlbums} albums selected. Keep at least one album.` : '';
+}
+
+function renderHomepage(focusId, focusAction) {
+  homepageList.replaceChildren(...homepageIds.map((id, index) => {
+    const collection = collectionCatalog.get(id);
+    const row = el('li', 'homepage-album');
+    const image = el('img', 'homepage-album__image');
+    const base = heroImages.get(id) || collection.imageBase;
+    if (/^https:\/\//i.test(base)) image.src = `${base.replace(/\/$/, '')}/thumb.webp`;
+    image.width = 200; image.height = 133; image.alt = ''; image.loading = 'lazy';
+    const details = el('div', 'homepage-album__details');
+    details.append(el('strong', '', `${index + 1}. ${collection.title}`), el('p', '', `Roll ${collection.roll}${index === 0 ? ' · Large homepage photograph' : ''}`));
+    const controls = el('div', 'homepage-album__actions');
+    for (const [action, label, disabled] of [['up', 'Move up', index === 0], ['down', 'Move down', index === homepageIds.length - 1], ['remove', 'Remove', homepageIds.length === 1]]) {
+      const button = el('button', 'quiet-button', label);
+      button.type = 'button'; button.disabled = disabled || homepageBusy;
+      button.dataset.collectionId = id; button.dataset.action = action;
+      button.setAttribute('aria-label', `${label}: ${collection.title}`);
+      button.addEventListener('click', () => {
+        if (homepageBusy) return;
+        if (action === 'remove') homepageIds.splice(index, 1);
+        else {
+          const next = action === 'up' ? index - 1 : index + 1;
+          [homepageIds[index], homepageIds[next]] = [homepageIds[next], homepageIds[index]];
+        }
+        renderHomepage(action === 'remove' ? homepageIds[Math.min(index, homepageIds.length - 1)] : id, action);
+        message(homepageStatus, 'Changes are ready to save.');
+      });
+      controls.append(button);
+    }
+    row.append(image, details, controls);
+    return row;
+  }));
+  updateHomepageControls();
+  if (focusId) {
+    const buttons = [...homepageList.querySelectorAll('button')];
+    const target = buttons.find(button => button.dataset.collectionId === focusId && button.dataset.action === focusAction && !button.disabled)
+      || buttons.find(button => button.dataset.collectionId === focusId && !button.disabled);
+    (target || homepageSelect).focus();
+  }
+}
+
+async function loadHomepage() {
+  try {
+    const data = await api('/api/admin/homepage');
+    if (!Array.isArray(data.collectionIds)) throw new Error('The saved homepage albums could not be loaded. Please try again.');
+    maxHomepageAlbums = Math.min(6, Number(data.maxCollections) || 6);
+    savedHomepageIds = [...data.collectionIds];
+    homepageIds = data.collectionIds.filter(id => collectionCatalog.has(id));
+    const unavailableCount = savedHomepageIds.length - homepageIds.length;
+    homepageReady = true;
+    renderHomepage();
+    message(homepageStatus, unavailableCount
+      ? `${unavailableCount} saved ${unavailableCount === 1 ? 'album is' : 'albums are'} no longer available and ${unavailableCount === 1 ? 'has' : 'have'} been left out of this draft. ${homepageIds.length ? 'Review the remaining albums' : 'Add at least one album'}, then save to update the homepage.`
+      : 'The published album order is shown above. Public changes appear within a minute of saving.');
+    document.querySelector('#admin-homepage-retry')?.remove();
+  } catch (error) {
+    message(homepageStatus, error.message, true);
+    if (!document.querySelector('#admin-homepage-retry')) {
+      const retry = el('button', 'quiet-button', 'Try loading homepage albums again');
+      retry.id = 'admin-homepage-retry'; retry.type = 'button';
+      retry.addEventListener('click', async () => { retry.disabled = true; await loadHomepage(); retry.disabled = false; });
+      homepageStatus.after(retry);
+    }
+  }
+}
+
+homepageSelect.addEventListener('change', updateHomepageControls);
+homepageAdd.addEventListener('click', () => {
+  const id = homepageSelect.value;
+  if (!homepageReady || homepageBusy || homepageIds.length >= maxHomepageAlbums || !collectionCatalog.has(id) || homepageIds.includes(id)) return;
+  homepageIds.push(id); homepageSelect.value = '';
+  renderHomepage(id, 'up');
+  message(homepageStatus, 'Album added. Save the homepage albums to publish this choice.');
+});
+homepageSave.addEventListener('click', async () => {
+  if (!homepageReady || homepageBusy || !homepageIds.length || homepageIds.length > maxHomepageAlbums) return;
+  homepageBusy = true; renderHomepage();
+  try {
+    const data = await api('/api/admin/homepage', { method: 'PUT', body: { collectionIds: [...homepageIds] } });
+    homepageIds = [...data.collectionIds]; savedHomepageIds = [...data.collectionIds];
+    message(homepageStatus, 'Homepage albums saved. Public pages update within a minute.');
+  } catch (error) { message(homepageStatus, error.message, true); }
+  finally { homepageBusy = false; renderHomepage(); }
+});
+
 collectionSelect.addEventListener('change', async () => {
   const requestId = ++heroRequest;
   selectedPhoto = null;
@@ -111,6 +216,7 @@ collectionSelect.addEventListener('change', async () => {
     if (requestId !== heroRequest) return;
     selectedPhoto = heroes.get(collectionId) || null;
     for (const photo of data.photos || []) {
+      photoImages.set(Number(photo.id), photo.image_base);
       const button = el('button', 'hero-choice');
       button.type = 'button';
       button.dataset.photoId = photo.id;
@@ -138,6 +244,7 @@ heroSave.addEventListener('click', async () => {
   try {
     await api(`/api/admin/collections/${encodeURIComponent(collectionId)}/hero`, { method: 'PUT', body: { photoId } });
     heroes.set(collectionId, photoId);
+    if (photoImages.has(photoId)) { heroImages.set(collectionId, photoImages.get(photoId)); renderHomepage(); }
     updateHeroSelection();
     message(heroStatus, 'Cover saved. Public pages update within a minute.');
     await summary();
@@ -156,13 +263,20 @@ async function start() {
   content.hidden = false;
   const catalogPath = content.dataset.collections;
   const catalog = await fetch(catalogPath).then(response => { if (!response.ok) throw new Error('The collection list could not be loaded.'); return response.json(); });
+  collectionCatalog = new Map(catalog.map(collection => [collection.id, collection]));
   const current = await api('/api/admin/collections');
   heroes = new Map(current.collections.map(item => [item.id, item.heroPhotoId]));
   for (const collection of catalog) {
     const option = el('option', '', `${collection.title} · Roll ${collection.roll}`);
     option.value = collection.id;
     collectionSelect.append(option);
+    const homepageOption = el('option', '', `${collection.title} · Roll ${collection.roll}`);
+    homepageOption.value = collection.id;
+    homepageSelect.append(homepageOption);
   }
-  await Promise.all([summary(), pagedSection('users', userRow), pagedSection('activity', activityRow), pagedSection('subscribers', subscriberRow)]);
+  await Promise.all([loadHomepage(), api('/api/collection-heroes').then(data => {
+    for (const hero of data.heroes || []) if (collectionCatalog.has(hero.collectionId)) heroImages.set(hero.collectionId, hero.imageBase);
+    if (homepageReady) renderHomepage();
+  }).catch(() => {}), summary(), pagedSection('users', userRow), pagedSection('activity', activityRow), pagedSection('subscribers', subscriberRow)]);
 }
 start().catch(failure);

@@ -2,8 +2,9 @@
 
 Preview URL: https://new.brendan-mulvany-photography.com/ — a separate Workers + D1
 version of the full published archive: 1,383 photographs across 74 collections.
-The homepage retains three featured collections; the collection directory exposes
-the complete archive with 24 collections per page.
+Administrators can choose and order one to six homepage albums; the original three
+remain until a selection is saved. The collection directory exposes the complete
+archive with 24 collections per page.
 
 The Vercel site and Turso database remain the production system. This preview now
 includes verified accounts, comments, likes, person annotations, newsletter signup
@@ -93,7 +94,10 @@ It can be verified with `npx wrangler d1 info DB --json`.
   needed to paint or browse. No framework or external font download.
 - Account/community scripts load only on their own pages. Private account state
   is fetched separately and is never mixed into shared HTML/search caches.
-- The homepage shows three featured collections. The directory has 24 collections
+- The homepage shows one to six selected albums, with the first album supplying
+  the lead photograph. Album choices and hero images are rendered on cache misses
+  from bounded build fragments and separate community settings, with no homepage
+  JavaScript or per-visitor database query. The directory has 24 collections
   per page; collection galleries are bounded at 48 photos per page, with static
   previous/next links. Every current collection fits on a single gallery page.
 - Hashed CSS/JS, CDN WebP-first image variants with AVIF fallback, fixed image boxes,
