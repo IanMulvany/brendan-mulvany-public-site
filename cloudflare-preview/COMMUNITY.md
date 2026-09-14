@@ -9,10 +9,11 @@ The Cloudflare preview at `https://new.brendan-mulvany-photography.com` now supp
 - `/newsletter/`: explicit consent followed by email confirmation; this does not require an account. Already verified members can subscribe or unsubscribe directly. The newsletter provider is deliberately **not connected** and no campaigns are sent.
 - `/admin/`: available after verifying `ian@mulvany.net`. Shows users, recent contribution/moderation activity, subscription states, and collection cover choices. Administrators can suspend/reactivate members, review photographs and hide contributions. Suspension revokes the member's sessions. Administrators cannot suspend themselves or other administrators.
 - Collection covers: choose a collection, select an existing thumbnail, then save. The homepage and collection directory reflect the selection within 60 seconds. Photo and collection URLs remain stable. The featured homepage photo follows its collection's hero selection.
+- Homepage albums (`/admin/#admin-homepage-section`): add one to six published albums, move them up or down, remove unwanted albums, then save. The first album supplies the large lead photograph; every album uses its configured collection cover. Changes appear within 60 seconds. The original three albums remain until the first save. Saved choices survive archive reseeding; albums absent from a later build are skipped, falling back to the original selection if none remain available.
 
 ## Storage and email
 
-`DB` remains the replaceable, public, full-text search snapshot (`brendan-mulvany-preview-full`). `COMMUNITY` is a separate D1 database, `brendan-mulvany-community`, ID `c5aeec54-17ff-4710-8902-acd42210f8fe`. It stores users, sessions, verification challenges, quotas, comments, likes, annotations, activity, subscriber consent, and collection heroes. Archive export/reseed commands must never target COMMUNITY.
+`DB` remains the replaceable, public, full-text search snapshot (`brendan-mulvany-preview-full`). `COMMUNITY` is a separate D1 database, `brendan-mulvany-community`, ID `c5aeec54-17ff-4710-8902-acd42210f8fe`. It stores users, sessions, verification challenges, quotas, comments, likes, annotations, activity, subscriber consent, collection heroes, and ordered homepage album settings. Archive export/reseed commands must never target COMMUNITY.
 
 Schema changes use versioned `community-migrations/*.sql`. Never edit an already applied migration. D1 backups/Time Travel should be used for recovery of visitor data; it cannot be rebuilt from the photographic archive. For an explicit snapshot:
 
@@ -50,7 +51,7 @@ npm test
 npm run dev
 ```
 
-The 34-test suite includes real SQLite constraint/authorization tests and an isolated Workerd/D1 integration test with a test-only email Worker. There is no test-login route or production email bypass. After changes:
+The 39-test suite includes real SQLite constraint/authorization tests and an isolated Workerd/D1 integration test with a test-only email Worker. Homepage coverage verifies admin-only writes, selection bounds, order, stale albums, hero overrides in inserted HTML, and cache isolation. There is no test-login route or production email bypass. After changes:
 
 ```sh
 npm run community:remote
@@ -65,6 +66,8 @@ npm run deploy
 The blog uses Resend. This preview captures `pending`, `confirmed`, and `unsubscribed` states, explicit consent time, confirmation time, and unsubscribe time. `provider_sync_status` stays `not_connected`. When connecting the systems, import/sync only confirmed consent, propagate unsubscribe/suppression state, and keep account registration separate from newsletter membership. No blog secrets, contacts, segments, or broadcasts have been copied or changed.
 
 ## Deployment validation
+
+Homepage album administration was deployed in version `3a263dbe-a934-49f9-86c1-959326a1355f` on 14 September 2026. All 39 tests and TypeScript checks passed, including real Worker rendering with saved order, cover overrides, stale-album fallback and cookie-independent caching. Desktop and 390 px browser checks covered adding, reordering, limits, save/reload, and recovery when selected albums become unavailable. Live checks confirmed the admin asset, anonymous/cross-origin denial, 74 compiled album fragments, unchanged default choices and working search. No live album selection was changed for testing. The 9,509-byte homepage remains script-free; requests measured 381 ms on the first cache miss and 26–32 ms on warm cache hits from one client. Cloudflare reported 4 ms Worker startup.
 
 Deployed version `257ae210-0195-4343-8c4d-a47964caff36` on 14 September 2026 (Europe/London). Cloudflare reported 4 ms Worker startup. All 34 tests and TypeScript checks passed. Desktop and 390 px browser checks exercised sign-in, comments, likes, region drawing and resizing, moderation, cover selection, subscription withdrawal and failure retry using isolated synthetic data. Physical touch hardware was not separately tested.
 

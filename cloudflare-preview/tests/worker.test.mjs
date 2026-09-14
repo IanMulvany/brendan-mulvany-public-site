@@ -6,16 +6,25 @@ import {Miniflare, convertV4MiniflareOptions} from 'miniflare';
 
 // Exercise the actual Worker and D1 runtime. The isolated mail Worker is a test
 // double only: it captures mail in ephemeral KV, with no production bypass.
-test('Worker: verified sessions, community isolation, moderation, newsletter and cached heroes', async () => {
+test('Worker: verified sessions, community isolation, moderation, newsletter and cached homepage choices', async () => {
   const bundle = await build({entryPoints: ['src/index.ts'], bundle: true, write: false, format: 'esm', platform: 'browser', external: ['cloudflare:*']});
   const origin = 'https://archive.test';
-  const fixture = `<html><body><a href="/photos/1/" data-collection-id="roll-a" data-collection-hero-link><picture data-collection-id="roll-a"><source srcset="https://cdn.brendan-mulvany-photography.com/old/thumb.webp 200w, https://cdn.brendan-mulvany-photography.com/old/small.webp 800w"><img src="https://cdn.brendan-mulvany-photography.com/old/small.webp" width="1500" height="1000" alt="Old"></picture></a><a href="/collections/roll-a/">Collection</a></body></html>`;
+  const picture = (id, base) => `<picture data-collection-id="${id}"><source srcset="https://cdn.brendan-mulvany-photography.com/${base}/thumb.webp 200w, https://cdn.brendan-mulvany-photography.com/${base}/small.webp 800w"><img src="https://cdn.brendan-mulvany-photography.com/${base}/small.webp" width="1500" height="1000" alt="Old"></picture>`;
+  const fragments = (id, photo, base) => ({
+    leadHtml: `<a href="/photos/${photo}/" data-collection-id="${id}" data-collection-hero-link>${picture(id, base)}</a>`,
+    cardHtml: `<a href="/collections/${id}/">${picture(id, base)}Collection</a>`,
+  });
+  const first = fragments('roll-a', 1, 'old');
+  const fixture = `<html><body><div id="homepage-lead">${first.leadHtml}</div><div id="homepage-collections">${first.cardHtml}</div></body></html>`;
+  const manifest = {'popes-visit': first, 'roll-a': first, 'roll-b': fragments('roll-b', 3, 'other')};
   const mf = new Miniflare(convertV4MiniflareOptions({workers: [{name: 'site', script: bundle.outputFiles[0].text, modules: true,
     compatibilityDate: '2026-09-13', compatibilityFlags: ['nodejs_compat'],
     bindings: {PUBLIC_ORIGIN: origin, ADMIN_EMAIL: 'admin@example.test', EMAIL_FROM: 'no-reply@example.test', AUTH_SECRET: crypto.randomUUID() + crypto.randomUUID(), CACHE_VERSION: 'test'},
     d1Databases: {DB: 'archive', COMMUNITY: 'community'},
     serviceBindings: {EMAIL: {name: 'mail', entrypoint: 'EmailMock'},
-      ASSETS: async () => new Response(fixture, {headers: {'content-type': 'text/html', etag: 'old-static-tag'}})},
+      ASSETS: async request => new URL(request.url).pathname === '/homepage-fragments.json'
+        ? Response.json(manifest)
+        : new Response(fixture, {headers: {'content-type': 'text/html', etag: 'old-static-tag'}})},
   }, {name: 'mail', modules: true, compatibilityDate: '2026-09-13', kvNamespaces: ['MAILBOX'],
     script: `import {WorkerEntrypoint} from 'cloudflare:workers';
       export class EmailMock extends WorkerEntrypoint {
@@ -26,7 +35,7 @@ test('Worker: verified sessions, community isolation, moderation, newsletter and
   try {
     const db = await mf.getD1Database('DB', 'site');
     const community = await mf.getD1Database('COMMUNITY', 'site');
-    for (const filename of ['community-migrations/0001_accounts.sql', 'community-migrations/0002_community.sql']) {
+    for (const filename of ['community-migrations/0001_accounts.sql', 'community-migrations/0002_community.sql', 'community-migrations/0003_homepage.sql']) {
       const sql = await readFile(filename, 'utf8');
       // D1 exec accepts one SQL statement per line.
       await community.exec(sql.replace(/--[^\n]*/g, '').replace(/\s+/g, ' '));
@@ -102,6 +111,42 @@ test('Worker: verified sessions, community isolation, moderation, newsletter and
     assert.equal(home.headers.get('set-cookie'), null);
     const nextHome = await call('/');
     assert.equal(await nextHome.text(), html, 'public cached HTML is independent of user cookies');
+    assert.equal((await call('/api/admin/homepage')).status, 401);
+    assert.equal((await call('/api/admin/homepage', {cookie: member.cookie})).status, 403);
+    const defaults = await call('/api/admin/homepage', {cookie: admin.cookie});
+    assert.match(defaults.headers.get('cache-control'), /no-store/);
+    assert.deepEqual((await defaults.json()).collectionIds, ['popes-visit', 'ireland-england', 'french-grand-prix']);
+    assert.equal((await call('/api/admin/homepage', {method: 'PUT', cookie: admin.cookie, requestOrigin: 'https://evil.test', body: {collectionIds: ['roll-b']}})).status, 403);
+    assert.equal((await call('/api/admin/homepage', {method: 'PUT', cookie: admin.cookie, body: {collectionIds: ['roll-a', 'roll-a']}})).status, 400);
+    const saved = await call('/api/admin/homepage', {method: 'PUT', cookie: admin.cookie, body: {collectionIds: ['roll-b', 'roll-a']}});
+    assert.equal(saved.status, 200);
+    assert.deepEqual((await saved.json()).collectionIds, ['roll-b', 'roll-a']);
+    await mf.purgeCache(); // Simulate expiry of the 60-second public HTML cache.
+    const selectedHome = await call('/');
+    const selectedHtml = await selectedHome.text();
+    assert.match(selectedHtml, /id="homepage-lead"><a href="\/photos\/3\/"/);
+    assert.ok(selectedHtml.indexOf('/collections/roll-b/') < selectedHtml.indexOf('/collections/roll-a/'), 'album cards follow the saved order');
+    assert.match(selectedHtml, /chosen\/small.webp/, 'inserted album cards receive the current hero override');
+    assert.ok(!selectedHtml.includes('old/small.webp'));
+    assert.equal(selectedHome.headers.get('set-cookie'), null);
+    assert.equal(selectedHome.headers.get('etag'), null);
+    assert.equal(await call('/', {cookie: member.cookie}).then(r => r.text()), selectedHtml);
+    const directoryHtml = await call('/collections/').then(r => r.text());
+    assert.match(directoryHtml, /chosen\/small.webp/);
+    assert.ok(!directoryHtml.includes('/collections/roll-b/'), 'homepage choices do not replace directory contents');
+    assert.equal((await call('/api/admin/homepage', {method: 'PUT', cookie: admin.cookie, body: {collectionIds: ['roll-a']}})).status, 200);
+    await mf.purgeCache();
+    const singleHtml = await call('/').then(r => r.text());
+    assert.match(singleHtml, /id="homepage-lead"><a href="\/photos\/2\/"/, 'chosen first album uses its current lead photo');
+    assert.ok(!singleHtml.includes('/collections/roll-b/'), 'removed albums disappear');
+    await community.prepare('UPDATE homepage_settings SET collection_ids = ? WHERE id = 1').bind(JSON.stringify(['removed-album', 'roll-b'])).run();
+    await mf.purgeCache();
+    const staleHtml = await call('/').then(r => r.text());
+    assert.match(staleHtml, /id="homepage-lead"><a href="\/photos\/3\/"/);
+    assert.ok(!staleHtml.includes('removed-album'), 'later unpublished albums are skipped');
+    await community.prepare('UPDATE homepage_settings SET collection_ids = ? WHERE id = 1').bind(JSON.stringify(['removed-album'])).run();
+    await mf.purgeCache();
+    assert.equal(await call('/').then(r => r.text()), html, 'all stale choices fall back to available default albums');
     const newsletter = await call('/api/newsletter/subscribe', {method: 'POST', cookie: member.cookie, body: {consent: true}});
     assert.equal(newsletter.status, 200);
     const status = await call('/api/newsletter/status', {cookie: member.cookie}).then(r => r.json());
