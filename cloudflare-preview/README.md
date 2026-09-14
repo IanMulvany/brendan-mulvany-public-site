@@ -10,8 +10,9 @@ The Vercel site and Turso database remain the production system. This preview no
 includes verified accounts, comments, likes, person annotations, newsletter signup
 and administration; see [COMMUNITY.md](COMMUNITY.md) for use and operations.
 Photos use the existing public R2 CDN. No images are generated, uploaded, copied,
-or transformed by this project. Public metadata and its full-text index go into
-the search D1 database; accounts and contributions use a separate community D1.
+or transformed by this project. Public archive metadata remains in its D1 snapshot.
+The separate community D1 stores accounts and contributions plus a searchable copy
+of public metadata combined with visible annotation names and notes.
 Every photo ID and URL is checked against the published roll pages by the exporter.
 Existing machine-generated descriptions can contain historical inaccuracies;
 they remain searchable but are labelled on photo pages.
@@ -30,6 +31,7 @@ npm run check
 npm test
 npm run db:local
 npm run community:local
+npm run search:sync:local
 npm run dev -- --port 8787
 ```
 
@@ -48,9 +50,9 @@ the source file and avoiding read-only WAL compatibility problems.
 
 The preview uses the `ian@mulvany.net` Cloudflare account and the confirmed domain
 `new.brendan-mulvany-photography.com`. Wrangler config records the dedicated D1
-ID and account ID; these identifiers are not credentials. The database is located
-in Western Europe, with global read replication
-enabled. The Worker uses D1 Sessions to allow reads from available replicas.
+ID and account ID; these identifiers are not credentials. The archive snapshot is
+located in Western Europe with global read replication enabled. Search now reads
+the COMMUNITY primary on cache misses so annotation changes do not lag on replicas.
 
 The full archive uses `brendan-mulvany-preview-full`
 (`6d3afe2d-34ec-4193-98ca-6cef32e699e5`). It was prepared separately from the original
@@ -68,6 +70,7 @@ npm run check
 npm test
 npm run db:remote
 npm run community:remote
+npm run search:sync:remote
 npx wrangler deploy --dry-run
 npx wrangler deploy
 npm run verify:deployment -- https://new.brendan-mulvany-photography.com
@@ -81,6 +84,12 @@ static pages and the search snapshot together. The seed replaces only this previ
 DB's photo snapshot and rebuilds FTS. It never connects to Turso.
 For a change in archive membership, stage and verify a separate D1 snapshot before
 switching its binding and static assets together, as done for this expansion.
+After changing published archive metadata, also run `search:sync:remote` to refresh
+the public search catalog in COMMUNITY before deployment. This command validates
+the complete generated catalog, stages it, then atomically activates it while
+retaining live annotations and all account data. D1 file imports can briefly pause
+the community database, so reserve catalog syncs for archive updates. New, removed,
+or moderated annotations update the index automatically without an import or build.
 
 The custom domain binds only `new`. The main site, `www`, and CDN continue using
 their existing configuration. Read replication is configured on the D1 database
@@ -103,16 +112,19 @@ It can be verified with `npx wrangler d1 info DB --json`.
 - Hashed CSS/JS, CDN WebP-first image variants with AVIF fallback, fixed image boxes,
   lazy images below the fold.
   Large originals are never part of the initial page load.
-- Search uses one bound FTS5 query, relevance ordering, prefix matching, and a
-  collection index. Words are joined with AND; the old search uses OR, so some
-  multiword results differ deliberately. No fuzzy spelling or semantic search.
+- Search uses one bound FTS5 query on COMMUNITY, relevance ordering, prefix
+  matching, and a collection index. Each photo is one document containing archive
+  metadata and visible annotation names/notes, so mixed queries such as a name plus
+  a year work and each photo appears only once. Words are joined with AND; the old
+  Vercel search uses OR. No fuzzy spelling or semantic search.
 - The API fetches 25 rows for a 24-photo page, avoiding separate count/facet
   queries. Input length, token count and page range are bounded. Only fields used
   by result cards are returned; full descriptions remain indexed and live in
   static detail pages. Search pages contain 24 results and support up to 100 pages;
   tests fail if the archive exceeds this 2,400-photo capacity.
 - A 180 ms debounce and request cancellation prevent obsolete results appearing.
-- Search responses use a five-minute, per-data-centre Cache API entry. Cached
+- Search responses use a 30-second, per-data-centre Cache API entry. Annotation
+  additions and removals become visible within that interval. Cached
   database durations are historical; the UI labels cached responses and reports
   current browser request duration separately. Search fetches bypass the browser's
   HTTP cache to make this measurement useful.

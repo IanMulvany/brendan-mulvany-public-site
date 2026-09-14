@@ -84,7 +84,15 @@ function contribution(item, type) {
   if (type === 'annotations') row.append(el('p', 'community-item__name', item.name));
   if (type === 'comments' || item.note) row.append(el('p', 'community-item__body', type === 'comments' ? item.body : item.note));
   const remove = deleteButton(item, type);
-  if (remove) row.append(remove);
+  if (type === 'annotations') {
+    const actions = el('div', 'form-actions');
+    const search = el('a', 'quiet-button', 'Search this name');
+    search.href = `/search/?q=${encodeURIComponent(item.name)}`;
+    search.setAttribute('aria-label', `Search this name: ${item.name}`);
+    actions.append(search);
+    if (remove) actions.append(remove);
+    row.append(actions);
+  } else if (remove) row.append(remove);
   return row;
 }
 
@@ -273,7 +281,7 @@ annotationForm.addEventListener('submit', event => {
     await api(`${base}/annotations`, { method: 'POST', body });
     setDrawing(false); setDraft(null); annotationForm.reset(); annotationForm.hidden = true;
     await load();
-    message(status, 'The name has been added to the photograph.');
+    message(status, 'The name has been added to the photograph. Saved names and notes become searchable within 30 seconds.');
   }).catch(error => message(regionStatus, error.message, true));
 });
 like.addEventListener('click', async () => {

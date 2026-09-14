@@ -1,4 +1,4 @@
-import {InvalidSearch, PAGE_SIZE, parseSearch, searchStatement} from './search';
+import {InvalidSearch, PAGE_SIZE, SEARCH_CACHE_SECONDS, parseSearch, searchStatement} from './search';
 import {handleAuth, cleanupAuth} from './auth';
 import {handleCommunity} from './community';
 import {HttpError, json} from './http';
@@ -49,14 +49,16 @@ export default {
       const cached = await caches.default.match(cacheKey);
       if (cached) {
         const response = new Response(request.method === 'HEAD' ? null : cached.body, cached);
-        response.headers.set('cache-control', 'public, max-age=60');
+        response.headers.set('cache-control', 'public, max-age=0, must-revalidate');
         response.headers.set('x-search-cache', 'HIT');
         response.headers.set('server-timing', `cache;desc="HIT", worker;dur=${(performance.now() - started).toFixed(2)}`);
         return response;
       }
-      const {sql, args} = searchStatement(input);
-      // Read-only snapshot: replicas are safe once enabled for this D1 database.
-      const db = env.DB.withSession('first-unconstrained');
+      const {sql, args} = searchStatement(input, 'community');
+      // One indexed document per photo combines archive text and public names.
+      // Read the primary after cache expiry so hidden annotations cannot be
+      // reintroduced by a stale replica. Account data is never selected.
+      const db = env.COMMUNITY.withSession('first-primary');
       const result = await db.prepare(sql).bind(...args).all();
       const payload = {
         query: input.query, collection: input.collection, page: input.page,
@@ -66,7 +68,7 @@ export default {
         cache: 'MISS',
       };
       const headers = {...baseHeaders,
-        'cache-control': 'public, max-age=60',
+        'cache-control': 'public, max-age=0, must-revalidate',
         'x-search-cache': 'MISS',
         'server-timing': `d1;dur=${result.meta.duration}, worker;dur=${payload.timing.workerMs}, cache;desc="MISS"`,
       };
@@ -74,7 +76,7 @@ export default {
       // Give the cached representation an explicit cache label; DB duration is the
       // original computation and the frontend must not report it as fresh work.
       const toCache = Response.json({...payload, cache: 'HIT'}, {
-        headers: {...headers, 'cache-control': 'public, max-age=300', 'x-search-cache': 'HIT'},
+        headers: {...headers, 'cache-control': `public, max-age=${SEARCH_CACHE_SECONDS}`, 'x-search-cache': 'HIT'},
       });
       ctx.waitUntil(caches.default.put(cacheKey, toCache).catch(() => {
         console.warn(JSON.stringify({event: 'search_cache_write_failed'}));

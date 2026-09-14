@@ -15,7 +15,9 @@
     "benchmark": "node scripts/benchmark.mjs",
     "verify:deployment": "node scripts/verify-deployment.mjs",
     "community:local": "wrangler d1 migrations apply COMMUNITY --local",
-    "community:remote": "wrangler d1 migrations apply COMMUNITY --remote"
+    "community:remote": "wrangler d1 migrations apply COMMUNITY --remote",
+    "search:sync:local": "node scripts/sync-search.mjs --local",
+    "search:sync:remote": "node scripts/sync-search.mjs --remote"
   },
   "keywords": [],
   "author": "",

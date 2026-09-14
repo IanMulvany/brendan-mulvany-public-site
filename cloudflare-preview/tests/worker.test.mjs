@@ -3,6 +3,8 @@ import {readFile} from 'node:fs/promises';
 import {test} from 'node:test';
 import {build} from 'esbuild';
 import {Miniflare, convertV4MiniflareOptions} from 'miniflare';
+import {buildSearchCatalogSql} from '../scripts/search-catalog.mjs';
+import {SEARCH_CACHE_SECONDS} from '../src/search.ts';
 
 // Exercise the actual Worker and D1 runtime. The isolated mail Worker is a test
 // double only: it captures mail in ephemeral KV, with no production bypass.
@@ -35,15 +37,18 @@ test('Worker: verified sessions, community isolation, moderation, newsletter and
   try {
     const db = await mf.getD1Database('DB', 'site');
     const community = await mf.getD1Database('COMMUNITY', 'site');
-    for (const filename of ['community-migrations/0001_accounts.sql', 'community-migrations/0002_community.sql', 'community-migrations/0003_homepage.sql']) {
+    for (const filename of ['community-migrations/0001_accounts.sql', 'community-migrations/0002_community.sql', 'community-migrations/0003_homepage.sql', 'community-migrations/0004_search.sql']) {
       const sql = await readFile(filename, 'utf8');
       // D1 exec accepts one SQL statement per line.
       await community.exec(sql.replace(/--[^\n]*/g, '').replace(/\s+/g, ' '));
     }
     await db.exec((await readFile('migrations/0001_search.sql', 'utf8')).replace(/\s+/g, ' '));
+    const catalogPhotos = [];
     for (const [id, collection, title, base] of [[1, 'roll-a', 'First', 'old'], [2, 'roll-a', 'Chosen <hero>', 'chosen'], [3, 'roll-b', 'Other', 'other']]) {
       await db.prepare(`INSERT INTO photos VALUES(?,?,?,'','1979','1979','','',?,1500,1000)`).bind(id, collection, title, `https://cdn.brendan-mulvany-photography.com/${base}`).run();
+      catalogPhotos.push({id, collectionId: collection, title, description: '', date: '1979', year: '1979', location: '', tags: [], imageBase: `https://cdn.brendan-mulvany-photography.com/${base}`, width: 1500, height: 1000});
     }
+    await community.exec(buildSearchCatalogSql({photos: catalogPhotos}).replace(/^--[^\n]*\n/gm, '').trim());
     await db.exec("INSERT INTO photos_fts(photos_fts) VALUES('rebuild');");
     const mailbox = await mf.getKVNamespace('MAILBOX', 'mail');
     async function call(path, {method = 'GET', body, cookie, requestOrigin = origin} = {}) {
@@ -83,8 +88,34 @@ test('Worker: verified sessions, community isolation, moderation, newsletter and
     assert.equal(commentResponse.status, 201);
     const comment = await commentResponse.json();
     for (let i = 0; i < 2; i++) assert.equal((await call('/api/photos/1/like', {method: 'PUT', cookie: member.cookie})).status, 200);
+    assert.deepEqual((await call('/api/search?q=remembered').then(r => r.json())).results, []);
     const annotated = await call('/api/photos/1/annotations', {method: 'POST', cookie: member.cookie, body: {name: 'A remembered name', note: 'Community identification', x: .1, y: .2, width: .3, height: .4}});
     assert.equal(annotated.status, 201);
+    const annotation = await annotated.json();
+    assert.equal(SEARCH_CACHE_SECONDS, 30);
+    await mf.purgeCache(); // Simulate the documented 30-second search expiry.
+    for (const q of ['remembered', 'identification', 'remember first 1979 identif']) {
+      const result = await call(`/api/search?q=${encodeURIComponent(q)}`);
+      assert.equal(result.status, 200, await result.clone().text());
+      assert.equal(result.headers.get('cache-control'), 'public, max-age=0, must-revalidate');
+      const data = await result.json();
+      assert.deepEqual(data.results.map(photo => photo.id), [1], 'names and notes combine with archive fields');
+      assert.deepEqual(Object.keys(data.results[0]).sort(), ['id', 'collection_id', 'title', 'year', 'image_base', 'width', 'height'].sort());
+      assert.ok(!JSON.stringify(data).includes('@example.test'));
+    }
+    const cachedSearch = await call('/api/search?q=remembered', {cookie: admin.cookie});
+    assert.equal(cachedSearch.headers.get('x-search-cache'), 'HIT');
+    assert.equal(cachedSearch.headers.get('set-cookie'), null);
+    assert.deepEqual((await cachedSearch.json()).results.map(photo => photo.id), [1]);
+    assert.deepEqual((await call('/api/search?q=remembered&collection=roll-b').then(r => r.json())).results, []);
+    await community.exec(buildSearchCatalogSql({photos: catalogPhotos}).replace(/^--[^\n]*\n/gm, '').trim());
+    await mf.purgeCache();
+    assert.deepEqual((await call('/api/search?q=remembered').then(r => r.json())).results.map(photo => photo.id), [1], 'catalog sync retains live annotations');
+    await community.exec("CREATE TRIGGER reject_annotation_audit BEFORE INSERT ON activity WHEN NEW.action = 'annotation.created' BEGIN SELECT RAISE(ABORT, 'test audit failure'); END;");
+    const rejectedAnnotation = await call('/api/photos/1/annotations', {method: 'POST', cookie: member.cookie, body: {name: 'Rollbackonly', note: '', x: .1, y: .2, width: .3, height: .4}});
+    assert.equal(rejectedAnnotation.status, 503);
+    await community.exec('DROP TRIGGER reject_annotation_audit;');
+    assert.deepEqual((await call('/api/search?q=rollbackonly').then(r => r.json())).results, [], 'failed annotation transactions leave no searchable terms');
     assert.equal((await call('/api/photos/1/annotations', {method: 'POST', cookie: member.cookie, body: {name: 'Outside', x: .9, y: .1, width: .3, height: .1}})).status, 400);
     assert.equal((await call('/api/photos/999/comments', {method: 'POST', cookie: member.cookie, body: {body: 'Unpublished'}})).status, 404);
     const publicResponse = await call('/api/photos/1/community');
@@ -98,6 +129,9 @@ test('Worker: verified sessions, community isolation, moderation, newsletter and
     assert.equal((await call(`/api/comments/${comment.id}`, {method: 'DELETE', cookie: admin.cookie})).status, 200);
     assert.equal((await call('/api/photos/1/community').then(r => r.json())).comments.length, 0);
     assert.ok((await community.prepare('SELECT hidden_at FROM comments WHERE id = ?').bind(comment.id).first()).hidden_at, 'moderation preserves its audit record');
+    assert.equal((await call(`/api/annotations/${annotation.id}`, {method: 'DELETE', cookie: admin.cookie})).status, 200);
+    await mf.purgeCache();
+    for (const q of ['remembered', 'identification']) assert.deepEqual((await call(`/api/search?q=${q}`).then(r => r.json())).results, [], 'moderated annotation terms disappear from search');
     assert.equal((await call('/api/admin/collections/roll-a/hero', {method: 'PUT', cookie: member.cookie, body: {photoId: 2}})).status, 403);
     assert.equal((await call('/api/admin/collections/roll-a/hero', {method: 'PUT', cookie: admin.cookie, body: {photoId: 3}})).status, 400);
     assert.equal((await call('/api/admin/collections/roll-a/hero', {method: 'PUT', cookie: admin.cookie, body: {photoId: 2}})).status, 200);

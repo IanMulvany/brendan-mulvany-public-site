@@ -1,4 +1,6 @@
 export const PAGE_SIZE = 24;
+// Keep shared results fast while bounding annotation and moderation staleness.
+export const SEARCH_CACHE_SECONDS = 30;
 // 2,400 cards covers the published archive while bounding offset-query work.
 // The integration suite checks every exported photo fits within this limit.
 export const MAX_PAGE = 100;
@@ -25,17 +27,20 @@ export function parseSearch(url: URL) {
   return {query, collection, page, match};
 }
 
-export function searchStatement(input: ReturnType<typeof parseSearch>) {
+export function searchStatement(input: ReturnType<typeof parseSearch>, source: 'archive' | 'community' = 'archive') {
+  // Fixed identifiers only: callers cannot inject table names into SQL.
+  const photos = source === 'community' ? 'search_photos' : 'photos';
+  const fts = source === 'community' ? 'search_photos_fts' : 'photos_fts';
   const clauses: string[] = [];
   const args: (string | number)[] = [];
-  if (input.match) { clauses.push('photos_fts MATCH ?'); args.push(input.match); }
+  if (input.match) { clauses.push(`${fts} MATCH ?`); args.push(input.match); }
   if (input.collection) { clauses.push('p.collection_id = ?'); args.push(input.collection); }
   // Return only card fields; the complete metadata remains searchable in FTS.
   const sql = `SELECT p.id, p.collection_id, p.title, p.year,
       p.image_base, p.width, p.height
-    FROM photos AS p ${input.match ? 'JOIN photos_fts ON photos_fts.rowid = p.id' : ''}
+    FROM ${photos} AS p ${input.match ? `JOIN ${fts} ON ${fts}.rowid = p.id` : ''}
     ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
-    ORDER BY ${input.match ? 'photos_fts.rank, ' : ''}p.id
+    ORDER BY ${input.match ? `${fts}.rank, ` : ''}p.id
     LIMIT ? OFFSET ?`;
   args.push(PAGE_SIZE + 1, (input.page - 1) * PAGE_SIZE);
   return {sql, args};
