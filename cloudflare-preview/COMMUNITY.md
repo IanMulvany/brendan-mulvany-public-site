@@ -6,6 +6,7 @@ The Cloudflare preview at `https://new.brendan-mulvany-photography.com` now supp
 
 - `/account/`: enter an email address and optional public display name, then the eight-digit email code. The same process registers a new member or signs in an existing member. Codes expire after 15 minutes. Members can change their display name and sign out here.
 - `/photos/{id}/`: signed-in members can like a photograph, add a comment, and mark a rectangular area with a person's name and optional note. Areas can be drawn with mouse/touch or entered with keyboard-accessible percentage controls. Names and comments are community contributions, separate from the archive's original metadata. Members can remove their own contributions.
+- Annotation names and notes are included in photo search, alongside archive descriptions, subjects, places and dates. Queries can combine these fields, and a photo appears once even when several annotations match. Each annotation has a “Search this name” link. Existing visible annotations are included; additions, removals and moderation changes appear in search within 30 seconds. Hidden annotations and annotations from unverified accounts are excluded. Suspending a member retains their existing public contributions, as elsewhere on the site.
 - `/newsletter/`: explicit consent followed by email confirmation; this does not require an account. Already verified members can subscribe or unsubscribe directly. The newsletter provider is deliberately **not connected** and no campaigns are sent.
 - `/admin/`: available after verifying `ian@mulvany.net`. Shows users, recent contribution/moderation activity, subscription states, and collection cover choices. Administrators can suspend/reactivate members, review photographs and hide contributions. Suspension revokes the member's sessions. Administrators cannot suspend themselves or other administrators.
 - Collection covers: choose a collection, select an existing thumbnail, then save. The homepage and collection directory reflect the selection within 60 seconds. Photo and collection URLs remain stable. The featured homepage photo follows its collection's hero selection.
@@ -13,7 +14,11 @@ The Cloudflare preview at `https://new.brendan-mulvany-photography.com` now supp
 
 ## Storage and email
 
-`DB` remains the replaceable, public, full-text search snapshot (`brendan-mulvany-preview-full`). `COMMUNITY` is a separate D1 database, `brendan-mulvany-community`, ID `c5aeec54-17ff-4710-8902-acd42210f8fe`. It stores users, sessions, verification challenges, quotas, comments, likes, annotations, activity, subscriber consent, collection heroes, and ordered homepage album settings. Archive export/reseed commands must never target COMMUNITY.
+`DB` remains the replaceable public archive snapshot (`brendan-mulvany-preview-full`) used to validate published photographs and collection membership. `COMMUNITY` is a separate D1 database, `brendan-mulvany-community`, ID `c5aeec54-17ff-4710-8902-acd42210f8fe`. It stores users, sessions, verification challenges, quotas, comments, likes, annotations, activity, subscriber consent, collection heroes, ordered homepage album settings, and a public search catalog. The original archive seed must never target COMMUNITY.
+
+Migration `0004_search.sql` adds `search_photos` and its FTS5 index. Each search document combines public archive metadata with all visible annotation names/notes. Database triggers update the document and index atomically with annotation changes and user-verification changes. Searches select only the original seven public photo-card fields, never account data or annotation bodies. Comments are not indexed by this feature.
+
+`npm run search:sync:remote` refreshes this catalog from the validated public `data/sample.json` after archive publication changes; use `search:sync:local` in development. It stages only public metadata, validates the staged row count, and atomically activates the catalog while deriving annotation text from current COMMUNITY records. It removes only stale search rows and retains annotations, account data and editorial settings. D1 file imports can briefly pause community requests; ordinary annotation updates need no import, rebuild or deployment. Keep the catalog, public snapshot and static build from the same published archive version.
 
 Schema changes use versioned `community-migrations/*.sql`. Never edit an already applied migration. D1 backups/Time Travel should be used for recovery of visitor data; it cannot be rebuilt from the photographic archive. For an explicit snapshot:
 
@@ -33,7 +38,7 @@ Transactional verification mail uses Cloudflare's native `EMAIL` binding from `n
 - Codes use cryptographic randomness, purpose-bound HMAC storage, a 15-minute expiry, and at most five attempts. Challenge consumption, account changes and session creation share an atomic transaction, preventing concurrent replay.
 - Session cookies are `__Host-bm_session`, `Secure`, `HttpOnly`, `SameSite=Lax`, and expire after 30 days. Only hashes of random session tokens are stored. Authentication always reads the primary database and checks suspension, expiry, and revocation.
 - Mutations require the exact configured origin; JSON bodies and all text/rectangle fields are bounded. IP/email and member quotas limit writes and verification mail. SQL parameters are bound. Public contribution responses omit email addresses. Frontend contributions are rendered as text, not HTML.
-- Private/API errors use `private, no-store`. Account state is fetched separately from static pages and never placed into shared HTML caches. Public HTML covers are rewritten server-side and cached for 60 seconds, independent of cookies. Search keeps its existing D1 FTS and edge cache; photo/gallery pages remain static.
+- Private/API errors use `private, no-store`. Account state is fetched separately from static pages and never placed into shared HTML caches. Public HTML covers are rewritten server-side and cached for 60 seconds, independent of cookies. Search uses a single primary FTS query on cache misses, caches public cards for 30 seconds, and requires browser revalidation. Photo/gallery pages remain static.
 - A daily Worker cron at 03:17 UTC removes expired sessions, codes and quota counters. It preserves users, consent and contribution records. Logs omit codes, cookies, email addresses and contribution bodies.
 
 ## Development and deployment
@@ -45,16 +50,18 @@ npm ci
 npm run types
 npm run community:local
 npm run db:local
+npm run search:sync:local
 npm run build
 npm run check
 npm test
 npm run dev
 ```
 
-The 39-test suite includes real SQLite constraint/authorization tests and an isolated Workerd/D1 integration test with a test-only email Worker. Homepage coverage verifies admin-only writes, selection bounds, order, stale albums, hero overrides in inserted HTML, and cache isolation. There is no test-login route or production email bypass. After changes:
+The 49-test suite includes real SQLite constraint/authorization tests and an isolated Workerd/D1 integration test with a test-only email Worker. Homepage coverage verifies admin-only writes, selection bounds, order, stale albums, hero overrides in inserted HTML, and cache isolation. Annotation-search tests cover existing-name backfill, mixed metadata/name/note matching, visibility changes, atomic rollback, staged imports, and preservation of community data. There is no test-login route or production email bypass. After changes:
 
 ```sh
 npm run community:remote
+npm run search:sync:remote
 npx wrangler deploy --dry-run
 npm run deploy
 ```
@@ -66,6 +73,10 @@ npm run deploy
 The blog uses Resend. This preview captures `pending`, `confirmed`, and `unsubscribed` states, explicit consent time, confirmation time, and unsubscribe time. `provider_sync_status` stays `not_connected`. When connecting the systems, import/sync only confirmed consent, propagate unsubscribe/suppression state, and keep account registration separate from newsletter membership. No blog secrets, contacts, segments, or broadcasts have been copied or changed.
 
 ## Deployment validation
+
+Annotation search was deployed in version `b7f2cc8a-1c2d-4fcf-b838-a263baf686bc` on 14 September 2026. All 49 tests passed, along with TypeScript, build and independent database review. Live verification covered all 1,383 photographs, 58 search pages and all 74 collection filters. The existing “Patrick Hillery” annotation and its note both retrieve photograph `188329213`; a browser check confirmed the name search returns that photograph. Warm repeated searches measured 18–20 ms from one client, with the original database query taking about 1.4 ms. Cloudflare reported 4 ms Worker startup. No test annotations or accounts were created on the live site.
+
+The new migration uses a conditional `SELECT RAISE` instead of an unparenthesized `CASE … END` to avoid [Cloudflare's remote trigger-parser issue](https://github.com/cloudflare/workers-sdk/issues/4727). The rejected attempt rolled back completely before the compatible migration was applied.
 
 Homepage album administration was deployed in version `3a263dbe-a934-49f9-86c1-959326a1355f` on 14 September 2026. All 39 tests and TypeScript checks passed, including real Worker rendering with saved order, cover overrides, stale-album fallback and cookie-independent caching. Desktop and 390 px browser checks covered adding, reordering, limits, save/reload, and recovery when selected albums become unavailable. Live checks confirmed the admin asset, anonymous/cross-origin denial, 74 compiled album fragments, unchanged default choices and working search. No live album selection was changed for testing. The 9,509-byte homepage remains script-free; requests measured 381 ms on the first cache miss and 26–32 ms on warm cache hits from one client. Cloudflare reported 4 ms Worker startup.
 

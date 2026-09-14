@@ -19,7 +19,7 @@
     "not_found_handling": "404-page"
   },
   "vars": {
-    "CACHE_VERSION": "2026-09-14-homepage-v1",
+    "CACHE_VERSION": "2026-09-14-annotation-search-v1",
     "PUBLIC_ORIGIN": "https://new.brendan-mulvany-photography.com",
     "ADMIN_EMAIL": "ian@mulvany.net",
     "EMAIL_FROM": "no-reply@brendan-mulvany-photography.com"

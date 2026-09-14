@@ -6,6 +6,7 @@ import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {after, test} from 'node:test';
 import {InvalidSearch, MAX_PAGE, PAGE_SIZE, parseSearch, searchStatement} from '../src/search.ts';
+import {buildSearchCatalogSql} from '../scripts/search-catalog.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const output = mkdtempSync(join(tmpdir(), 'bm-search-test-'));
@@ -34,7 +35,7 @@ function addCase(params = {}, paginated = true) {
   const pages = paginated ? Math.min(MAX_PAGE, Math.ceil(sample.photos.length / PAGE_SIZE) + 1) : 1;
   const statements = Array.from({length: pages}, (_, page) => searchStatement(input({
     ...params, ...(paginated ? {page: String(page + 1)} : {}),
-  })));
+  }), 'community'));
   cases.set(caseKey, {key: caseKey, paginated, statements});
 }
 
@@ -61,8 +62,9 @@ import json, pathlib, sqlite3, sys
 request = json.load(sys.stdin)
 connection = sqlite3.connect(':memory:')
 connection.row_factory = sqlite3.Row
-connection.executescript(pathlib.Path('migrations/0001_search.sql').read_text())
-connection.executescript(pathlib.Path(request['seed']).read_text())
+for path in sorted(pathlib.Path('community-migrations').glob('*.sql')):
+    connection.executescript(path.read_text())
+connection.executescript(request['catalogSql'])
 connection.execute('PRAGMA query_only=ON')
 results = []
 for case in request['cases']:
@@ -78,7 +80,7 @@ for case in request['cases']:
 print(json.dumps(results))
 `], {
   cwd: root,
-  input: JSON.stringify({seed: join(output, 'seed.sql'), pageSize: PAGE_SIZE, cases: [...cases.values()]}),
+  input: JSON.stringify({catalogSql: buildSearchCatalogSql(sample), pageSize: PAGE_SIZE, cases: [...cases.values()]}),
   encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
 })));
 
