@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import {readFile, writeFile, readdir} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
+import {checkPublicRobots} from './robots.mjs';
 
 const origin = process.argv[2] || 'http://localhost:8787';
+const canonicalOrigin = 'https://brendan-mulvany-photography.com';
+const utilityPaths = new Set(['/search/', '/account/', '/newsletter/', '/admin/', '/404.html']);
 const manifest = JSON.parse(await readFile(new URL('../data/sample.json', import.meta.url), 'utf8'));
 const expected = new Map(manifest.photos.map(photo => [photo.id, photo]));
 const fields = ['id', 'collection_id', 'title', 'year', 'image_base', 'width', 'height'].sort();
@@ -23,8 +26,27 @@ async function request(path, method = 'GET') {
 async function get(path, method = 'GET') {
   const response = await request(path, method);
   assert.equal(response.status, 200, `${path}: unexpected status`);
-  assert.match(response.headers.get('x-robots-tag') || '', /noindex/);
+  const pathname = new URL(path, origin).pathname;
+  if (pathname.startsWith('/api/') || utilityPaths.has(pathname)) assert.match(response.headers.get('x-robots-tag') || '', /\bnoindex\b/i, `${path}: missing noindex`);
+  else assert.doesNotMatch(response.headers.get('x-robots-tag') || '', /\b(?:noindex|none)\b/i, `${path}: public indexing blocked`);
   return response;
+}
+const decodeEntities = text => text.replace(/&(amp|quot|apos|lt|gt);/g, (_, entity) => ({amp: '&', quot: '"', apos: "'", lt: '<', gt: '>'})[entity]);
+function attribute(tag, name) {
+  return decodeEntities(tag.match(new RegExp(`\\b${name}=["']([^"']*)["']`, 'i'))?.[1] ?? '');
+}
+function checkHtml(html, path) {
+  assert.match(html, /Brendan Mulvany/, path);
+  assert.doesNotMatch(html, /class="preview-(?:strip|badge)"|Archive preview|new\.brendan-mulvany-photography\.com/, `${path}: preview content remains`);
+  const directives = [...html.matchAll(/<meta\b[^>]*>/gi)].filter(([tag]) => attribute(tag, 'name').toLowerCase() === 'robots')
+    .map(([tag]) => attribute(tag, 'content')).join(',');
+  if (utilityPaths.has(path)) assert.match(directives, /\bnoindex\b/i, `${path}: utility indexing enabled`);
+  else {
+    assert.doesNotMatch(directives, /\b(?:noindex|none)\b/i, `${path}: public indexing blocked`);
+    const canonical = [...html.matchAll(/<link\b[^>]*>/gi)].filter(([tag]) => attribute(tag, 'rel').split(/\s+/).includes('canonical'))
+      .map(([tag]) => attribute(tag, 'href'));
+    assert.deepEqual(canonical, [canonicalOrigin + path], `${path}: canonical URL`);
+  }
 }
 function checkPhoto(photo) {
   assert.deepEqual(Object.keys(photo).sort(), fields);
@@ -61,7 +83,7 @@ for (const collection of manifest.collections) {
 }
 console.log(`Verified all ${manifest.collections.length} collection filters`);
 
-const staticPaths = new Set(['/', '/collections/', '/search/', '/about/', '/years/', '/batches/',
+const staticPaths = new Set(['/', '/collections/', '/search/', '/about/', '/years/', '/batches/', '/account/', '/newsletter/', '/admin/',
   ...manifest.collections.map(collection => `/roll/${collection.roll}/`),
   `/image/${manifest.photos[0].id}/`, `/image/${manifest.photos.at(-1).id}/`]);
 for (let page = 2; page <= Math.ceil(manifest.collections.length / 24); page++) staticPaths.add(`/collections/page/${page}/`);
@@ -69,8 +91,19 @@ for (const year of await readdir(new URL('../dist/year/', import.meta.url))) sta
 for (const path of staticPaths) {
   const response = await get(path);
   assert.match(response.headers.get('content-type') || '', /text\/html/);
-  assert.match(await response.text(), /Brendan Mulvany/);
+  checkHtml(await response.text(), path);
 }
+
+// Compare the deployed sitemap with all indexable build outputs, not a sample.
+const htmlFiles = (await readdir(new URL('../dist/', import.meta.url), {recursive: true})).filter(file => file.endsWith('.html'));
+const indexablePaths = htmlFiles.map(file => file === 'index.html' ? '/' : '/' + file.replace(/index\.html$/, '')).filter(path => !utilityPaths.has(path));
+const sitemap = await (await get('/sitemap.xml')).text();
+assert.match(sitemap, /<urlset\b[^>]*xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9"/);
+const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => decodeEntities(match[1]));
+assert.deepEqual(sitemapUrls.sort(), indexablePaths.map(path => canonicalOrigin + path).sort(), 'Deployed sitemap differs from the complete public build');
+const robots = await (await get('/robots.txt')).text();
+checkPublicRobots(robots, canonicalOrigin);
+console.log(`Verified production canonicals and all ${sitemapUrls.length} sitemap URLs`);
 // Check every original photo URI with four bounded concurrent HEAD requests.
 // The build tests separately check that each path contains the correct photo.
 for (let offset = 0; offset < manifest.photos.length; offset += 4) {
@@ -97,9 +130,30 @@ for (const path of ['/rolls', '/rolls/', '/rolls/index.html']) await checkRedire
 await checkRedirect('/search.html?q=Patrick%20Hillery', '/search/?q=Patrick%20Hillery');
 // Cloudflare's built-in HTML normalization uses 307; our legacy aliases use301.
 for (const path of [`/image/${firstId}`, `/image/${firstId}/index.html`]) await checkRedirect(path, `/image/${firstId}/`, false);
+
+// Only probe live host aliases when explicitly verifying the production apex.
+// GET/HEAD are read-only; unsafe-method rejection is covered by local tests.
+let hostnameRedirects = 0;
+if (new URL(origin).origin === canonicalOrigin) {
+  for (const host of ['www.brendan-mulvany-photography.com', 'new.brendan-mulvany-photography.com']) {
+    for (const method of ['GET', 'HEAD']) {
+      for (const path of ['/', `/image/${firstId}/?from=alias&q=Sean+O%27Brien&from=second`, `/photos/${firstId}/?returnTo=%2Faccount%2F`]) {
+        const response = await request(`https://${host}${path}`, method);
+        assert.equal(response.status, 301, `${host}${path}: hostname redirect status`);
+        assert.equal(response.headers.get('location'), canonicalOrigin + path, `${host}${path}: hostname redirect destination`);
+        assert.equal(response.headers.get('set-cookie'), null, 'Redirect hosts must not create account cookies');
+        assert.ok(!response.headers.get('location').includes('#'), 'Hostname redirects must allow browser fragment inheritance');
+        await response.body?.cancel();
+        hostnameRedirects++;
+      }
+    }
+  }
+}
 const result = {verifiedAt: new Date().toISOString(), origin, photos: seen.length,
   collections: manifest.collections.length, searchPages: pages, staticPages: staticPaths.size,
   originalPhotoUris: manifest.photos.length, redirects,
+  canonicalOrigin, sitemapUrls: sitemapUrls.length, utilityPages: staticPaths.size - [...staticPaths].filter(path => !utilityPaths.has(path)).length,
+  hostnameRedirects, allIndexablePagesInSitemap: true,
   requests, allPhotoIdsAndUrlsMatch: true, allCollectionFiltersMatch: true};
 await writeFile(new URL('../data/deployment-verification.json', import.meta.url), JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify(result));

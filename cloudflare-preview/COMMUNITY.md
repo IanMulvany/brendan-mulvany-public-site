@@ -1,10 +1,11 @@
 # Community features
 
-The Cloudflare preview at `https://new.brendan-mulvany-photography.com` now supports verified accounts, photograph comments and likes, rectangular person annotations, newsletter consent, and administration. This does not change the main Vercel site or generate, copy, or upload any image files.
+The Cloudflare application's configured public origin is `https://brendan-mulvany-photography.com`, set by `PUBLIC_ORIGIN` in `wrangler.jsonc`. It supports verified accounts, photograph comments and likes, rectangular person annotations, newsletter consent, and administration. The independent configuration in `wrangler.redirects.jsonc` assigns `www` and the former `new` preview hostname to an apex redirect. See [production cutover validation](#production-cutover-validation) for deployment status. Photo files continue to use the existing CDN; this application does not generate, copy or upload them.
 
 ## Using the site
 
 - `/account/`: enter an email address and optional public display name, then the eight-digit email code. The same process registers a new member or signs in an existing member. Codes expire after 15 minutes. Members can change their display name and sign out here.
+- After moving from `new` to the main hostname, open `https://brendan-mulvany-photography.com/account/` and request a fresh code. The account, display name, contributions and permissions remain in COMMUNITY, but the host-scoped session cookie does not transfer. The administrator uses the same email-code flow. Verification emails use the configured `PUBLIC_ORIGIN`; keep it aligned with the site's canonical hostname. Alias hostnames accept browsing redirects only, so submit account and contribution forms from the main site.
 - `/image/{id}/`: signed-in members can like a photograph, add a comment, and mark a rectangular area with a person's name and optional note. Areas can be drawn with mouse/touch or entered with keyboard-accessible percentage controls. Names and comments are community contributions, separate from the archive's original metadata. Members can remove their own contributions. Earlier preview links at `/photos/{id}/` redirect here; photo IDs and contributions are unchanged.
 - Annotation names and notes are included in photo search, alongside archive descriptions, subjects, places and dates. Queries can combine these fields, and a photo appears once even when several annotations match. Each annotation has a “Search this name” link. Existing visible annotations are included; additions, removals and moderation changes appear in search within 30 seconds. Hidden annotations and annotations from unverified accounts are excluded. Suspending a member retains their existing public contributions, as elsewhere on the site.
 - `/newsletter/`: explicit consent followed by email confirmation; this does not require an account. Already verified members can subscribe or unsubscribe directly. The newsletter provider is deliberately **not connected** and no campaigns are sent.
@@ -20,17 +21,13 @@ Migration `0004_search.sql` adds `search_photos` and its FTS5 index. Each search
 
 `npm run search:sync:remote` refreshes this catalog from the validated public `data/sample.json` after archive publication changes; use `search:sync:local` in development. It stages only public metadata, validates the staged row count, and atomically activates the catalog while deriving annotation text from current COMMUNITY records. It removes only stale search rows and retains annotations, account data and editorial settings. D1 file imports can briefly pause community requests; ordinary annotation updates need no import, rebuild or deployment. Keep the catalog, public snapshot and static build from the same published archive version.
 
-Schema changes use versioned `community-migrations/*.sql`. Never edit an already applied migration. D1 backups/Time Travel should be used for recovery of visitor data; it cannot be rebuilt from the photographic archive. For an explicit snapshot:
+Schema changes use versioned `community-migrations/*.sql`. Never edit an already applied migration. Use [D1 Time Travel](https://developers.cloudflare.com/d1/reference/time-travel/) for recovery within the account's retention window; visitor data cannot be rebuilt from the photographic archive. Inspect the intended recovery point and the writes it would replace before restoring.
 
-```sh
-npx wrangler d1 export COMMUNITY --remote --output /secure/backup/path/community.sql
-```
-
-That export contains private account/subscriber data and must stay out of version control. Photo binaries continue to come from the existing CDN.
+The ordinary D1 export command is not a supported complete backup here: [Cloudflare's export limitations](https://developers.cloudflare.com/d1/best-practices/import-export-data/#known-limitations) include databases with virtual tables, and COMMUNITY contains FTS5. Do not drop the live search index to take a routine backup. A separate logical backup and restore procedure for private tables must be tested before relying on it; any resulting account/subscriber data must stay outside version control. Photo binaries continue to come from the existing CDN.
 
 Transactional verification mail uses Cloudflare's native `EMAIL` binding from `no-reply@brendan-mulvany-photography.com`. The sending domain is enabled with SPF, DKIM and DMARC. `allowed_sender_addresses` restricts the Worker to that sender. Cloudflare Email Service is used for verification only; newsletter campaigns will use the later Resend/blog integration.
 
-`AUTH_SECRET` is declared in `secrets.required` and is a random Worker secret, installed with `wrangler secret put AUTH_SECRET`. It is not in source control. `PUBLIC_ORIGIN`, `ADMIN_EMAIL`, `EMAIL_FROM`, both D1 bindings, and the email binding are declared in `wrangler.jsonc`. Changing the primary hostname later requires updating `PUBLIC_ORIGIN`, custom routes, and email/site links together. Existing host-scoped sessions will require a fresh sign-in on the new hostname.
+`AUTH_SECRET` is declared in `secrets.required` and is a random Worker secret, installed with `wrangler secret put AUTH_SECRET`. It is not in source control. `PUBLIC_ORIGIN`, `ADMIN_EMAIL`, `EMAIL_FROM`, both D1 bindings, and the email binding are declared in `wrangler.jsonc`. The main Worker retains its historical service name `brendan-mulvany-cloudflare-preview`; that name does not identify a separate preview database. The redirect Worker has no secret, database or email bindings. Changing the canonical hostname requires updating `PUBLIC_ORIGIN`, custom domains, the redirect target in `src/redirects.ts`, and rebuilt site/email links together. Existing host-scoped sessions require a fresh sign-in on the new hostname.
 
 ## Security and performance
 
@@ -47,6 +44,7 @@ Use Node 24 or newer. Local `.dev.vars` is ignored and contains a development `A
 
 ```sh
 npm ci
+npm run export
 npm run types
 npm run community:local
 npm run db:local
@@ -57,22 +55,45 @@ npm test
 npm run dev
 ```
 
-The 56-test suite includes real SQLite constraint/authorization tests and an isolated Workerd/D1 integration test with a test-only email Worker. Homepage coverage verifies admin-only writes, selection bounds, order, stale albums, hero overrides in inserted HTML, and cache isolation. Annotation-search tests cover existing-name backfill, mixed metadata/name/note matching, visibility changes, atomic rollback, staged imports, and preservation of community data. Static asset tests exercise actual Cloudflare redirects, query preservation, original photo/roll URIs, pagination, 404s and generated internal links. Run `npm run build` before the tests. There is no test-login route or production email bypass. After changes:
+`npm run export` reads the reviewed original `../public/` and offline `../public_site.db` snapshot; it does not fetch the production Cloudflare site. The optional `--verify-live-origin` exporter flag is for a separately verified legacy Vercel renderer, whose embedded page data differs from the production Cloudflare build. Do not point that flag at the apex, `www` or `new` after cutover. See [README.md](README.md) for snapshot review and import details.
+
+The test suite includes real SQLite constraint/authorization tests and an isolated Workerd/D1 integration test with a test-only email Worker. Homepage coverage verifies admin-only writes, selection bounds, order, stale albums, hero overrides in inserted HTML, and cache isolation. Annotation-search tests cover existing-name backfill, mixed metadata/name/note matching, visibility changes, atomic rollback, staged imports, and preservation of community data. Static asset tests exercise actual Cloudflare redirects, query preservation, original photo/roll URIs, pagination, 404s and generated internal links. Run `npm run build` before the tests. There is no test-login route or production email bypass.
+
+For application changes, build, type-check and test before deploying both configurations:
 
 ```sh
-npm run community:remote
-npm run search:sync:remote
+npm run build
+npm run check
+npm test
 npx wrangler deploy --dry-run
 npm run deploy
+npm run deploy:redirects
+npm run verify:deployment -- https://brendan-mulvany-photography.com
 ```
 
-`community:remote` applies schema migrations only. `db:remote` is the separate public archive reseed operation. Do not run it as part of account migrations.
+Use the current `PUBLIC_ORIGIN` if it changes. `npm run deploy` rebuilds and deploys the main Worker; `deploy:redirects` deploys the stateless hostname redirect Worker separately. Public canonical, social and sitemap URLs are generated from the main configuration; utility pages and APIs retain noindex settings.
+
+When a change adds community schema, apply `npm run community:remote` before deploying the dependent code. It applies migrations only. `db:remote` is the separate public archive reseed operation; do not run it as part of account migrations. Run `search:sync:remote` only after a reviewed archive metadata/publication update, or when deliberately repairing the public search mirror. Ordinary account, annotation and frontend changes need no search import.
+
+For production rollback, retain compatible COMMUNITY migrations and the current canonical origin. Rolling back to an old preview Worker version can restore `new` origin checks or links and break main-domain sign-in; redeploy the reviewed older code with current configuration when needed. A Worker version rollback does not restore custom domains, DNS or D1 data. Keep backups of visitor data and retain Vercel separately for a hosting rollback. Restore the apex/`www` routing direction coherently to avoid a redirect loop, and do not leave the main configuration owning aliases that belong to the redirect Worker. See [hostname cutover and rollback](README.md#hostname-cutover-and-rollback) for the deployment sequence.
 
 ## Later newsletter integration
 
-The blog uses Resend. This preview captures `pending`, `confirmed`, and `unsubscribed` states, explicit consent time, confirmation time, and unsubscribe time. `provider_sync_status` stays `not_connected`. When connecting the systems, import/sync only confirmed consent, propagate unsubscribe/suppression state, and keep account registration separate from newsletter membership. No blog secrets, contacts, segments, or broadcasts have been copied or changed.
+The blog uses Resend. This application captures `pending`, `confirmed`, and `unsubscribed` states, explicit consent time, confirmation time, and unsubscribe time. `provider_sync_status` stays `not_connected`. When connecting the systems, import/sync only confirmed consent, propagate unsubscribe/suppression state, and keep account registration separate from newsletter membership. No blog secrets, contacts, segments, or broadcasts have been copied or changed.
 
-## Deployment validation
+## Production cutover validation
+
+The production application was activated on 15 September 2026 as version `1188b599-1af2-4f6b-8da3-df7e44f24455`. The apex belongs to the main Worker; `www` and `new` belong to redirect Worker version `4d40f311-5507-43f0-a25d-938682e9c08c`. Both aliases return 301 to the apex while retaining paths and query strings. The old Vercel A records were removed manually before attachment. The prior apex DNS TTL was allowed to expire before enabling the reverse `www` redirect. Final Cloudflare domain ownership is recorded in ignored `data/cutover-complete.json`.
+
+Production checks passed for all 1,383 photo URIs, 58 search pages, 74 collection filters, 86 legacy redirects and the complete 1,499-URL sitemap. The initial full audit reached its final hostname section while a cached `www` DNS answer still led to Vercel. All 12 hostname GET/HEAD checks passed separately after propagation; their results are recorded in ignored `data/hostname-verification.json`. The robots validator accounts for Cloudflare's named crawler restrictions while checking that the generic public policy permits indexing. The 62-test suite and TypeScript checks passed before deployment; four additional focused robots tests passed after this validator correction.
+
+Browser checks confirmed that a saved preview photo link retains its `#community` anchor and the existing “Patrick Hillery” annotation; searching that name returns photograph `188329213`. Signed-out account responses remain private and uncached, and admin/newsletter account endpoints reject anonymous access. A new sign-in is required on the apex because sessions are host-scoped. No D1 data or image objects changed during this deployment.
+
+A bounded sample in ignored `data/benchmark-production-cutover.json` measured warm homepage requests at 22.85 ms, collection requests at 23.15 ms, and search requests at 18.15–23.4 ms from one UK client, using three requests per endpoint. These are request timings, not Core Web Vitals, capacity tests or multi-region measurements.
+
+## Earlier preview deployment validation
+
+These records describe the earlier `new` deployments. They are historical checks, not validation of the production hostname cutover. Verify the current main and redirect configurations separately using the commands above.
 
 Original public URI support was deployed in version `63970660-9df3-4e66-9614-ac809a505f5c` on 15 September 2026. All 56 tests, TypeScript and deployment dry-run passed. The build contains 1,504 HTML pages; all original photo/roll links and all nine published year memberships were checked. Live verification passed for all 1,383 original photo URIs, 94 public pages, 86 redirects, 58 search pages and 74 collection filters (1,695 requests). Browser verification confirmed a saved preview photo link retains its query and `#community` anchor, loads the existing annotation, and links to the new canonical photo address from search. Cloudflare reported 4 ms Worker startup. This deployment changed no D1 data, image objects or main-domain DNS records.
 

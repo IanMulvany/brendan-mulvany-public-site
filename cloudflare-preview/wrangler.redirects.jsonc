@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "brendan-mulvany-domain-redirects",
+  "main": "src/redirects.ts",
+  "compatibility_date": "2026-09-15",
+  "workers_dev": false,
+  "preview_urls": false,
+  "account_id": "91d1175698c21b3e4febe0a1b4642e4c",
+  "observability": {"enabled": true},
+  "routes": [
+    {"pattern": "www.brendan-mulvany-photography.com", "custom_domain": true},
+    {"pattern": "new.brendan-mulvany-photography.com", "custom_domain": true}
+  ]
+}

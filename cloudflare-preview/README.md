@@ -1,19 +1,26 @@
-# Cloudflare archive preview
+# Cloudflare photographic archive
 
-Preview URL: https://new.brendan-mulvany-photography.com/ — a separate Workers + D1
+Configured public URL: https://brendan-mulvany-photography.com/ — the Workers + D1
 version of the full published archive: 1,383 photographs across 74 collections.
+`PUBLIC_ORIGIN` in `wrangler.jsonc` controls the main Worker's origin and the build's
+canonical, social and sitemap URLs. The separate Worker configuration in
+`wrangler.redirects.jsonc` assigns `www` and the former `new` preview hostname
+to an apex redirect. Keep its destination in `src/redirects.ts` aligned with
+`PUBLIC_ORIGIN`. Current deployment validation is recorded in [COMMUNITY.md](COMMUNITY.md#production-cutover-validation).
 Administrators can choose and order one to six homepage albums; the original three
 remain until a selection is saved. The collection directory exposes the complete
 archive with 24 collections per page.
 
-The Vercel site and Turso database remain the production system. This preview now
-includes verified accounts, comments, likes, person annotations, newsletter signup
-and administration; see [COMMUNITY.md](COMMUNITY.md) for use and operations.
+The application includes verified accounts, comments, likes, person annotations,
+newsletter signup and administration; see [COMMUNITY.md](COMMUNITY.md) for use and
+operations. Keep the original Vercel deployment and Turso database available for
+rollback; Cloudflare does not write to them.
 Photos use the existing public R2 CDN. No images are generated, uploaded, copied,
 or transformed by this project. Public archive metadata remains in its D1 snapshot.
 The separate community D1 stores accounts and contributions plus a searchable copy
 of public metadata combined with visible annotation names and notes.
-Every photo ID and URL is checked against the published roll pages by the exporter.
+Every photo ID and URL is checked against the reviewed original public roll-page
+snapshot by the exporter.
 Existing machine-generated descriptions can contain historical inaccuracies;
 they remain searchable but are labelled on photo pages.
 
@@ -37,18 +44,12 @@ collection rules, with a build-time limit check. Photo/gallery pages remain stat
 no additional Worker or database lookup is needed for canonical image pages.
 Photo IDs, D1 rows, community contributions and CDN image URLs do not change.
 
-Switching the main hostname is a separate deployment. DNS currently resolves
-both the apex and `www` to Vercel, while Cloudflare already manages the nameservers.
-Before cutover, inspect and record the actual DNS records for rollback, replace
-the Vercel records with Worker Custom Domains, and choose one canonical hostname
-with a redirect from the other. Cloudflare provisions DNS and certificates for
-Custom Domains; existing CNAME records must first be removed if present. Public
-DNS alone cannot distinguish an A record from a flattened CNAME.
-Update `PUBLIC_ORIGIN`, hostname redirects, canonical links/sitemap and crawler
-settings together; remove the preview branding and links back to the original.
-Users sign in again on the main hostname because sessions are host-scoped.
-Keep Vercel available for rollback and leave the CDN and mail records intact.
-This route update deploys only to `new` and retains its noindex settings.
+Hostname redirects preserve the path and query for GET/HEAD requests, including
+saved preview links. The redirect Worker has no asset, database, email or secret
+bindings. It rejects mutations: open the main site and sign in there before posting
+or managing an account. Host-scoped sessions on `new` do not transfer to the apex.
+Canonical photo/gallery requests retain direct static-asset serving on the main
+Worker; hostname redirects do not add a Worker invocation to those requests.
 
 ## Local run
 
@@ -57,7 +58,7 @@ static build in `../public/`. No Turso credentials are needed.
 
 ```sh
 npm ci
-python3 scripts/export-sample.py --verify-live-origin https://www.brendan-mulvany-photography.com
+npm run export
 npm run build
 npm run types
 npm run check
@@ -79,11 +80,23 @@ The source must be a stable checkpointed offline SQLite file: active WAL/journal
 files cause export to stop. SQLite queries run on a disposable copy, preserving
 the source file and avoiding read-only WAL compatibility problems.
 
+Review `../public/` and `../public_site.db` as one original archive snapshot before
+exporting an archive update. The exporter reports their build dates and warns that
+local publication evidence can be stale. Its optional `--verify-live-origin` flag
+expects the original Vercel renderer's embedded roll-page data; it is useful only
+against a separately verified legacy deployment that still serves that renderer.
+Do not pass the production apex, `www`, or `new` after cutover: the Cloudflare site
+does not expose that legacy payload. `--live-dir` can instead consume previously
+reviewed captures of the original renderer. Neither option is required for the
+normal reviewed-snapshot export above.
+
 ## Deployment
 
-The preview uses the `ian@mulvany.net` Cloudflare account and the confirmed domain
-`new.brendan-mulvany-photography.com`. Wrangler config records the dedicated D1
-ID and account ID; these identifiers are not credentials. The archive snapshot is
+The production configuration uses the `ian@mulvany.net` Cloudflare account. The
+main Worker retains the historical name `brendan-mulvany-cloudflare-preview`;
+its custom domain is the apex, not a separate preview environment. Wrangler config
+records the dedicated D1 ID and account ID; these identifiers are not credentials.
+The archive snapshot is
 located in Western Europe with global read replication enabled. Search now reads
 the COMMUNITY primary on cache misses so annotation changes do not lag on replicas.
 
@@ -92,29 +105,35 @@ The full archive uses `brendan-mulvany-preview-full`
 114-photo database, then bound to the Worker together with the complete static
 build. The original database remains available for rollback.
 
-For an update:
+For an application update, using the current `PUBLIC_ORIGIN` for verification:
 
 ```sh
 npx wrangler whoami
-python3 scripts/export-sample.py --verify-live-origin https://www.brendan-mulvany-photography.com
 npm run build
 npm run types
 npm run check
 npm test
-npm run db:remote
-npm run community:remote
-npm run search:sync:remote
 npx wrangler deploy --dry-run
-npx wrangler deploy
-npm run verify:deployment -- https://new.brendan-mulvany-photography.com
-npm run benchmark -- https://new.brendan-mulvany-photography.com
+npm run deploy
+npm run deploy:redirects
+npm run verify:deployment -- https://brendan-mulvany-photography.com
+PREVIEW_ONLY=1 OUTPUT_FILE=data/production-benchmark.json npm run benchmark -- https://brendan-mulvany-photography.com
 ```
 
 Verify that `whoami` shows `ian@mulvany.net` before remote commands. If using a
 named profile, activate it for this directory or append `--profile YOUR_PROFILE`
-to Wrangler commands. Increment `CACHE_VERSION` whenever reseeding, and deploy
-static pages and the search snapshot together. The seed replaces only this preview
-DB's photo snapshot and rebuilds FTS. It never connects to Turso.
+to Wrangler commands. `npm run deploy` builds and deploys the main Worker;
+`deploy:redirects` deploys the independent hostname redirect Worker. These are
+separate operations, so verify both. Apply any new community migrations with
+`npm run community:remote` before deploying code that needs them. Frontend-only
+changes do not require a database reseed or search import.
+
+For a reviewed archive update, run `npm run export` first, rebuild and test, then
+refresh the public snapshot with `npm run db:remote` and the community search copy
+with `npm run search:sync:remote` before deployment. Increment `CACHE_VERSION`
+whenever reseeding, and deploy static pages and the search snapshot together.
+The archive seed replaces only `DB`'s photo snapshot and rebuilds its FTS index.
+It never connects to Turso and must never be executed against `COMMUNITY`.
 For a change in archive membership, stage and verify a separate D1 snapshot before
 switching its binding and static assets together, as done for this expansion.
 After changing published archive metadata, also run `search:sync:remote` to refresh
@@ -124,10 +143,40 @@ retaining live annotations and all account data. D1 file imports can briefly pau
 the community database, so reserve catalog syncs for archive updates. New, removed,
 or moderated annotations update the index automatically without an import or build.
 
-The custom domain binds only `new`. The main site, `www`, and CDN continue using
-their existing configuration. Read replication is configured on the D1 database
+Read replication is configured on the D1 database
 (`read_replication.mode: auto`), separately from Wrangler's binding configuration.
 It can be verified with `npx wrangler d1 info DB --json`.
+
+## Hostname cutover and rollback
+
+The main configuration owns only the apex; the redirect configuration owns `www`
+and `new`. Do not add those aliases back to the main Worker configuration: a later
+deployment can reassign Custom Domains from another Worker. Cloudflare provisions
+DNS and certificates for Custom Domains. Wrangler can request replacement of
+conflicting DNS records and domain ownership; inspect the exact affected hostnames
+and retain the original DNS/domain records before such a deployment.
+
+For an initial cutover, keep `new` on the main Worker while attaching and verifying
+the apex, then transfer `new` directly to the already tested redirect Worker. Avoid
+deleting an active domain before assigning its replacement. The old Vercel apex
+redirects to `www`; changing `www` to redirect back to the apex before cached old
+apex DNS expires can cause a loop. Allow the prior DNS TTL to age and verify DNS,
+TLS and HTTP behavior before reversing the redirect direction. Propagation may
+vary between clients.
+
+For a code rollback, select a known compatible Worker version while retaining the
+current production hostnames and `PUBLIC_ORIGIN`. An older preview version may
+embed `new` URLs, noindex settings, or an origin check that rejects production
+mutations; redeploy a reviewed revision with current configuration when necessary.
+Worker code/version rollback does not restore DNS, custom domains or D1 data.
+Wrangler activates code before publishing domain triggers, so a failed domain step
+can leave the new code active and needs explicit verification.
+
+For a hosting rollback to Vercel, restore the recorded apex and `www` DNS/domain
+configuration together with the original redirect direction. Do not leave
+Cloudflare `www` redirecting to a Vercel apex that redirects back to `www`. Preserve
+the COMMUNITY database and its backups; accounts, newsletter consent and visitor
+contributions are not mirrored into Turso. Leave CDN and mail records intact.
 
 ## Speed choices and limits
 
@@ -163,15 +212,20 @@ It can be verified with `npx wrangler d1 info DB --json`.
   HTTP cache to make this measurement useful.
 - Increment `CACHE_VERSION` in Wrangler config whenever reseeding. This selects a
   new cache namespace. Static pages and search must be built from the same snapshot.
-- All preview pages and API responses have `noindex`; `robots.txt` disallows
-  crawling. This is a public trial, not password-protected private storage.
+- Public archive pages have production canonical/social URLs and appear in the
+  generated sitemap. `robots.txt` allows public browsing and advertises that sitemap.
+  Account, admin, search and newsletter utility pages, API responses and homepage
+  fragments remain excluded from indexing. Public pages have no preview branding.
 
 Full-archive counts and timings are recorded in [FULL_ARCHIVE.md](FULL_ARCHIVE.md).
 The earlier [PERFORMANCE.md](PERFORMANCE.md) preserves measurements from the
 114-photo trial. Timings from one client do not establish multi-region latency,
 production traffic capacity, or Core Web Vitals. Search semantics still differ
-from Vercel's implementation. Use `PREVIEW_ONLY=1` to benchmark only this preview
-and `OUTPUT_FILE=data/full-archive-benchmark.json` to keep a separate result file.
+from Vercel's implementation. The benchmark script retains the legacy switch
+`PREVIEW_ONLY=1`, which means measure only the supplied target. Use it for production:
+the default comparison hostname `www` now belongs to the redirect configuration,
+so it is not an independent Vercel baseline. Only supply a separate Vercel origin
+when that original deployment has been independently verified.
 
 ## References
 
