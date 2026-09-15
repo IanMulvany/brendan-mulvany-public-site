@@ -51,6 +51,12 @@ or managing an account. Host-scoped sessions on `new` do not transfer to the ape
 Canonical photo/gallery requests retain direct static-asset serving on the main
 Worker; hostname redirects do not add a Worker invocation to those requests.
 
+On roll pages, signed-in administrators can choose a collection cover beside the
+existing photo thumbnails. A small deferred module checks the current session;
+cover settings are requested only when an admin opens the picker. It reuses the
+existing cover API and image elements, with no additional image downloads or
+database migration. Failed saves retain the previous selection and allow retry.
+
 ## Local run
 
 Requires Node 24+, Python 3.9+, the existing `../public_site.db`, and the existing
