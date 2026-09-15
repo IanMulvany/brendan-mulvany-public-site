@@ -9,8 +9,22 @@ import {buildRedirects} from '../scripts/redirects.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
-const origin = 'https://archive.test';
+const origin = 'https://brendan-mulvany-photography.com';
 const query = '?q=Sean+O%27Brien&source=old%2Fpreview&source=second';
+const utilityPaths = new Set(['/search/', '/account/', '/newsletter/', '/admin/', '/404.html']);
+const pagePath = file => file === 'index.html' ? '/' : `/${file.replace(/index\.html$/, '')}`;
+const decodeEntities = text => text.replace(/&(amp|quot|apos|lt|gt);/g, (_, entity) => ({amp: '&', quot: '"', apos: "'", lt: '<', gt: '>'})[entity]);
+function attribute(tag, name) {
+  return decodeEntities(tag.match(new RegExp(`\\b${name}=["']([^"']*)["']`, 'i'))?.[1] ?? '');
+}
+function canonicalUrls(html) {
+  return [...html.matchAll(/<link\b[^>]*>/gi)].filter(([tag]) => attribute(tag, 'rel').split(/\s+/).includes('canonical'))
+    .map(([tag]) => attribute(tag, 'href'));
+}
+function robotsDirectives(html) {
+  return [...html.matchAll(/<meta\b[^>]*>/gi)].filter(([tag]) => attribute(tag, 'name').toLowerCase() === 'robots')
+    .map(([tag]) => attribute(tag, 'content')).join(',');
+}
 
 function assetsRuntime(directory, assets) {
   // Use Cloudflare's actual assets router, _redirects parser and HTML handling.
@@ -59,6 +73,8 @@ test('built archive assets preserve canonical URIs and redirect old preview link
         assert.match(response.headers.get('content-type'), /text\/html/);
         const html = await response.text();
         assert.match(html, /<main\b/);
+        assert.doesNotMatch(response.headers.get('x-robots-tag') ?? '', /\b(?:noindex|none)\b/i, path);
+        assert.deepEqual(canonicalUrls(html), [origin + path], `Canonical URL for ${path}`);
         if (path.startsWith('/image/')) assert.match(html, /id="community"/);
         if (path === '/') continue;
         for (const alias of [path.slice(0, -1), `${path}index.html`]) {
@@ -113,6 +129,15 @@ test('built archive assets preserve canonical URIs and redirect old preview link
       assert.equal(removed.status, 404);
       await removed.arrayBuffer();
     });
+
+    await t.test('utility HTML remains noindex after removing the global preview restriction', async () => {
+      for (const path of [...utilityPaths].filter(path => path !== '/404.html')) {
+        const response = await request(mf, path);
+        assert.equal(response.status, 200, path);
+        assert.match(response.headers.get('x-robots-tag') ?? '', /\bnoindex\b/i, path);
+        assert.match(robotsDirectives(await response.text()), /\bnoindex\b/i, path);
+      }
+    });
   } finally { await mf.dispose(); }
 });
 
@@ -144,7 +169,7 @@ test('all built photo and roll links, including homepage fragments and sign-in r
     if (url.searchParams.has('returnTo')) checkLink(url.searchParams.get('returnTo'), `${file} returnTo`);
   }
   function inspect(html, file) {
-    for (const match of html.matchAll(/\bhref="([^"]+)"/g)) checkLink(match[1], file);
+    for (const match of html.matchAll(/<a\b[^>]*\bhref="([^"]+)"/g)) checkLink(match[1], file);
   }
   for (const file of files.filter(path => path.endsWith('.html'))) inspect(await readFile(join(dist, file), 'utf8'), file);
   const fragments = JSON.parse(await readFile(join(dist, 'homepage-fragments.json'), 'utf8'));
@@ -155,6 +180,36 @@ test('all built photo and roll links, including homepage fragments and sign-in r
   assert.deepEqual([...linkedPhotos].sort(), [...publishedPhotos].sort(), 'Every public photograph remains reachable');
   assert.deepEqual([...linkedRolls].sort(), [...publishedRolls].sort(), 'Every public roll remains reachable');
   assert.ok(checked >= sample.photos.length + sample.collections.length);
+});
+
+test('all indexable HTML has the production canonical and appears exactly once in the public sitemap', async () => {
+  const config = JSON.parse(await readFile(join(root, 'wrangler.jsonc'), 'utf8'));
+  assert.equal(config.vars.PUBLIC_ORIGIN, origin);
+  const files = (await readdir(dist, {recursive: true})).filter(file => file.endsWith('.html'));
+  const expected = [];
+  const foundUtilities = new Set();
+  for (const file of files) {
+    const path = pagePath(file), html = await readFile(join(dist, file), 'utf8');
+    const directives = robotsDirectives(html);
+    assert.doesNotMatch(html, /class="preview-(?:strip|badge)"|Archive preview|new\.brendan-mulvany-photography\.com/, file);
+    if (utilityPaths.has(path)) {
+      foundUtilities.add(path);
+      assert.match(directives, /\bnoindex\b/i, file);
+    } else {
+      assert.doesNotMatch(directives, /\b(?:noindex|none)\b/i, file);
+      assert.deepEqual(canonicalUrls(html), [origin + path], `Canonical URL for ${file}`);
+      expected.push(origin + path);
+    }
+  }
+  assert.deepEqual([...foundUtilities].sort(), [...utilityPaths].sort(), 'All account and utility pages remain excluded');
+  const sitemap = await readFile(join(dist, 'sitemap.xml'), 'utf8');
+  assert.match(sitemap, /<urlset\b[^>]*xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9"/);
+  const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => decodeEntities(match[1]));
+  assert.deepEqual(urls.sort(), expected.sort(), 'Sitemap must contain every indexable page once and no utility or alias URLs');
+  const robots = await readFile(join(dist, 'robots.txt'), 'utf8');
+  assert.doesNotMatch(robots, /^Disallow:\s*\/\s*$/mi);
+  assert.match(robots, new RegExp(`^Sitemap: ${origin.replaceAll('.', '\\.')}\/sitemap\\.xml$`, 'm'));
+  assert.match(robots, /^Disallow:\s*\/api\//mi);
 });
 
 test('paginated preview aliases preserve the page number through the real assets redirect parser', async () => {
