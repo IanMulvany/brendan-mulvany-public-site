@@ -171,7 +171,29 @@ test('all built photo and roll links, including homepage fragments and sign-in r
   function inspect(html, file) {
     for (const match of html.matchAll(/<a\b[^>]*\bhref="([^"]+)"/g)) checkLink(match[1], file);
   }
-  for (const file of files.filter(path => path.endsWith('.html'))) inspect(await readFile(join(dist, file), 'utf8'), file);
+  const collectionByRoll = new Map(sample.collections.map(collection => [String(collection.roll), collection]));
+  for (const file of files.filter(path => path.endsWith('.html'))) {
+    const html = await readFile(join(dist, file), 'utf8');
+    inspect(html, file);
+    const coverModules = [...html.matchAll(/<script\b[^>]*>/g)].filter(([tag]) => /\/assets\/collection-cover\.[a-f0-9]+\.js$/.test(attribute(tag, 'src')));
+    const roll = file.match(/^roll\/([^/]+)\/(?:page\/([1-9]\d*)\/)?index\.html$/);
+    const toolbar = html.match(/<section\b[^>]*\bid="collection-cover-tools"[^>]*>/)?.[0];
+    assert.equal(coverModules.length, roll ? 1 : 0, `Cover editor must load only on roll pages: ${file}`);
+    if (!roll) { assert.equal(toolbar, undefined, file); continue; }
+    const collection = collectionByRoll.get(decodeURIComponent(roll[1]));
+    assert.ok(collection, `Unknown roll for cover editor: ${file}`);
+    assert.ok(toolbar && /\bhidden(?:\s|=|>)/.test(toolbar), `Admin controls must start hidden: ${file}`);
+    assert.equal(attribute(toolbar, 'data-collection-id'), collection.id, `Cover API collection ID: ${file}`);
+    const members = sample.photos.filter(photo => photo.collectionId === collection.id);
+    const defaultCover = sample.photos.find(photo => photo.id === collection.coverId) ?? members[0];
+    assert.equal(defaultCover.collectionId, collection.id, `Default cover must belong to its roll: ${file}`);
+    assert.equal(Number(attribute(toolbar, 'data-default-cover-id')), defaultCover.id, `Visible default cover: ${file}`);
+    assert.match(html, /<section\b[^>]*\bid="collection-photos"/, file);
+    const ids = [...html.matchAll(/<article\b[^>]*\bdata-photo-id="(\d+)"/g)].map(match => Number(match[1]));
+    const page = Number(roll[2] ?? 1);
+    assert.deepEqual(ids, members.slice((page - 1) * 48, page * 48).map(photo => photo.id), `Cover choices must match visible published photographs: ${file}`);
+    assert.doesNotMatch(html, /<button\b[^>]*\bclass="[^"]*collection-cover-choice/, `Photo choice buttons should be added only in admin edit mode: ${file}`);
+  }
   const fragments = JSON.parse(await readFile(join(dist, 'homepage-fragments.json'), 'utf8'));
   for (const [id, fragment] of Object.entries(fragments)) {
     inspect(fragment.cardHtml, `homepage fragment ${id}`);
