@@ -12,13 +12,13 @@ test('Worker: verified sessions, community isolation, moderation, newsletter and
   const bundle = await build({entryPoints: ['src/index.ts'], bundle: true, write: false, format: 'esm', platform: 'browser', external: ['cloudflare:*']});
   const origin = 'https://archive.test';
   const picture = (id, base) => `<picture data-collection-id="${id}"><source srcset="https://cdn.brendan-mulvany-photography.com/${base}/thumb.webp 200w, https://cdn.brendan-mulvany-photography.com/${base}/small.webp 800w"><img src="https://cdn.brendan-mulvany-photography.com/${base}/small.webp" width="1500" height="1000" alt="Old"></picture>`;
-  const fragments = (id, photo, base) => ({
-    leadHtml: `<a href="/photos/${photo}/" data-collection-id="${id}" data-collection-hero-link>${picture(id, base)}</a>`,
-    cardHtml: `<a href="/collections/${id}/">${picture(id, base)}Collection</a>`,
+  const fragments = (id, roll, photo, base) => ({
+    leadHtml: `<a href="/image/${photo}/" data-collection-id="${id}" data-collection-hero-link>${picture(id, base)}</a>`,
+    cardHtml: `<a href="/roll/${roll}/">${picture(id, base)}Collection</a>`,
   });
-  const first = fragments('roll-a', 1, 'old');
+  const first = fragments('roll-a', '3071', 1, 'old');
   const fixture = `<html><body><div id="homepage-lead">${first.leadHtml}</div><div id="homepage-collections">${first.cardHtml}</div></body></html>`;
-  const manifest = {'popes-visit': first, 'roll-a': first, 'roll-b': fragments('roll-b', 3, 'other')};
+  const manifest = {'popes-visit': first, 'roll-a': first, 'roll-b': fragments('roll-b', '4083', 3, 'other')};
   const mf = new Miniflare(convertV4MiniflareOptions({workers: [{name: 'site', script: bundle.outputFiles[0].text, modules: true,
     compatibilityDate: '2026-09-13', compatibilityFlags: ['nodejs_compat'],
     bindings: {PUBLIC_ORIGIN: origin, ADMIN_EMAIL: 'admin@example.test', EMAIL_FROM: 'no-reply@example.test', AUTH_SECRET: crypto.randomUUID() + crypto.randomUUID(), CACHE_VERSION: 'test'},
@@ -138,8 +138,8 @@ test('Worker: verified sessions, community isolation, moderation, newsletter and
     const home = await call('/', {cookie: admin.cookie});
     const html = await home.text();
     assert.match(html, /chosen\/small.webp/);
-    assert.match(html, /href="\/photos\/2\/"/);
-    assert.match(html, /href="\/collections\/roll-a\/"/);
+    assert.match(html, /href="\/image\/2\/"/);
+    assert.match(html, /href="\/roll\/3071\/"/);
     assert.ok(!html.includes('old/small.webp'));
     assert.equal(home.headers.get('etag'), null);
     assert.equal(home.headers.get('set-cookie'), null);
@@ -158,8 +158,8 @@ test('Worker: verified sessions, community isolation, moderation, newsletter and
     await mf.purgeCache(); // Simulate expiry of the 60-second public HTML cache.
     const selectedHome = await call('/');
     const selectedHtml = await selectedHome.text();
-    assert.match(selectedHtml, /id="homepage-lead"><a href="\/photos\/3\/"/);
-    assert.ok(selectedHtml.indexOf('/collections/roll-b/') < selectedHtml.indexOf('/collections/roll-a/'), 'album cards follow the saved order');
+    assert.match(selectedHtml, /id="homepage-lead"><a href="\/image\/3\/"/);
+    assert.ok(selectedHtml.indexOf('/roll/4083/') < selectedHtml.indexOf('/roll/3071/'), 'album cards follow the saved order');
     assert.match(selectedHtml, /chosen\/small.webp/, 'inserted album cards receive the current hero override');
     assert.ok(!selectedHtml.includes('old/small.webp'));
     assert.equal(selectedHome.headers.get('set-cookie'), null);
@@ -167,16 +167,16 @@ test('Worker: verified sessions, community isolation, moderation, newsletter and
     assert.equal(await call('/', {cookie: member.cookie}).then(r => r.text()), selectedHtml);
     const directoryHtml = await call('/collections/').then(r => r.text());
     assert.match(directoryHtml, /chosen\/small.webp/);
-    assert.ok(!directoryHtml.includes('/collections/roll-b/'), 'homepage choices do not replace directory contents');
+    assert.ok(!directoryHtml.includes('/roll/4083/'), 'homepage choices do not replace directory contents');
     assert.equal((await call('/api/admin/homepage', {method: 'PUT', cookie: admin.cookie, body: {collectionIds: ['roll-a']}})).status, 200);
     await mf.purgeCache();
     const singleHtml = await call('/').then(r => r.text());
-    assert.match(singleHtml, /id="homepage-lead"><a href="\/photos\/2\/"/, 'chosen first album uses its current lead photo');
-    assert.ok(!singleHtml.includes('/collections/roll-b/'), 'removed albums disappear');
+    assert.match(singleHtml, /id="homepage-lead"><a href="\/image\/2\/"/, 'chosen first album uses its current lead photo');
+    assert.ok(!singleHtml.includes('/roll/4083/'), 'removed albums disappear');
     await community.prepare('UPDATE homepage_settings SET collection_ids = ? WHERE id = 1').bind(JSON.stringify(['removed-album', 'roll-b'])).run();
     await mf.purgeCache();
     const staleHtml = await call('/').then(r => r.text());
-    assert.match(staleHtml, /id="homepage-lead"><a href="\/photos\/3\/"/);
+    assert.match(staleHtml, /id="homepage-lead"><a href="\/image\/3\/"/);
     assert.ok(!staleHtml.includes('removed-album'), 'later unpublished albums are skipped');
     await community.prepare('UPDATE homepage_settings SET collection_ids = ? WHERE id = 1').bind(JSON.stringify(['removed-album'])).run();
     await mf.purgeCache();

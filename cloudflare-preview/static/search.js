@@ -36,7 +36,7 @@ function photoTitle(photo) {
 function card(photo, index) {
   const article = node('article', 'photo-card');
   const link = node('a', 'photo-card__link');
-  link.href = `/photos/${encodeURIComponent(photo.id)}/`;
+  link.href = `/image/${encodeURIComponent(photo.id)}/`;
   const picture = node('picture', 'photo-card__image');
   const image = node('img');
   const source = node('source');

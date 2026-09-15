@@ -8,7 +8,7 @@ const baseline = process.argv[3] || 'https://www.brendan-mulvany-photography.com
 const samples = Number(process.env.SAMPLES || 7);
 if (!Number.isInteger(samples) || samples < 2 || samples > 20) throw new Error('SAMPLES must be between 2 and 20');
 const manifest = JSON.parse(await readFile(new URL('../data/sample.json', import.meta.url), 'utf8'));
-const paths = [['home', '/'], ['collection', '/collections/popes-visit/'],
+const paths = [['home', '/'], ['collection', '/roll/3071/'],
   ['search-pope', '/api/search?q=pope'], ['search-football', '/api/search?q=football'],
   ['search-year', '/api/search?q=1979'], ['search-multiword', '/api/search?q=pope+ireland']];
 const baselinePaths = [['home', '/'], ['collection', '/roll/3071/index.html'],

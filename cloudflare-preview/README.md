@@ -17,6 +17,39 @@ Every photo ID and URL is checked against the published roll pages by the export
 Existing machine-generated descriptions can contain historical inaccuracies;
 they remain searchable but are labelled on photo pages.
 
+## Existing public addresses
+
+Photo pages use `/image/{id}/` and galleries use `/roll/{roll}/`, matching the
+Vercel archive. Roll names are preserved verbatim, including `misc-*` and `r-9002`.
+The original `/years/`, `/year/{year}/`, `/batches/`, and `/about/` pages are also
+available. Year membership comes from the same published photo metadata; historical
+metadata anomalies are retained rather than silently corrected by this change.
+
+Earlier preview photo links under `/photos/{id}/`, and original alternate links
+under `/image_detail/{id}/`, permanently redirect to `/image/{id}/`. Preview
+collection links redirect to the corresponding original roll URL. `/rolls/`
+redirects to the collection directory and `/search.html` to `/search/`. Query
+strings survive redirects; no fragment is set so browser-held anchors such as
+`#community` remain intact. Static assets handle bare and `index.html` spellings
+of page URLs. Internal links use the final trailing-slash addresses directly.
+The generated `_redirects` file uses six dynamic photo rules and bounded static
+collection rules, with a build-time limit check. Photo/gallery pages remain static;
+no additional Worker or database lookup is needed for canonical image pages.
+Photo IDs, D1 rows, community contributions and CDN image URLs do not change.
+
+Switching the main hostname is a separate deployment. DNS currently resolves
+both the apex and `www` to Vercel, while Cloudflare already manages the nameservers.
+Before cutover, inspect and record the actual DNS records for rollback, replace
+the Vercel records with Worker Custom Domains, and choose one canonical hostname
+with a redirect from the other. Cloudflare provisions DNS and certificates for
+Custom Domains; existing CNAME records must first be removed if present. Public
+DNS alone cannot distinguish an A record from a flattened CNAME.
+Update `PUBLIC_ORIGIN`, hostname redirects, canonical links/sitemap and crawler
+settings together; remove the preview branding and links back to the original.
+Users sign in again on the main hostname because sessions are host-scoped.
+Keep Vercel available for rollback and leave the CDN and mail records intact.
+This route update deploys only to `new` and retains its noindex settings.
+
 ## Local run
 
 Requires Node 24+, Python 3.9+, the existing `../public_site.db`, and the existing
@@ -143,6 +176,7 @@ and `OUTPUT_FILE=data/full-archive-benchmark.json` to keep a separate result fil
 ## References
 
 - [Workers static assets](https://developers.cloudflare.com/workers/static-assets/)
+- [Static asset redirects](https://developers.cloudflare.com/workers/static-assets/redirects/)
 - [D1 SQL and FTS5 support](https://developers.cloudflare.com/d1/sql-api/sql-statements/)
 - [D1 read replication and sessions](https://developers.cloudflare.com/d1/best-practices/read-replication/)
 - [Worker custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
