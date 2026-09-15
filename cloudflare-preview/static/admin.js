@@ -69,7 +69,7 @@ function activityRow(item) {
   if (item.photoId) {
     const review = el('a', 'quiet-button', 'Review photograph');
     const type = item.action.startsWith('comment.') ? 'comment' : item.action.startsWith('annotation.') ? 'annotation' : null;
-    review.href = `/photos/${encodeURIComponent(item.photoId)}/${type && item.targetId ? `#${type}-${encodeURIComponent(item.targetId)}` : '#community'}`;
+    review.href = `/image/${encodeURIComponent(item.photoId)}/${type && item.targetId ? `#${type}-${encodeURIComponent(item.targetId)}` : '#community'}`;
     row.append(review);
   }
   return row;

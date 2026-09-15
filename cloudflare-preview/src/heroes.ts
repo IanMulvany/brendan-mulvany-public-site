@@ -100,7 +100,7 @@ export async function serveHeroPage(request: Request, env: Env, ctx: ExecutionCo
       },
     }).on(`a[data-collection-id="${hero.collectionId}"][data-collection-hero-link]`, {
       element(element) {
-        element.setAttribute('href', `/photos/${hero.photoId}/`);
+        element.setAttribute('href', `/image/${hero.photoId}/`);
         element.setAttribute('aria-label', `View photograph: ${hero.title || 'From the archive'}`);
       },
     });
