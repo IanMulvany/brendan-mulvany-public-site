@@ -33,7 +33,7 @@ const origin = 'https://archive.test';
 function fixture(t) {
   const archive = new D1(), community = new D1();
   archive.sqlite.exec(readFileSync(new URL('../migrations/0001_search.sql', import.meta.url), 'utf8'));
-  for (const filename of ['0001_accounts.sql', '0002_community.sql', '0003_homepage.sql']) {
+  for (const filename of ['0001_accounts.sql', '0002_community.sql', '0003_homepage.sql', '0005_moderation.sql']) {
     community.sqlite.exec(readFileSync(new URL(`../community-migrations/${filename}`, import.meta.url), 'utf8'));
   }
   const collections = [...DEFAULT_HOMEPAGE_COLLECTION_IDS, 'roll-6000', 'roll-4000', 'roll-9000', 'roll-extra'];

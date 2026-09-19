@@ -249,7 +249,9 @@ A content-hashed JSON manifest is shared by all image pages in each roll. Only t
 
 ### Naming people beside the photograph
 
-Annotation controls, drawing guidance and image overlays stay hidden until the server confirms an active, verified member or administrator session. Guests see a prominent **Sign in or create an account** link; published names remain readable below the photograph. Failed permission checks and expired sessions hide the editing controls again.
+Annotation controls, drawing guidance and image overlays stay hidden until the server confirms an active, verified account with approved annotation access. `ian@mulvany.net` has administrator access; all other new and existing members require approval through `/admin/#admin-users-section`. Verified members can still like and comment while pending. Guests see a prominent **Sign in or create an account** link; published names remain readable below the photograph. Failed permission checks and expired sessions hide the editing controls again.
+
+The admin review screen at `/admin/#admin-review-section` supports reviewing, hiding and restoring comments and names, with photograph context and an audit trail. Comments publish immediately. See [COMMUNITY.md](COMMUNITY.md) for the approval workflow and additive migration, and [SECURITY_REVIEW.md](SECURITY_REVIEW.md) for the comment security audit.
 
 Choose **Add a name** and draw around a person. The name field opens beside the
 selected area when there is space, or directly below the photograph on a small

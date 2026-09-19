@@ -5,7 +5,8 @@ const PAGE_SIZE = 100;
 const ADMIN_PAGE_SIZE = 50;
 const CARD_FIELDS = 'id, collection_id, title, year, image_base, width, height';
 const now = () => Math.floor(Date.now() / 1000);
-const publicUser = (user: AuthUser | null) => user ? {id: user.id, displayName: user.displayName, role: user.role} : null;
+const publicUser = (user: AuthUser | null) => user ? {id: user.id, displayName: user.displayName, role: user.role,
+  canAnnotate: user.canAnnotate, annotationStatus: user.annotationStatus} : null;
 const canDelete = (user: AuthUser | null, owner: string) => Boolean(user && (user.id === owner || user.role === 'admin'));
 
 type Photo = {id: number; collection_id: string; title: string; year: string; image_base: string; width: number | null; height: number | null};
@@ -19,7 +20,7 @@ function positiveId(value: string | number) {
   return Number(value);
 }
 function itemId(value: string) {
-  if (!/^[a-f0-9-]{36}$/i.test(value)) throw new HttpError(400, 'Invalid contribution.');
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value)) throw new HttpError(400, 'Invalid contribution.');
   return value;
 }
 function collectionId(value: string) {
@@ -28,7 +29,7 @@ function collectionId(value: string) {
 }
 function textField(value: unknown, label: string, maximum: number, optional = false) {
   if (optional && value === undefined) return '';
-  if (typeof value !== 'string' || value.includes('\0')) throw new HttpError(400, `${label} must be text.`);
+  if (typeof value !== 'string' || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/.test(value)) throw new HttpError(400, `${label} must be text.`);
   const text = value.trim();
   if ((!optional && !text) || text.length > maximum) throw new HttpError(400, `${label} must contain ${optional ? 'no more than' : 'between 1 and'} ${maximum} characters.`);
   return text;
@@ -126,24 +127,35 @@ async function createComment(request: Request, env: Env, photoId: number) {
   const user = await writer(request, env);
   await photo(env, photoId);
   const body = textField((await readJson(request)).body, 'Comment', 2000);
+  await rateLimit(env, `community:comments:minute:${user.id}`, 5, 60);
+  await rateLimit(env, `community:comments:hour:${user.id}`, 30, 3600);
   const id = crypto.randomUUID(), createdAt = now();
-  await env.COMMUNITY.batch([
-    env.COMMUNITY.prepare('INSERT INTO comments (id,photo_id,user_id,body,created_at) VALUES (?,?,?,?,?)')
-      .bind(id, photoId, user.id, body, createdAt),
-    audit(env, user, 'comment.created', photoId, id),
+  const results = await env.COMMUNITY.batch([
+    env.COMMUNITY.prepare(`INSERT INTO comments (id,photo_id,user_id,body,created_at)
+      SELECT ?,?,?,?,? FROM users WHERE id = ? AND status = 'active' AND verified_at IS NOT NULL`)
+      .bind(id, photoId, user.id, body, createdAt, user.id),
+    audit(env, user, 'comment.created', photoId, id, 'EXISTS(SELECT 1 FROM comments WHERE id = ?)', [id]),
   ]);
+  if (!results[0].meta.changes) throw new HttpError(403, 'Your account permission has changed. Please reload the page.');
   return json({id, userId: user.id, displayName: user.displayName, body, createdAt, canDelete: true}, 201);
 }
 async function createAnnotation(request: Request, env: Env, photoId: number) {
   const user = await writer(request, env);
+  if (!user.canAnnotate) throw new HttpError(403, 'An administrator must approve your account before you can add names.');
   await photo(env, photoId);
   const value = validateAnnotation(await readJson(request));
   const id = crypto.randomUUID(), createdAt = now();
-  await env.COMMUNITY.batch([
-    env.COMMUNITY.prepare('INSERT INTO annotations (id,photo_id,user_id,name,note,x,y,width,height,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)')
-      .bind(id, photoId, user.id, value.name, value.note, value.x, value.y, value.width, value.height, createdAt),
-    audit(env, user, 'annotation.created', photoId, id),
+  // Recheck approval in the same transaction as insertion, so an approval
+  // revoked after the session read cannot still authorize a contribution.
+  const results = await env.COMMUNITY.batch([
+    env.COMMUNITY.prepare(`INSERT INTO annotations (id,photo_id,user_id,name,note,x,y,width,height,created_at)
+      SELECT ?,?,?,?,?,?,?,?,?,? FROM users WHERE id = ? AND status = 'active' AND verified_at IS NOT NULL
+        AND (annotation_status = 'approved' OR lower(email) = ?)`)
+      .bind(id, photoId, user.id, value.name, value.note, value.x, value.y, value.width, value.height, createdAt,
+        user.id, env.ADMIN_EMAIL.trim().toLowerCase()),
+    audit(env, user, 'annotation.created', photoId, id, 'EXISTS(SELECT 1 FROM annotations WHERE id = ?)', [id]),
   ]);
+  if (!results[0].meta.changes) throw new HttpError(403, 'Your annotation permission has changed. Please reload the page.');
   return json({id, userId: user.id, displayName: user.displayName, ...value, createdAt, canDelete: true}, 201);
 }
 async function hideContribution(request: Request, env: Env, table: 'comments' | 'annotations', id: string) {
@@ -184,7 +196,13 @@ function pageNumber(url: URL) {
   if (!/^[1-9]\d{0,3}$/.test(raw) || Number(raw) > 1000) throw new HttpError(400, 'Page must be between 1 and 1000.');
   return Number(raw);
 }
-const USER_FIELDS = 'id,email,display_name AS displayName,role,status,verified_at AS verifiedAt,created_at AS createdAt,last_login_at AS lastLoginAt';
+const USER_FIELDS = 'id,email,display_name AS displayName,role,status,annotation_status AS annotationStatus,verified_at AS verifiedAt,created_at AS createdAt,last_login_at AS lastLoginAt';
+type AdminUser = {id: string; email: string; role: string; status: string; annotationStatus: AuthUser['annotationStatus']; verifiedAt: number | null};
+function adminUser(user: AdminUser, env: Env) {
+  const role = user.email.toLowerCase() === env.ADMIN_EMAIL.trim().toLowerCase() ? 'admin' : 'member';
+  const annotationStatus = role === 'admin' ? 'approved' : user.annotationStatus;
+  return {...user, role, annotationStatus, canAnnotate: annotationStatus === 'approved' && user.status === 'active' && user.verifiedAt !== null};
+}
 async function summary(env: Env) {
   const result = await env.COMMUNITY.prepare(`SELECT
     (SELECT COUNT(*) FROM users) AS users,
@@ -192,33 +210,45 @@ async function summary(env: Env) {
     (SELECT COUNT(*) FROM users WHERE status = 'suspended') AS suspendedUsers,
     (SELECT COUNT(*) FROM comments WHERE hidden_at IS NULL) AS comments,
     (SELECT COUNT(*) FROM annotations WHERE hidden_at IS NULL) AS annotations,
+    (SELECT COUNT(*) FROM comments WHERE hidden_at IS NULL AND reviewed_at IS NULL) AS unreviewedComments,
+    (SELECT COUNT(*) FROM annotations WHERE hidden_at IS NULL AND reviewed_at IS NULL) AS unreviewedAnnotations,
+    (SELECT COUNT(*) FROM users WHERE status='active' AND verified_at IS NOT NULL AND annotation_status='pending' AND lower(email) != ?) AS pendingAnnotationUsers,
     (SELECT COUNT(*) FROM likes) AS likes,
     (SELECT COUNT(*) FROM newsletter_subscribers WHERE status = 'confirmed') AS subscribers,
-    (SELECT COUNT(*) FROM collection_heroes) AS collectionsWithCustomHeroes`).first();
+    (SELECT COUNT(*) FROM collection_heroes) AS collectionsWithCustomHeroes`).bind(env.ADMIN_EMAIL.trim().toLowerCase()).first();
   return json(result);
 }
-async function adminList(env: Env, name: 'users' | 'activity' | 'subscribers', page: number) {
-  const sql = name === 'users' ? `SELECT ${USER_FIELDS} FROM users ORDER BY created_at DESC, id DESC`
+async function adminList(env: Env, name: 'users' | 'activity' | 'subscribers', page: number, annotationStatus = 'all') {
+  if (!['all', 'pending', 'approved', 'revoked'].includes(annotationStatus)) throw new HttpError(400, 'Invalid annotation permission filter.');
+  const args: (string | number)[] = [];
+  const permission = `CASE WHEN lower(email) = ? THEN 'approved' ELSE annotation_status END`;
+  if (name === 'users' && annotationStatus !== 'all') args.push(env.ADMIN_EMAIL.trim().toLowerCase(), annotationStatus);
+  const sql = name === 'users' ? `SELECT ${USER_FIELDS} FROM users
+      ${annotationStatus !== 'all' ? `WHERE ${permission} = ?` : ''} ORDER BY created_at DESC, id DESC`
     : name === 'activity' ? `SELECT a.id,a.user_id AS userId,u.display_name AS displayName,a.action,
       a.photo_id AS photoId,a.target_id AS targetId,a.created_at AS createdAt
-      FROM activity a JOIN users u ON u.id = a.user_id ORDER BY a.created_at DESC,a.id DESC`
+      FROM (SELECT * FROM activity UNION ALL SELECT * FROM moderation_activity) a
+      JOIN users u ON u.id = a.user_id ORDER BY a.created_at DESC,a.id DESC`
     : `SELECT id,email,display_name AS displayName,status,consent_at AS consentAt,confirmed_at AS confirmedAt,
       unsubscribed_at AS unsubscribedAt,created_at AS createdAt,provider_sync_status AS providerSyncStatus
       FROM newsletter_subscribers ORDER BY created_at DESC,id DESC`;
-  const result = await env.COMMUNITY.prepare(`${sql} LIMIT ? OFFSET ?`).bind(ADMIN_PAGE_SIZE + 1, (page - 1) * ADMIN_PAGE_SIZE).all();
-  return json({[name]: result.results.slice(0, ADMIN_PAGE_SIZE), hasMore: result.results.length > ADMIN_PAGE_SIZE});
+  const result = await env.COMMUNITY.prepare(`${sql} LIMIT ? OFFSET ?`).bind(...args, ADMIN_PAGE_SIZE + 1, (page - 1) * ADMIN_PAGE_SIZE).all();
+  const rows = result.results.slice(0, ADMIN_PAGE_SIZE);
+  return json({[name]: name === 'users' ? rows.map(row => adminUser(row as AdminUser, env)) : rows,
+    hasMore: result.results.length > ADMIN_PAGE_SIZE});
 }
 async function changeUser(request: Request, env: Env, id: string) {
   const user = await writer(request, env, true);
   const body = await readJson(request);
+  if (body.annotationStatus !== undefined) return changeAnnotationPermission(env, user, id, body);
   if (body.status !== 'active' && body.status !== 'suspended') throw new HttpError(400, 'Choose active or suspended status.');
   const target = await env.COMMUNITY.prepare('SELECT id,email,role FROM users WHERE id = ?').bind(id).first<{id: string; email: string; role: string}>();
   if (!target) throw new HttpError(404, 'User not found.');
   const adminEmail = env.ADMIN_EMAIL.trim().toLowerCase();
-  if (body.status === 'suspended' && (target.id === user.id || target.role === 'admin' || target.email.toLowerCase() === adminEmail)) {
+  if (body.status === 'suspended' && (target.id === user.id || target.email.toLowerCase() === adminEmail)) {
     throw new HttpError(403, 'Administrators cannot suspend themselves or another administrator.');
   }
-  const eligible = `id = ? AND status != ? AND (? != 'suspended' OR (role != 'admin' AND lower(email) != ? AND id != ?))`;
+  const eligible = `id = ? AND status != ? AND (? != 'suspended' OR (lower(email) != ? AND id != ?))`;
   const args = [id, body.status, body.status, adminEmail, user.id];
   const statements = [
     audit(env, user, 'user.status_changed', null, id, `EXISTS(SELECT 1 FROM users WHERE ${eligible})`, args),
@@ -227,8 +257,82 @@ async function changeUser(request: Request, env: Env, id: string) {
   if (body.status === 'suspended') statements.push(env.COMMUNITY.prepare(`UPDATE sessions SET revoked_at = ?
     WHERE user_id = ? AND revoked_at IS NULL AND EXISTS(SELECT 1 FROM users WHERE id = ? AND status = 'suspended')`).bind(now(), id, id));
   await env.COMMUNITY.batch(statements);
-  return json({user: await env.COMMUNITY.prepare(`SELECT ${USER_FIELDS} FROM users WHERE id = ?`).bind(id).first()});
+  return json({user: adminUser((await env.COMMUNITY.prepare(`SELECT ${USER_FIELDS} FROM users WHERE id = ?`).bind(id).first<AdminUser>())!, env)});
 }
+
+function moderationAudit(env: Env, user: AuthUser, action: string, photoId: number | null, targetId: string,
+  condition: string, args: (string | number | null)[]) {
+  return env.COMMUNITY.prepare(`INSERT INTO moderation_activity (id,user_id,action,photo_id,target_id,created_at)
+    SELECT ?,?,?,?,?,? WHERE ${condition}`).bind(crypto.randomUUID(), user.id, action, photoId, targetId, now(), ...args);
+}
+
+async function changeAnnotationPermission(env: Env, user: AuthUser, id: string, body: Record<string, unknown>) {
+  if ((body.annotationStatus !== 'approved' && body.annotationStatus !== 'revoked') || body.status !== undefined) {
+    throw new HttpError(400, 'Choose approved or revoked annotation permission separately from account status.');
+  }
+  const target = await env.COMMUNITY.prepare(`SELECT ${USER_FIELDS} FROM users WHERE id = ?`).bind(id).first<AdminUser>();
+  if (!target) throw new HttpError(404, 'User not found.');
+  const adminEmail = env.ADMIN_EMAIL.trim().toLowerCase();
+  if (target.email.toLowerCase() === adminEmail || target.id === user.id) {
+    throw new HttpError(403, 'The administrator already has annotation permission.');
+  }
+  if (body.annotationStatus === 'approved' && (target.status !== 'active' || target.verifiedAt === null)) {
+    throw new HttpError(400, 'Only a verified, active account can be approved.');
+  }
+  const eligible = `id = ? AND annotation_status != ? AND lower(email) != ?
+    AND (? != 'approved' OR (status = 'active' AND verified_at IS NOT NULL))`;
+  const args = [id, body.annotationStatus, adminEmail, body.annotationStatus];
+  await env.COMMUNITY.batch([
+    moderationAudit(env, user, body.annotationStatus === 'approved' ? 'user.annotations_approved' : 'user.annotations_revoked',
+      null, id, `EXISTS(SELECT 1 FROM users WHERE ${eligible})`, args),
+    env.COMMUNITY.prepare(`UPDATE users SET annotation_status = ? WHERE ${eligible}`).bind(body.annotationStatus, ...args),
+  ]);
+  return json({user: adminUser((await env.COMMUNITY.prepare(`SELECT ${USER_FIELDS} FROM users WHERE id = ?`).bind(id).first<AdminUser>())!, env)});
+}
+
+type ReviewItem = (Comment | Annotation) & {photoId: number; email: string; hiddenAt: number | null;
+  hiddenBy: string | null; reviewedAt: number | null; reviewedBy: string | null};
+async function reviewList(env: Env, table: 'comments' | 'annotations', page: number, filter: string) {
+  if (!['unreviewed', 'visible', 'hidden', 'all'].includes(filter)) throw new HttpError(400, 'Invalid contribution review filter.');
+  const condition = filter === 'unreviewed' ? 'c.reviewed_at IS NULL AND c.hidden_at IS NULL'
+    : filter === 'visible' ? 'c.hidden_at IS NULL' : filter === 'hidden' ? 'c.hidden_at IS NOT NULL' : '1';
+  const fields = table === 'comments' ? 'c.body' : 'c.name,c.note,c.x,c.y,c.width,c.height';
+  const result = await env.COMMUNITY.prepare(`SELECT c.id,c.photo_id AS photoId,c.user_id AS userId,
+      u.display_name AS displayName,u.email,${fields},c.created_at AS createdAt,
+      c.hidden_at AS hiddenAt,c.hidden_by AS hiddenBy,c.reviewed_at AS reviewedAt,c.reviewed_by AS reviewedBy
+    FROM ${table} c JOIN users u ON u.id = c.user_id WHERE ${condition}
+    ORDER BY c.created_at DESC,c.id DESC LIMIT ? OFFSET ?`)
+    .bind(ADMIN_PAGE_SIZE + 1, (page - 1) * ADMIN_PAGE_SIZE).all<ReviewItem>();
+  const items = result.results.slice(0, ADMIN_PAGE_SIZE);
+  const photoIds = [...new Set(items.map(item => item.photoId))];
+  const photos = photoIds.length ? (await env.DB.prepare(`SELECT ${CARD_FIELDS} FROM photos WHERE id IN (${photoIds.map(() => '?').join(',')})`)
+    .bind(...photoIds).all<Photo>()).results : [];
+  const byId = new Map(photos.map(item => [item.id, {id: item.id, imageBase: item.image_base,
+    title: item.title, width: item.width, height: item.height}]));
+  return json({[table]: items.map(item => ({...item, photo: byId.get(item.photoId) ?? null})), hasMore: result.results.length > ADMIN_PAGE_SIZE});
+}
+
+async function moderateContribution(request: Request, env: Env, table: 'comments' | 'annotations', id: string) {
+  const user = await writer(request, env, true);
+  const body = await readJson(request);
+  if (typeof body.action !== 'string' || !['review', 'hide', 'restore'].includes(body.action)) throw new HttpError(400, 'Choose review, hide or restore.');
+  const item = await env.COMMUNITY.prepare(`SELECT photo_id FROM ${table} WHERE id = ?`).bind(id).first<{photo_id: number}>();
+  if (!item) throw new HttpError(404, 'Contribution not found.');
+  const action = body.action;
+  const condition = action === 'review' ? 'reviewed_at IS NULL' : action === 'hide' ? 'hidden_at IS NULL' : 'hidden_at IS NOT NULL';
+  const change = action === 'review' ? 'reviewed' : action === 'hide' ? 'hidden' : 'restored';
+  const updatedAt = now();
+  const assignments = action === 'hide' ? 'hidden_at = ?, hidden_by = ?,' : action === 'restore' ? 'hidden_at = NULL, hidden_by = NULL,' : '';
+  const args: (string | number)[] = action === 'hide' ? [updatedAt, user.id] : [];
+  await env.COMMUNITY.batch([
+    moderationAudit(env, user, `${table === 'comments' ? 'comment' : 'annotation'}.${change}`, item.photo_id, id,
+      `EXISTS(SELECT 1 FROM ${table} WHERE id = ? AND ${condition})`, [id]),
+    env.COMMUNITY.prepare(`UPDATE ${table} SET ${assignments} reviewed_at = ?, reviewed_by = ? WHERE id = ? AND ${condition}`)
+      .bind(...args, updatedAt, user.id, id),
+  ]);
+  return json({ok: true});
+}
+
 async function adminCollections(env: Env) {
   const [collections, heroes] = await Promise.all([
     env.DB.prepare('SELECT DISTINCT collection_id AS id FROM photos ORDER BY collection_id LIMIT 1001').all<{id: string}>(),
@@ -306,10 +410,14 @@ export async function handleCommunity(request: Request, env: Env): Promise<Respo
     if (path === '/api/admin/summary') return summary(env);
     if (path === '/api/admin/collections') return adminCollections(env);
     match = path.match(/^\/api\/admin\/(users|activity|subscribers)$/);
-    if (match) return adminList(env, match[1] as 'users' | 'activity' | 'subscribers', pageNumber(url));
+    if (match) return adminList(env, match[1] as 'users' | 'activity' | 'subscribers', pageNumber(url), url.searchParams.get('annotationStatus') ?? 'all');
+    match = path.match(/^\/api\/admin\/(comments|annotations)$/);
+    if (match) return reviewList(env, match[1] as 'comments' | 'annotations', pageNumber(url), url.searchParams.get('filter') ?? 'unreviewed');
     match = path.match(/^\/api\/admin\/collections\/([^/]+)\/photos$/);
     if (match) return collectionPhotos(env, collectionId(match[1]));
   }
+  match = path.match(/^\/api\/admin\/(comments|annotations)\/([^/]+)$/);
+  if (match && request.method === 'PATCH') return moderateContribution(request, env, match[1] as 'comments' | 'annotations', itemId(match[2]));
   match = path.match(/^\/api\/admin\/users\/([^/]+)$/);
   if (match && request.method === 'PATCH') return changeUser(request, env, itemId(match[1]));
   match = path.match(/^\/api\/admin\/collections\/([^/]+)\/hero$/);

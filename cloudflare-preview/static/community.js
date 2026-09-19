@@ -21,6 +21,7 @@ const saveRegion = document.querySelector('#annotation-save');
 const feedback = document.querySelector('#annotation-feedback');
 const annotationToolbar = document.querySelector('#annotation-toolbar');
 const photoSignin = document.querySelector('#photo-signin');
+const annotationPermission = document.querySelector('#annotation-permission-notice');
 const contributionHelp = document.querySelector('#community-contribution-help');
 const areaDetails = document.querySelector('#annotation-area-details');
 const noteDetails = document.querySelector('#annotation-note-details');
@@ -39,34 +40,41 @@ let drawing = false;
 let startPoint;
 let pointerId;
 let followedAnchor = false;
+let loadSequence = 0;
 
 function errorMessage(error) {
   message(status, error.message || 'The archive could not be reached. Please try again.', true);
-  if (error.status === 401 || error.status === 403) { state.user = null; renderAuth(); renderLists(); }
+  if (error.status === 401 || error.status === 403) { loadSequence++; state.user = null; renderAuth(); renderLists(); }
 }
 
 // The community endpoint only returns active, email-verified sessions. Treat
 // missing or unrecognised roles as read-only, including while it is loading.
 function canContribute() { return Boolean(state.user && ['member', 'admin'].includes(state.user.role)); }
+function canAnnotate() { return canContribute() && state.user.canAnnotate === true; }
 
 function renderAuth() {
   const allowed = canContribute();
+  const annotationAllowed = canAnnotate();
   setAccountIndicator(allowed ? state.user : null);
   const guest = document.querySelector('#community-signin');
   guest.replaceChildren();
   guest.hidden = allowed;
   if (!allowed) guest.append(signin('Sign in or create an account to contribute'));
   photoSignin.hidden = allowed;
-  annotationToolbar.hidden = !allowed;
-  feedback.hidden = !allowed;
+  annotationToolbar.hidden = !annotationAllowed;
+  feedback.hidden = !annotationAllowed;
+  annotationPermission.hidden = !allowed || annotationAllowed;
+  annotationPermission.textContent = state.user?.annotationStatus === 'revoked'
+    ? 'You can like photographs and add comments. Annotation access is not currently approved.'
+    : 'You can like photographs and add comments. Your access to add names is awaiting administrator approval.';
   contributionHelp.hidden = !allowed;
-  overlay.toggleAttribute('hidden', !allowed);
+  overlay.toggleAttribute('hidden', !annotationAllowed);
   commentForm.hidden = !allowed;
-  begin.disabled = !allowed || !image.naturalWidth;
-  document.querySelector('#annotation-manual').disabled = !allowed || !image.naturalWidth;
+  begin.disabled = !annotationAllowed || !image.naturalWidth;
+  document.querySelector('#annotation-manual').disabled = !annotationAllowed || !image.naturalWidth;
   like.hidden = !allowed;
   like.disabled = !allowed;
-  if (!allowed) {
+  if (!annotationAllowed) {
     annotationForm.hidden = true;
     setDrawing(false);
     setDraft(null);
@@ -126,7 +134,7 @@ function renderLists() {
   comments.replaceChildren(...state.comments.map(item => contribution(item, 'comments')));
   annotations.replaceChildren(...state.annotations.map(item => contribution(item, 'annotations')));
   if (!state.comments.length) comments.append(el('li', 'community-empty', canContribute() ? 'No comments yet. Share a memory or a useful detail about this photograph.' : 'No comments yet.'));
-  if (!state.annotations.length) annotations.append(el('li', 'community-empty', canContribute() ? 'Recognise someone? Add a name to a marked area of the photograph.' : 'No names have been added yet.'));
+  if (!state.annotations.length) annotations.append(el('li', 'community-empty', canAnnotate() ? 'Recognise someone? Add a name to a marked area of the photograph.' : 'No names have been added yet.'));
   more.hidden = !state.nextCursor;
   if (!followedAnchor && /^#(?:comment|annotation)-[\w-]+$/.test(location.hash)) {
     const target = document.getElementById(location.hash.slice(1));
@@ -154,8 +162,8 @@ function measure() {
   };
   overlay.setAttribute('viewBox', `0 0 ${container.width} ${container.height}`);
   renderOverlay();
-  begin.disabled = !canContribute();
-  document.querySelector('#annotation-manual').disabled = !canContribute();
+  begin.disabled = !canAnnotate();
+  document.querySelector('#annotation-manual').disabled = !canAnnotate();
 }
 
 function shapeAttributes(shape, region) {
@@ -168,7 +176,7 @@ function shapeAttributes(shape, region) {
 function paintDraft() {
   draftShape.setAttribute('visibility', draft && geometry ? 'visible' : 'hidden');
   if (draft && geometry) shapeAttributes(draftShape, draft);
-  saveRegion.disabled = !draft || !canContribute() || annotationForm.dataset.busy === 'true';
+  saveRegion.disabled = !draft || !canAnnotate() || annotationForm.dataset.busy === 'true';
   const previewReady = draft && draft.width > 0 && draft.height > 0 && geometry;
   preview.hidden = !previewReady;
   if (previewReady) {
@@ -203,7 +211,7 @@ function showEditor({ manual = false } = {}) {
 }
 
 function beginDrawing() {
-  if (!canContribute() || annotationForm.dataset.busy === 'true') return;
+  if (!canAnnotate() || annotationForm.dataset.busy === 'true') return;
   delete feedback.dataset.saved;
   annotationForm.hidden = true;
   setDraft(null);
@@ -223,7 +231,7 @@ function cancelAnnotation() {
 
 function renderOverlay() {
   labels.replaceChildren();
-  if (geometry && canContribute() && showNames.checked) {
+  if (geometry && canAnnotate() && showNames.checked) {
     for (const region of state.annotations) {
       const rect = document.createElementNS(svgNS, 'rect');
       rect.setAttribute('class', 'annotation-region');
@@ -284,7 +292,7 @@ begin.addEventListener('click', () => {
   else beginDrawing();
 });
 document.querySelector('#annotation-manual').addEventListener('click', () => {
-  if (!canContribute() || annotationForm.dataset.busy === 'true') return;
+  if (!canAnnotate() || annotationForm.dataset.busy === 'true') return;
   delete feedback.dataset.saved;
   setDrawing(false);
   measure();
@@ -293,7 +301,7 @@ document.querySelector('#annotation-manual').addEventListener('click', () => {
   message(feedback, 'Adjust the selected area, then enter the person’s name.');
 });
 overlay.addEventListener('pointerdown', event => {
-  if (!drawing || !canContribute() || event.button !== 0 || pointerId !== undefined || event.isPrimary === false) return;
+  if (!drawing || !canAnnotate() || event.button !== 0 || pointerId !== undefined || event.isPrimary === false) return;
   measure();
   startPoint = point(event);
   if (!startPoint) { message(feedback, 'Start the rectangle inside the photograph.'); return; }
@@ -341,11 +349,14 @@ new ResizeObserver(positionEditor).observe(annotationForm);
 window.addEventListener('resize', measure);
 
 async function load(append = false) {
+  const requestId = ++loadSequence;
   const knownAnnotations = new Set(state.annotations.map(item => item.id));
   const data = await api(`${base}/community${append && state.nextCursor ? `?cursor=${encodeURIComponent(state.nextCursor)}` : ''}`).catch(error => {
+    if (requestId !== loadSequence) return null;
     state.user = null; renderAuth(); renderLists();
     throw error;
   });
+  if (requestId !== loadSequence || !data) return;
   const old = state;
   state = { ...data, comments: data.comments || [], annotations: data.annotations || [] };
   if (append) {
@@ -373,7 +384,7 @@ commentForm.addEventListener('submit', event => {
 });
 annotationForm.addEventListener('submit', event => {
   event.preventDefault();
-  if (!canContribute() || annotationForm.dataset.busy === 'true') return;
+  if (!canAnnotate() || annotationForm.dataset.busy === 'true') return;
   if (!draft) { message(regionStatus, 'Select an area of the photograph first.', true); return; }
   const body = { ...draft, name: annotationForm.elements.name.value.trim(), note: annotationForm.elements.note.value.trim() };
   if (!body.name) { message(regionStatus, 'Enter the person’s name.', true); annotationForm.elements.name.focus(); return; }
@@ -390,7 +401,14 @@ annotationForm.addEventListener('submit', event => {
     message(status, 'The name has been added to the photograph. Saved names and notes become searchable within 30 seconds.');
     begin.focus({ preventScroll: true });
   }).catch(error => {
-    if (error.status === 401 || error.status === 403) errorMessage(error);
+    if (error.status === 403) {
+      // Recheck annotation approval without signing out a member who can still
+      // comment and like photographs after their annotation access is revoked.
+      if (state.user) state.user = { ...state.user, canAnnotate: false, annotationStatus: 'revoked' };
+      renderAuth(); renderLists();
+      load().catch(errorMessage);
+      message(status, error.message, true);
+    } else if (error.status === 401) errorMessage(error);
     else message(regionStatus, error.message || 'Could not save. Your name and selected area are kept here so you can try again.', true);
   }).finally(paintDraft);
 });

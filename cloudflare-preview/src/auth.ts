@@ -5,9 +5,11 @@ export interface AuthUser {
   email: string;
   displayName: string;
   role: 'admin' | 'member';
+  annotationStatus: 'pending' | 'approved' | 'revoked';
+  canAnnotate: boolean;
 }
 
-interface UserRow { id: string; email: string; display_name: string; }
+interface UserRow { id: string; email: string; display_name: string; annotation_status: AuthUser['annotationStatus']; }
 interface ChallengeRow { id: string; email: string; code_hash: string; display_name: string; }
 type Purpose = 'auth' | 'newsletter';
 const COOKIE = '__Host-bm_session';
@@ -59,7 +61,9 @@ function emailAddress(value: unknown): string {
 
 function displayName(value: unknown, required = false): string {
   if (value === undefined && !required) return 'Archive member';
-  if (typeof value !== 'string') throw new HttpError(400, 'Enter a display name.');
+  if (typeof value !== 'string' || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/.test(value)) {
+    throw new HttpError(400, 'Enter a display name without control characters.');
+  }
   const name = value.normalize('NFC').trim().replace(/\s+/g, ' ');
   if (!name || name.length > 80 || /[\u0000-\u001f\u007f]/.test(name)) {
     throw new HttpError(400, 'Use a display name between 1 and 80 characters.');
@@ -68,8 +72,10 @@ function displayName(value: unknown, required = false): string {
 }
 
 function userResponse(row: UserRow, env: Env): AuthUser {
-  return {id: row.id, email: row.email, displayName: row.display_name,
-    role: row.email.toLowerCase() === env.ADMIN_EMAIL.trim().toLowerCase() ? 'admin' : 'member'};
+  const role = row.email.toLowerCase() === env.ADMIN_EMAIL.trim().toLowerCase() ? 'admin' : 'member';
+  const annotationStatus = role === 'admin' ? 'approved' : row.annotation_status;
+  return {id: row.id, email: row.email, displayName: row.display_name, role, annotationStatus,
+    canAnnotate: annotationStatus === 'approved'};
 }
 
 function cookieToken(request: Request): string | null {
@@ -88,7 +94,7 @@ export async function getUser(request: Request, env: Env): Promise<AuthUser | nu
   const token = cookieToken(request);
   if (!token) return null;
   const row = await env.COMMUNITY.withSession('first-primary').prepare(`
-    SELECT u.id, u.email, u.display_name FROM sessions s
+    SELECT u.id, u.email, u.display_name, u.annotation_status FROM sessions s
     JOIN users u ON u.id = s.user_id
     WHERE s.token_hash = ? AND s.revoked_at IS NULL AND s.expires_at > ?
       AND u.status = 'active' AND u.verified_at IS NOT NULL
@@ -227,7 +233,7 @@ async function verifyCode(request: Request, env: Env, purpose: Purpose): Promise
       SELECT ?,u.id,?,? FROM users u JOIN auth_challenges c ON c.email=u.email
       WHERE c.id=? AND c.consumed_by=? AND u.status='active' AND u.verified_at IS NOT NULL`)
       .bind(tokenHash, now, now + SESSION_SECONDS, challenge.id, claim),
-    db.prepare(`SELECT u.id,u.email,u.display_name FROM users u JOIN sessions s ON s.user_id=u.id
+    db.prepare(`SELECT u.id,u.email,u.display_name,u.annotation_status FROM users u JOIN sessions s ON s.user_id=u.id
       WHERE s.token_hash=?`).bind(tokenHash),
   ]);
   const row = results[3].results[0];
@@ -257,7 +263,7 @@ export async function handleAuth(request: Request, env: Env): Promise<Response |
       const name = displayName(body.displayName, true);
       await rateLimit(env, `profile:${user.id}`, 20, 3600);
       const row = await env.COMMUNITY.withSession('first-primary').prepare(`UPDATE users SET display_name=?
-        WHERE id=? AND status='active' AND verified_at IS NOT NULL RETURNING id,email,display_name`)
+        WHERE id=? AND status='active' AND verified_at IS NOT NULL RETURNING id,email,display_name,annotation_status`)
         .bind(name, user.id).first<UserRow>();
       if (!row) throw new HttpError(401, 'Please sign in to continue.');
       return json({user: userResponse(row, env)});
