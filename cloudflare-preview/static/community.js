@@ -325,11 +325,17 @@ new ResizeObserver(positionEditor).observe(annotationForm);
 window.addEventListener('resize', measure);
 
 async function load(append = false) {
+  const knownAnnotations = new Set(state.annotations.map(item => item.id));
   const data = await api(`${base}/community${append && state.nextCursor ? `?cursor=${encodeURIComponent(state.nextCursor)}` : ''}`);
   const old = state;
   state = { ...data, comments: data.comments || [], annotations: data.annotations || [] };
   if (append) {
     for (const key of ['comments', 'annotations']) state[key] = [...new Map([...old[key], ...state[key]].map(item => [item.id, item])).values()];
+  } else {
+    // A comment refresh may have started before a name was saved. Keep those
+    // newly added names even if that in-flight read has an older snapshot.
+    const added = old.annotations.filter(item => !knownAnnotations.has(item.id));
+    state.annotations = [...new Map([...added, ...state.annotations].map(item => [item.id, item])).values()];
   }
   renderAuth(); renderLikes(); renderLists(); measure();
 }
@@ -354,7 +360,7 @@ annotationForm.addEventListener('submit', event => {
   working(annotationForm, async () => {
     message(regionStatus, 'Saving name…');
     const saved = await api(`${base}/annotations`, { method: 'POST', body });
-    state.annotations.push(saved);
+    state.annotations = [saved, ...state.annotations.filter(item => item.id !== saved.id)];
     setDrawing(false); setDraft(null); annotationForm.reset(); annotationForm.hidden = true;
     areaDetails.open = false; noteDetails.open = false;
     showNames.checked = true;

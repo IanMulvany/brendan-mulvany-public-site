@@ -130,18 +130,27 @@ async function mountEditor(t, { user = { id: 'member-1', role: 'member' }, natur
     return [key, field];
   }));
   form.controls = [...Object.values(form.elements), get('#annotation-save'), get('#annotation-clear'), get('#annotation-cancel')];
+  const commentForm = get('#comment-form');
+  commentForm.elements = { body: new Element() };
+  commentForm.controls = [commentForm.elements.body];
   get('#annotation-save').disabled = true;
   get('#community').dataset.photoId = 'test-photo';
   get('#annotation-visible').checked = true;
   Object.assign(get('.photo-detail__image img'), { naturalWidth, naturalHeight, src: '/photo.webp', currentSrc: '/photo.webp' });
   const requests = [];
   let save = async body => ({ ok: true, json: async () => ({ ...body, id: 'saved-1', displayName: 'Test member' }) });
+  const communityResponse = (annotations = []) => ({ ok: true, json: async () => ({ user, likeCount: 0, liked: false, comments: [], annotations }) });
+  let load = async () => communityResponse();
   const globals = {
     document: doc, window: Object.assign(new EventTarget(), { innerWidth: 1280 }),
     location: { hash: '', pathname: '/image/test-photo/', search: '' },
     ResizeObserver: class { observe() {} },
     fetch: async (url, options) => {
-      if (url.endsWith('/community')) return { ok: true, json: async () => ({ user, likeCount: 0, liked: false, comments: [], annotations: [] }) };
+      if (url.endsWith('/community')) return load();
+      if (url.endsWith('/comments')) {
+        assert.equal(options.method, 'POST');
+        return { ok: true, json: async () => ({ id: 'comment-1', body: JSON.parse(options.body).body }) };
+      }
       assert.equal(url, '/api/photos/test-photo/annotations');
       assert.equal(options.method, 'POST');
       const body = JSON.parse(options.body); requests.push(body);
@@ -164,7 +173,8 @@ async function mountEditor(t, { user = { id: 'member-1', role: 'member' }, natur
     emit(overlay, 'pointermove', { ...pointer, ...end });
     emit(overlay, 'pointerup', { ...pointer, ...end });
   };
-  return { get, doc, form, requests, emit, click, draw, setSave: handler => { save = handler; } };
+  return { get, doc, form, requests, emit, click, draw, communityResponse,
+    setSave: handler => { save = handler; }, setLoad: handler => { load = handler; } };
 }
 
 test('drawing opens and focuses the nearby name field; redraw keeps text and cancel clears the draft', async t => {
@@ -267,6 +277,56 @@ test('area controls reject out-of-bounds and tiny boxes and name is required bef
   assert.equal(requests.length, 0);
   assert.equal(doc.activeElement, form.elements.name);
   assert.match(get('#annotation-status').textContent, /Enter the person/);
+});
+
+test('a comment refresh started before a name save cannot erase the saved name or box', async t => {
+  const app = await mountEditor(t);
+  const { get, form, click, draw, emit } = app;
+  let finishRefresh;
+  app.setLoad(() => new Promise(resolve => { finishRefresh = resolve; }));
+  get('#comment-form').elements.body.value = 'A memory of this photograph';
+  emit(get('#comment-form'), 'submit');
+  await settle();
+  assert.equal(typeof finishRefresh, 'function', 'the refresh must be pending before saving a name');
+  click('#annotation-begin'); draw();
+  form.elements.name.value = 'Bill Harvey';
+  emit(form, 'submit');
+  await settle();
+  assert.equal(get('#community-annotations').children[0].id, 'annotation-saved-1');
+  // This response was read before the save, so it has no annotation yet.
+  finishRefresh(app.communityResponse());
+  await settle();
+  assert.deepEqual(get('#community-annotations').children.map(row => row.id), ['annotation-saved-1']);
+  const labels = get('#annotation-overlay').children[0].children;
+  assert.equal(labels.length, 2, 'one saved rectangle and one label remain on the photograph');
+  assert.equal(labels[1].textContent, 'Bill Harvey');
+});
+
+test('a refresh which already contains a saved name cannot duplicate it when the save response arrives', async t => {
+  const app = await mountEditor(t);
+  const { get, form, click, draw, emit } = app;
+  let finishSave, saved;
+  app.setSave(body => new Promise(resolve => {
+    saved = { ...body, id: 'saved-1', displayName: 'Test member' };
+    finishSave = () => resolve({ ok: true, json: async () => saved });
+  }));
+  click('#annotation-begin'); draw();
+  form.elements.name.value = 'Bill Harvey';
+  emit(form, 'submit');
+  assert.equal(form.dataset.busy, 'true');
+  // The server has committed the annotation, but its POST response is delayed.
+  app.setLoad(async () => app.communityResponse([saved]));
+  get('#comment-form').elements.body.value = 'A memory of this photograph';
+  emit(get('#comment-form'), 'submit');
+  await settle();
+  assert.deepEqual(get('#community-annotations').children.map(row => row.id), ['annotation-saved-1']);
+  finishSave();
+  await settle();
+  assert.deepEqual(get('#community-annotations').children.map(row => row.id), ['annotation-saved-1']);
+  const labels = get('#annotation-overlay').children[0].children;
+  assert.equal(labels.length, 2, 'the photograph has exactly one saved rectangle and one label');
+  assert.equal(labels[1].textContent, 'Bill Harvey');
+  assert.equal(form.hidden, true);
 });
 
 test('drawing uses the actual photograph bounds, rejects tiny boxes and allows another attempt', async t => {
