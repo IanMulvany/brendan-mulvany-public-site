@@ -240,3 +240,9 @@ when that original deployment has been independently verified.
 - [D1 SQL and FTS5 support](https://developers.cloudflare.com/d1/sql-api/sql-statements/)
 - [D1 read replication and sessions](https://developers.cloudflare.com/d1/best-practices/read-replication/)
 - [Worker custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
+
+### Immersive image viewing
+
+Image pages have a **View full screen** link opening a viewport-filling dialog. It displays the uncropped large image and navigates the current roll in the same order as the gallery, including across gallery pagination boundaries. Use touch swipes, arrow buttons or Left/Right keys; close with Escape, Close or browser Back. **View image page** opens the currently displayed photograph's normal page for metadata and contributions. Annotation controls remain on the normal page.
+
+A content-hashed JSON manifest is shared by all image pages in each roll. Only the displayed large image is requested; opening the viewer does not download the entire roll. The link falls back to the original image without JavaScript. Pinch zoom and vertical gestures do not trigger navigation. The viewer does not require database or image-storage changes.
