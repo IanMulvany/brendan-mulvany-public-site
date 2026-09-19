@@ -80,8 +80,8 @@ test('built image pages hide annotation tools before authentication and offer a 
     assert.ok(tag, `${id} must exist`);
     assert.match(tag, /\bhidden(?:[\s=>])/, `${id} must be hidden without JavaScript or while auth is loading`);
   }
-  assert.match(page, /id="photo-signin"/);
-  assert.match(page, /Sign in[^<]*|Create an? account/i);
+  assert.doesNotMatch(page, /id="photo-signin"/);
+  assert.match(page, /id="site-account-link"[^>]*>Sign in \/ create account/);
 });
 
 const settle = () => new Promise(resolve => setImmediate(resolve));
@@ -132,7 +132,7 @@ async function mountEditor(t, { user = { id: 'member-1', role: 'member', canAnno
     '.annotation-stage', '#annotation-overlay', '#annotation-visible', '#annotation-status', '#annotation-save',
     '#annotation-feedback', '#annotation-area-details', '#annotation-note-details', '#annotation-preview',
     '#annotation-preview-image', '#community-signin', '#annotation-manual', '#photo-like-count',
-    '#annotation-clear', '#annotation-cancel', '#annotation-toolbar', '#photo-signin', '#community-contribution-help',
+    '#annotation-clear', '#annotation-cancel', '#annotation-toolbar', '#community-contribution-help',
     '#annotation-permission-notice',
   ];
   const nodes = new Map(selectors.map(selector => [selector, new Element()]));
@@ -381,7 +381,6 @@ function assertAnnotationAccess(app, allowed, signedIn = allowed) {
   assert.equal(app.get('#annotation-overlay').getAttribute('hidden') !== null, !allowed, 'SVG overlay visibility must follow annotation permission');
   assert.equal(app.get('#annotation-begin').disabled, !allowed);
   assert.equal(app.get('#annotation-manual').disabled, !allowed);
-  assert.equal(app.get('#photo-signin').hidden, signedIn);
   assert.equal(app.get('#community-contribution-help').hidden, !signedIn);
   assert.equal(app.get('#annotation-permission-notice').hidden, !signedIn || allowed);
   if (!allowed) {
