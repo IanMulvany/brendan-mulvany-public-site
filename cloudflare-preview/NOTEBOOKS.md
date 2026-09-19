@@ -43,3 +43,11 @@ node --experimental-strip-types --test cloudflare-preview/tests/notebooks*.test.
 ```
 
 Tests cover published-only links, all reciprocal anchors and media files, shared rows, distinct ditto rows, invalid paths and geometry, escaped text and discrepancy notes, gallery filters, zoom, keyboard selection, source checksums, EXIF handling and incremental exports. The scanning publisher has additional tests for accepted-source preservation and isolated release preparation.
+
+### Live release, 19 September 2026
+
+Deployed Worker version `46c809fd-57f3-4ebf-8555-8d688bd9e3a3` with the existing production snapshot of 75 collections and 1,395 photographs. No database migrations, reseeding or community-data changes were needed.
+
+Validation passed: all 146 site tests, 6 exporter tests and 40 scanning-app tests; the production snapshot also passed 25 notebook/route checks. Read-only live verification covered all 160 notebook pages, all 75 collection pages and 64 reciprocal links, the sitemap, and exact checksums/cache headers for 18 image derivatives. Browser checks covered roll search, clickable SVG rows, collection backlinks, zoom, all-page filtering and mobile overflow. The local scanning app was restarted while idle to load the publishing integration.
+
+The three description discrepancies remain tracked as `brendan-mulvany-public-site-dsh`; their visible notes preserve both sources pending review.
