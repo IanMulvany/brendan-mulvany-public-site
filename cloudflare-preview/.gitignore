@@ -6,6 +6,7 @@ data/*
 worker-configuration.d.ts
 .dev.vars
 .env*
+static/notebooks/
 
 *.cpuprofile
 !community-migrations/
