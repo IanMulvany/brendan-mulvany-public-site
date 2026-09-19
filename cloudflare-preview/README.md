@@ -249,6 +249,8 @@ A content-hashed JSON manifest is shared by all image pages in each roll. Only t
 
 ### Naming people beside the photograph
 
+Annotation controls, drawing guidance and image overlays stay hidden until the server confirms an active, verified member or administrator session. Guests see a prominent **Sign in or create an account** link; published names remain readable below the photograph. Failed permission checks and expired sessions hide the editing controls again.
+
 Choose **Add a name** and draw around a person. The name field opens beside the
 selected area when there is space, or directly below the photograph on a small
 screen. A close-up keeps the selection visible while typing. The name field is

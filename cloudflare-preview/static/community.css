@@ -37,3 +37,11 @@
 .annotation-editor :is(input,textarea,button,summary):focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .annotation-toolbar button:disabled,.annotation-editor button:disabled{opacity:.55;cursor:default}
 @media(max-width:739px){.annotation-editor{width:100%;box-shadow:none;margin-top:0;border-top:3px solid var(--accent)}.annotation-toolbar{gap:8px 14px}.annotation-toolbar label{margin-left:0}.annotation-feedback{font-size:11px}}
+
+/* Contribution tools are revealed only after the server confirms permission. */
+.annotation-toolbar[hidden],.annotation-feedback[hidden],.annotation-overlay[hidden],.photo-signin[hidden],#community-contribution-help[hidden],#photo-like[hidden]{display:none}
+.photo-signin{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0 18px;background:var(--paper);color:var(--ink)}
+.photo-signin strong{font-family:Georgia,'Times New Roman',serif;font-size:21px;font-weight:400}
+.photo-signin p{margin:5px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
+.photo-signin .button{gap:12px;padding:12px 16px;white-space:normal;text-align:center;flex-shrink:0}
+@media(max-width:739px){.photo-signin{align-items:flex-start;flex-direction:column;gap:12px}.photo-signin .button{width:100%;min-height:46px}.photo-signin strong{font-size:20px}}

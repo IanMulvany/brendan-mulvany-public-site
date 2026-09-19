@@ -1,4 +1,4 @@
-import { api, el, message, signin, when, working } from './ui.js';
+import { api, el, message, setAccountIndicator, signin, when, working } from './ui.js';
 import { editorPosition } from './annotation-layout.js';
 
 const community = document.querySelector('#community');
@@ -19,6 +19,9 @@ const showNames = document.querySelector('#annotation-visible');
 const regionStatus = document.querySelector('#annotation-status');
 const saveRegion = document.querySelector('#annotation-save');
 const feedback = document.querySelector('#annotation-feedback');
+const annotationToolbar = document.querySelector('#annotation-toolbar');
+const photoSignin = document.querySelector('#photo-signin');
+const contributionHelp = document.querySelector('#community-contribution-help');
 const areaDetails = document.querySelector('#annotation-area-details');
 const noteDetails = document.querySelector('#annotation-note-details');
 const preview = document.querySelector('#annotation-preview');
@@ -39,23 +42,36 @@ let followedAnchor = false;
 
 function errorMessage(error) {
   message(status, error.message || 'The archive could not be reached. Please try again.', true);
-  if (error.status === 401) { state.user = null; renderAuth(); }
+  if (error.status === 401 || error.status === 403) { state.user = null; renderAuth(); renderLists(); }
 }
 
+// The community endpoint only returns active, email-verified sessions. Treat
+// missing or unrecognised roles as read-only, including while it is loading.
+function canContribute() { return Boolean(state.user && ['member', 'admin'].includes(state.user.role)); }
+
 function renderAuth() {
+  const allowed = canContribute();
+  setAccountIndicator(allowed ? state.user : null);
   const guest = document.querySelector('#community-signin');
   guest.replaceChildren();
-  guest.hidden = Boolean(state.user);
-  if (!state.user) guest.append(signin('Sign in to like, comment or add a name'));
-  commentForm.hidden = !state.user;
-  begin.disabled = !state.user || !image.naturalWidth;
-  document.querySelector('#annotation-manual').disabled = !state.user || !image.naturalWidth;
-  like.disabled = !state.user;
-  if (!state.user) {
+  guest.hidden = allowed;
+  if (!allowed) guest.append(signin('Sign in or create an account to contribute'));
+  photoSignin.hidden = allowed;
+  annotationToolbar.hidden = !allowed;
+  feedback.hidden = !allowed;
+  contributionHelp.hidden = !allowed;
+  overlay.toggleAttribute('hidden', !allowed);
+  commentForm.hidden = !allowed;
+  begin.disabled = !allowed || !image.naturalWidth;
+  document.querySelector('#annotation-manual').disabled = !allowed || !image.naturalWidth;
+  like.hidden = !allowed;
+  like.disabled = !allowed;
+  if (!allowed) {
     annotationForm.hidden = true;
     setDrawing(false);
     setDraft(null);
-    feedback.replaceChildren(signin('Sign in to add names to this photograph'));
+    labels.replaceChildren();
+    message(feedback, '');
   } else if (!draft && !drawing && !feedback.dataset.saved) {
     message(feedback, 'Recognise someone? Select Add a name, then draw around them.');
   }
@@ -68,7 +84,7 @@ function renderLikes() {
 }
 
 function deleteButton(item, type) {
-  if (!item.canDelete) return null;
+  if (!canContribute() || !item.canDelete) return null;
   const button = el('button', 'quiet-button', state.user?.role === 'admin' && item.userId !== state.user.id ? 'Hide' : 'Delete');
   button.type = 'button';
   button.setAttribute('aria-label', `${button.textContent} ${type === 'comments' ? 'comment' : `name ${item.name}`}`);
@@ -109,8 +125,8 @@ function contribution(item, type) {
 function renderLists() {
   comments.replaceChildren(...state.comments.map(item => contribution(item, 'comments')));
   annotations.replaceChildren(...state.annotations.map(item => contribution(item, 'annotations')));
-  if (!state.comments.length) comments.append(el('li', 'community-empty', 'No comments yet. Share a memory or a useful detail about this photograph.'));
-  if (!state.annotations.length) annotations.append(el('li', 'community-empty', 'Recognise someone? Add a name to a marked area of the photograph.'));
+  if (!state.comments.length) comments.append(el('li', 'community-empty', canContribute() ? 'No comments yet. Share a memory or a useful detail about this photograph.' : 'No comments yet.'));
+  if (!state.annotations.length) annotations.append(el('li', 'community-empty', canContribute() ? 'Recognise someone? Add a name to a marked area of the photograph.' : 'No names have been added yet.'));
   more.hidden = !state.nextCursor;
   if (!followedAnchor && /^#(?:comment|annotation)-[\w-]+$/.test(location.hash)) {
     const target = document.getElementById(location.hash.slice(1));
@@ -138,8 +154,8 @@ function measure() {
   };
   overlay.setAttribute('viewBox', `0 0 ${container.width} ${container.height}`);
   renderOverlay();
-  begin.disabled = !state.user;
-  document.querySelector('#annotation-manual').disabled = !state.user;
+  begin.disabled = !canContribute();
+  document.querySelector('#annotation-manual').disabled = !canContribute();
 }
 
 function shapeAttributes(shape, region) {
@@ -152,7 +168,7 @@ function shapeAttributes(shape, region) {
 function paintDraft() {
   draftShape.setAttribute('visibility', draft && geometry ? 'visible' : 'hidden');
   if (draft && geometry) shapeAttributes(draftShape, draft);
-  saveRegion.disabled = !draft || !state.user || annotationForm.dataset.busy === 'true';
+  saveRegion.disabled = !draft || !canContribute() || annotationForm.dataset.busy === 'true';
   const previewReady = draft && draft.width > 0 && draft.height > 0 && geometry;
   preview.hidden = !previewReady;
   if (previewReady) {
@@ -187,7 +203,7 @@ function showEditor({ manual = false } = {}) {
 }
 
 function beginDrawing() {
-  if (!state.user || annotationForm.dataset.busy === 'true') return;
+  if (!canContribute() || annotationForm.dataset.busy === 'true') return;
   delete feedback.dataset.saved;
   annotationForm.hidden = true;
   setDraft(null);
@@ -207,7 +223,7 @@ function cancelAnnotation() {
 
 function renderOverlay() {
   labels.replaceChildren();
-  if (geometry && showNames.checked) {
+  if (geometry && canContribute() && showNames.checked) {
     for (const region of state.annotations) {
       const rect = document.createElementNS(svgNS, 'rect');
       rect.setAttribute('class', 'annotation-region');
@@ -268,7 +284,7 @@ begin.addEventListener('click', () => {
   else beginDrawing();
 });
 document.querySelector('#annotation-manual').addEventListener('click', () => {
-  if (!state.user || annotationForm.dataset.busy === 'true') return;
+  if (!canContribute() || annotationForm.dataset.busy === 'true') return;
   delete feedback.dataset.saved;
   setDrawing(false);
   measure();
@@ -277,7 +293,7 @@ document.querySelector('#annotation-manual').addEventListener('click', () => {
   message(feedback, 'Adjust the selected area, then enter the person’s name.');
 });
 overlay.addEventListener('pointerdown', event => {
-  if (!drawing || !state.user || event.button !== 0 || pointerId !== undefined || event.isPrimary === false) return;
+  if (!drawing || !canContribute() || event.button !== 0 || pointerId !== undefined || event.isPrimary === false) return;
   measure();
   startPoint = point(event);
   if (!startPoint) { message(feedback, 'Start the rectangle inside the photograph.'); return; }
@@ -326,7 +342,10 @@ window.addEventListener('resize', measure);
 
 async function load(append = false) {
   const knownAnnotations = new Set(state.annotations.map(item => item.id));
-  const data = await api(`${base}/community${append && state.nextCursor ? `?cursor=${encodeURIComponent(state.nextCursor)}` : ''}`);
+  const data = await api(`${base}/community${append && state.nextCursor ? `?cursor=${encodeURIComponent(state.nextCursor)}` : ''}`).catch(error => {
+    state.user = null; renderAuth(); renderLists();
+    throw error;
+  });
   const old = state;
   state = { ...data, comments: data.comments || [], annotations: data.annotations || [] };
   if (append) {
@@ -342,6 +361,7 @@ async function load(append = false) {
 
 commentForm.addEventListener('submit', event => {
   event.preventDefault();
+  if (!canContribute()) return;
   const body = commentForm.elements.body.value.trim();
   if (!body) return;
   working(commentForm, async () => {
@@ -353,7 +373,7 @@ commentForm.addEventListener('submit', event => {
 });
 annotationForm.addEventListener('submit', event => {
   event.preventDefault();
-  if (annotationForm.dataset.busy === 'true') return;
+  if (!canContribute() || annotationForm.dataset.busy === 'true') return;
   if (!draft) { message(regionStatus, 'Select an area of the photograph first.', true); return; }
   const body = { ...draft, name: annotationForm.elements.name.value.trim(), note: annotationForm.elements.note.value.trim() };
   if (!body.name) { message(regionStatus, 'Enter the person’s name.', true); annotationForm.elements.name.focus(); return; }
@@ -369,14 +389,17 @@ annotationForm.addEventListener('submit', event => {
     message(feedback, `${body.name} saved. Select Add a name to identify someone else.`);
     message(status, 'The name has been added to the photograph. Saved names and notes become searchable within 30 seconds.');
     begin.focus({ preventScroll: true });
-  }).catch(error => message(regionStatus, error.message || 'Could not save. Your name and selected area are kept here so you can try again.', true)).finally(paintDraft);
+  }).catch(error => {
+    if (error.status === 401 || error.status === 403) errorMessage(error);
+    else message(regionStatus, error.message || 'Could not save. Your name and selected area are kept here so you can try again.', true);
+  }).finally(paintDraft);
 });
 like.addEventListener('click', async () => {
-  if (!state.user) return;
+  if (!canContribute()) return;
   like.disabled = true;
   try { Object.assign(state, await api(`${base}/like`, { method: state.liked ? 'DELETE' : 'PUT', body: {} })); renderLikes(); }
   catch (error) { errorMessage(error); }
-  finally { like.disabled = !state.user; }
+  finally { like.disabled = !canContribute(); }
 });
 more.addEventListener('click', async () => {
   more.disabled = true;
@@ -406,4 +429,5 @@ async function initialLoad() {
     }
   }
 }
+renderAuth();
 initialLoad();

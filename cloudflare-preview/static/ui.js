@@ -47,6 +47,14 @@ export const when = timestamp => {
 
 export const accountLink = () => `/account/?returnTo=${encodeURIComponent(`${location.pathname}${location.search}#community`)}`;
 
+export function setAccountIndicator(user) {
+  const link = document.querySelector('#site-account-link');
+  if (!link) return;
+  const signedIn = Boolean(user && ['member', 'admin'].includes(user.role));
+  link.textContent = signedIn ? 'My account' : 'Sign in / create account';
+  link.dataset.signedIn = String(signedIn);
+}
+
 export function signin(text = 'Sign in to take part') {
   const link = el('a', 'text-link', text);
   link.href = accountLink();
