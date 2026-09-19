@@ -1,4 +1,5 @@
-import { api, el, message, when } from './ui.js';
+import { api, el, message, setAccountIndicator, when, working } from './ui.js';
+import { mountModeration } from './moderation.js';
 
 const access = document.querySelector('#admin-access');
 const content = document.querySelector('#admin-content');
@@ -24,12 +25,22 @@ let homepageReady = false;
 let homepageBusy = false;
 let selectedPhoto;
 let heroRequest = 0;
+let memberPage = 1, memberRequest = 0;
+const memberFilter = document.querySelector('#admin-users-filter');
+const memberStatus = document.querySelector('#admin-users-status');
 
-function failure(error) { message(status, error.message || 'The administration data could not be loaded.', true); }
+function failure(error) {
+  message(status, error.message || 'The administration data could not be loaded.', true);
+  if (error.status === 401 || error.status === 403) {
+    content.hidden = true; access.hidden = false;
+    document.querySelector('#admin-signin').hidden = false;
+    message(access, 'Administrator access could not be confirmed. Sign in again to continue.');
+  }
+}
 
 async function summary() {
   const data = await api('/api/admin/summary');
-  const labels = { users: 'Members', activeUsers: 'Active members', suspendedUsers: 'Suspended members', comments: 'Visible comments', annotations: 'Names added', likes: 'Photo likes', subscribers: 'Confirmed subscribers', collectionsWithCustomHeroes: 'Custom collection covers' };
+  const labels = { pendingAnnotationUsers: 'Awaiting annotation approval', unreviewedComments: 'Comments to review', unreviewedAnnotations: 'Annotations to review', users: 'Members', comments: 'Visible comments', annotations: 'Visible annotations', likes: 'Photo likes', subscribers: 'Confirmed subscribers' };
   document.querySelector('#admin-summary').replaceChildren(...Object.entries(labels).map(([key, label]) => {
     const item = el('div', 'admin-stat');
     item.append(el('strong', '', Number(data[key] || 0).toLocaleString()), el('span', '', label));
@@ -41,27 +52,63 @@ function userRow(item) {
   const row = el('li', 'admin-row');
   const details = el('div');
   details.append(el('strong', '', item.displayName), el('p', '', item.email), el('p', '', `${item.role} · ${item.status} · Joined ${when(item.createdAt)}`));
+  details.append(el('p', 'member-permission', item.role === 'admin' ? 'Administrator · Full annotation access'
+    : `Annotation access: ${{pending: 'awaiting approval', approved: 'approved', revoked: 'revoked'}[item.annotationStatus] || 'awaiting approval'}`));
+  if (!item.verifiedAt) details.append(el('p', 'field-help', 'Email verification required before annotation access can be approved.'));
   if (item.lastLoginAt) details.append(el('p', '', `Last sign-in ${when(item.lastLoginAt)}`));
   row.append(details);
   if (item.id !== user.id && item.role !== 'admin') {
-    const button = el('button', 'button button--light', item.status === 'suspended' ? 'Reactivate' : 'Suspend');
-    button.type = 'button';
-    button.addEventListener('click', async () => {
-      button.disabled = true;
-      try {
-        const data = await api(`/api/admin/users/${encodeURIComponent(item.id)}`, { method: 'PATCH', body: { status: item.status === 'suspended' ? 'active' : 'suspended' } });
-        row.replaceWith(userRow(data.user));
-        message(status, `${item.displayName} is now ${data.user.status}.`);
-        await summary();
-      } catch (error) { button.disabled = false; failure(error); }
-    });
-    row.append(button);
+    const actions = el('div', 'member-actions');
+    const options = item.annotationStatus === 'approved'
+      ? [['Revoke annotation access', {annotationStatus: 'revoked'}, false]]
+      : [['Approve annotations', {annotationStatus: 'approved'}, !item.verifiedAt || item.status !== 'active'],
+        ...(item.annotationStatus === 'pending' ? [['Decline annotations', {annotationStatus: 'revoked'}, false]] : [])];
+    options.push([item.status === 'suspended' ? 'Reactivate account' : 'Suspend account', { status: item.status === 'suspended' ? 'active' : 'suspended' }, false]);
+    for (const [label, body, disabled] of options) {
+      const button = el('button', body.annotationStatus === 'approved' ? 'button' : 'button button--light', label);
+      button.type = 'button'; button.disabled = disabled;
+      button.addEventListener('click', () => working(row, async () => {
+        try {
+          await api(`/api/admin/users/${encodeURIComponent(item.id)}`, { method: 'PATCH', body });
+          const reloaded = await loadMembers(memberPage);
+          if (reloaded) message(memberStatus, `${item.displayName}: ${body.annotationStatus ? `annotation access ${body.annotationStatus}` : `account ${body.status}`}.`);
+          await summary();
+        } catch (error) { message(memberStatus, error.message, true); failure(error); }
+      }));
+      actions.append(button);
+    }
+    row.append(actions);
   }
   return row;
 }
 
+async function loadMembers(targetPage = 1) {
+  const requestId = ++memberRequest;
+  const previous = document.querySelector('#admin-users-previous');
+  const next = document.querySelector('#admin-users-next');
+  previous.disabled = next.disabled = true;
+  message(memberStatus, 'Loading members…');
+  try {
+    const data = await api(`/api/admin/users?annotationStatus=${encodeURIComponent(memberFilter.value)}&page=${targetPage}`);
+    if (requestId !== memberRequest) return;
+    if (!data.users.length && targetPage > 1) return loadMembers(targetPage - 1);
+    memberPage = targetPage;
+    const list = document.querySelector('#admin-users');
+    list.replaceChildren(...data.users.map(userRow));
+    if (!data.users.length) list.append(el('li', 'community-empty', memberFilter.value === 'pending' ? 'No members are waiting for annotation approval.' : 'No members match this filter.'));
+    previous.disabled = memberPage === 1; next.disabled = !data.hasMore;
+    document.querySelector('#admin-users-page').textContent = `Page ${memberPage}`;
+    message(memberStatus, `${data.users.length} members shown.`);
+    return true;
+  } catch (error) { if (requestId === memberRequest) { message(memberStatus, error.message, true); failure(error); } }
+}
+memberFilter.addEventListener('change', () => loadMembers());
+document.querySelector('#admin-users-refresh').addEventListener('click', () => loadMembers(memberPage));
+document.querySelector('#admin-users-previous').addEventListener('click', () => loadMembers(memberPage - 1));
+document.querySelector('#admin-users-next').addEventListener('click', () => loadMembers(memberPage + 1));
+
 function activityRow(item) {
-  const descriptions = { 'comment.created': 'Added a comment', 'comment.hidden': 'Removed a comment', 'annotation.created': 'Added a name', 'annotation.hidden': 'Removed a name', 'like.added': 'Liked a photograph', 'like.removed': 'Removed a like', 'collection.hero_changed': 'Changed a collection cover', 'user.status_changed': 'Changed a member’s status' };
+  const descriptions = { 'comment.created': 'Added a comment', 'comment.hidden': 'Hid a comment', 'comment.reviewed': 'Reviewed a comment', 'comment.restored': 'Restored a comment', 'annotation.created': 'Added a name', 'annotation.hidden': 'Hid a name', 'annotation.reviewed': 'Reviewed a name', 'annotation.restored': 'Restored a name', 'user.annotations_approved': 'Approved annotation access', 'user.annotations_revoked': 'Revoked annotation access', 'like.added': 'Liked a photograph', 'like.removed': 'Removed a like', 'collection.hero_changed': 'Changed a collection cover', 'user.status_changed': 'Changed a member’s status' };
   const row = el('li', 'admin-row');
   const details = el('div');
   details.append(el('strong', '', item.displayName || 'Archive member'), el('p', '', descriptions[item.action] || item.action), el('p', '', when(item.createdAt)));
@@ -254,6 +301,7 @@ heroSave.addEventListener('click', async () => {
 
 async function start() {
   ({ user } = await api('/api/auth/me'));
+  setAccountIndicator(user);
   if (!user || user.role !== 'admin') {
     message(access, user ? 'Your account does not have administrator access.' : 'Sign in with an administrator account to continue.');
     return;
@@ -261,6 +309,10 @@ async function start() {
   access.hidden = true;
   document.querySelector('#admin-signin').hidden = true;
   content.hidden = false;
+  // Moderation remains usable even if the independent album tools fail to load.
+  const reviewWork = Promise.allSettled([summary().catch(failure), loadMembers(),
+    mountModeration({ onChange: () => summary().catch(failure), onError: failure }),
+    pagedSection('activity', activityRow), pagedSection('subscribers', subscriberRow)]);
   const catalogPath = content.dataset.collections;
   const catalog = await fetch(catalogPath).then(response => { if (!response.ok) throw new Error('The collection list could not be loaded.'); return response.json(); });
   collectionCatalog = new Map(catalog.map(collection => [collection.id, collection]));
@@ -277,6 +329,6 @@ async function start() {
   await Promise.all([loadHomepage(), api('/api/collection-heroes').then(data => {
     for (const hero of data.heroes || []) if (collectionCatalog.has(hero.collectionId)) heroImages.set(hero.collectionId, hero.imageBase);
     if (homepageReady) renderHomepage();
-  }).catch(() => {}), summary(), pagedSection('users', userRow), pagedSection('activity', activityRow), pagedSection('subscribers', subscriberRow)]);
+  }).catch(() => {}), reviewWork]);
 }
 start().catch(failure);

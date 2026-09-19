@@ -15,6 +15,11 @@ function showUser(user) {
   document.querySelector('#profile-email').textContent = user.email;
   document.querySelector('#profile-name').value = user.displayName || '';
   document.querySelector('#account-admin').hidden = user.role !== 'admin';
+  document.querySelector('#profile-annotation-status').textContent = user.role === 'admin'
+    ? 'Administrator · You can approve annotation access and review all comments and names.'
+    : user.canAnnotate ? 'Annotation access approved. You can like, comment and add names.'
+      : user.annotationStatus === 'revoked' ? 'You can like and comment. Annotation access is not currently approved.'
+        : 'You can like and comment. Your annotation access is awaiting administrator approval.';
   const back = document.querySelector('#account-return');
   back.hidden = !returnTo;
   if (returnTo) back.href = returnTo;

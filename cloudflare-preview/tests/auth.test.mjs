@@ -11,7 +11,8 @@ registerHooks({resolve(specifier, context, nextResolve) {
 }});
 const {cleanupAuth, getUser, handleAuth, requireAdmin, requireUser} = await import('../src/auth.ts');
 const {assertOrigin, HttpError, rateLimit, readJson} = await import('../src/http.ts');
-const migration = readFileSync(new URL('../community-migrations/0001_accounts.sql', import.meta.url), 'utf8');
+const migration = ['0001_accounts.sql', '0002_community.sql', '0005_moderation.sql']
+  .map(file => readFileSync(new URL(`../community-migrations/${file}`, import.meta.url), 'utf8')).join('\n');
 
 function harness() {
   const sql = new DatabaseSync(':memory:');
@@ -91,7 +92,7 @@ function harness() {
 
 test('verified email creates one account with a hashed secure session and no newsletter consent', async t => {
   const h = harness(); t.after(() => h.sql.close());
-  const entry = await h.challenge('Alice@Example.Test', {displayName: 'Alice', body: {role: 'admin'}});
+  const entry = await h.challenge('Alice@Example.Test', {displayName: 'Alice', body: {role: 'admin', annotationStatus: 'approved', canAnnotate: true}});
   assert.deepEqual(Object.keys(entry).sort(), ['challengeId', 'code', 'message', 'prefix']);
   const stored = h.sql.prepare('SELECT * FROM auth_challenges').get();
   assert.match(stored.code_hash, /^[a-f0-9]{64}$/);
@@ -105,6 +106,8 @@ test('verified email creates one account with a hashed secure session and no new
   assert.equal(user.email, 'alice@example.test');
   assert.equal(user.displayName, 'Alice');
   assert.equal(user.role, 'member');
+  assert.equal(user.annotationStatus, 'pending');
+  assert.equal(user.canAnnotate, false);
   const cookie = response.headers.get('set-cookie');
   for (const flag of ['__Host-bm_session=', 'Path=/', 'Secure', 'HttpOnly', 'SameSite=Lax', 'Max-Age=2592000']) assert.ok(cookie.includes(flag));
   assert.ok(!cookie.includes('Domain='));
@@ -165,8 +168,25 @@ test('sign-in cannot overwrite profiles or grant admin from request/database rol
   await assert.rejects(() => requireAdmin(request, h.env), error => error instanceof HttpError && error.status === 403);
   const admin = await h.login('IAN@MULVANY.NET', 'Ian');
   assert.equal(admin.user.role, 'admin');
+  assert.equal(admin.user.annotationStatus, 'approved');
+  assert.equal(admin.user.canAnnotate, true);
   assert.equal((await requireAdmin(h.request('/api/auth/me', undefined, {cookie: admin.cookie}), h.env)).id, admin.user.id);
   assert.equal((await getUser(h.request('/api/auth/me', undefined, {cookie: admin.cookie}), {...h.env, ADMIN_EMAIL: 'another@example.test'})).role, 'member');
+});
+
+test('signing in and profile changes preserve administrative annotation decisions', async t => {
+  const h = harness(); t.after(() => h.sql.close());
+  const member = await h.login();
+  for (const annotationStatus of ['approved', 'revoked']) {
+    h.sql.prepare('UPDATE users SET annotation_status=? WHERE id=?').run(annotationStatus, member.user.id);
+    assert.equal((await getUser(h.request('/api/auth/me', undefined, {cookie: member.cookie}), h.env)).annotationStatus, annotationStatus);
+    h.expireResend();
+    const signedIn = await h.login();
+    assert.equal(signedIn.user.annotationStatus, annotationStatus);
+    assert.equal(signedIn.user.canAnnotate, annotationStatus === 'approved');
+    const response = await h.call('/api/auth/profile', {displayName: 'A new name', annotationStatus: 'approved'}, {method: 'PATCH', cookie: member.cookie});
+    assert.equal((await response.json()).user.annotationStatus, annotationStatus);
+  }
 });
 
 test('logout, expiry, missing verification and suspension revoke access on primary reads', async t => {
@@ -280,12 +300,14 @@ test('origin checks and bounded JSON reject cross-site or malformed mutations wi
 test('profile changes only the authenticated display name and cleanup retains users and consent', async t => {
   const h = harness(); t.after(() => h.sql.close());
   const member = await h.login();
-  const response = await h.call('/api/auth/profile', {displayName: 'New name', role: 'admin', email: 'ian@mulvany.net'}, {method: 'PATCH', cookie: member.cookie});
+  const response = await h.call('/api/auth/profile', {displayName: 'New name', role: 'admin', email: 'ian@mulvany.net', annotationStatus: 'approved', canAnnotate: true}, {method: 'PATCH', cookie: member.cookie});
   assert.equal(response.status, 200);
   const user = (await response.json()).user;
   assert.equal(user.displayName, 'New name');
   assert.equal(user.email, member.user.email);
   assert.equal(user.role, 'member');
+  assert.equal(user.annotationStatus, 'pending');
+  assert.equal(user.canAnnotate, false);
   assert.equal((await h.call('/api/auth/profile', {displayName: 'x'.repeat(81)}, {method: 'PATCH', cookie: member.cookie})).status, 400);
   await h.call('/api/newsletter/subscribe', {consent: true}, {cookie: member.cookie});
   h.sql.exec('UPDATE sessions SET expires_at=0; UPDATE auth_challenges SET expires_at=0; UPDATE rate_limits SET expires_at=0;');
@@ -293,4 +315,16 @@ test('profile changes only the authenticated display name and cleanup retains us
   for (const table of ['sessions', 'auth_challenges', 'rate_limits']) assert.equal(h.sql.prepare(`SELECT count(*) n FROM ${table}`).get().n, 0);
   assert.equal(h.sql.prepare('SELECT count(*) n FROM users').get().n, 1);
   assert.equal(h.sql.prepare('SELECT status FROM newsletter_subscribers').get().status, 'confirmed');
+});
+
+test('display names reject invisible controls and bidirectional overrides before normalization', async t => {
+  const h = harness(); t.after(() => h.sql.close());
+  const member = await h.login();
+  for (const character of ['\u0000', '\u000b', '\u001b', '\u007f', '\u0085', '\u009f', '\u202e', '\u2066', '\u2069']) {
+    assert.equal((await h.call('/api/auth/profile', {displayName: `Name${character}`}, {method: 'PATCH', cookie: member.cookie})).status, 400);
+    assert.equal((await h.call('/api/auth/request', {email: 'new@example.test', displayName: `Name${character}`})).status, 400);
+  }
+  assert.equal(h.sql.prepare('SELECT count(*) n FROM auth_challenges').get().n, 1, 'rejected names do not send codes');
+  const response = await h.call('/api/auth/profile', {displayName: '  Name\twith\nspaces '}, {method: 'PATCH', cookie: member.cookie});
+  assert.equal((await response.json()).user.displayName, 'Name with spaces');
 });

@@ -37,7 +37,7 @@ test('Worker: verified sessions, community isolation, moderation, newsletter and
   try {
     const db = await mf.getD1Database('DB', 'site');
     const community = await mf.getD1Database('COMMUNITY', 'site');
-    for (const filename of ['community-migrations/0001_accounts.sql', 'community-migrations/0002_community.sql', 'community-migrations/0003_homepage.sql', 'community-migrations/0004_search.sql']) {
+    for (const filename of ['community-migrations/0001_accounts.sql', 'community-migrations/0002_community.sql', 'community-migrations/0003_homepage.sql', 'community-migrations/0004_search.sql', 'community-migrations/0005_moderation.sql']) {
       const sql = await readFile(filename, 'utf8');
       // D1 exec accepts one SQL statement per line.
       await community.exec(sql.replace(/--[^\n]*/g, '').replace(/\s+/g, ' '));
@@ -89,6 +89,12 @@ test('Worker: verified sessions, community isolation, moderation, newsletter and
     const comment = await commentResponse.json();
     for (let i = 0; i < 2; i++) assert.equal((await call('/api/photos/1/like', {method: 'PUT', cookie: member.cookie})).status, 200);
     assert.deepEqual((await call('/api/search?q=remembered').then(r => r.json())).results, []);
+    assert.equal(member.user.canAnnotate, false);
+    assert.equal(admin.user.canAnnotate, true);
+    assert.equal((await call('/api/photos/1/annotations', {method: 'POST', cookie: member.cookie, body: {name: 'Pending', x: .1, y: .2, width: .3, height: .4}})).status, 403);
+    const approval = await call(`/api/admin/users/${member.user.id}`, {method: 'PATCH', cookie: admin.cookie, body: {annotationStatus: 'approved'}});
+    assert.equal(approval.status, 200);
+    assert.equal((await approval.json()).user.canAnnotate, true);
     const annotated = await call('/api/photos/1/annotations', {method: 'POST', cookie: member.cookie, body: {name: 'A remembered name', note: 'Community identification', x: .1, y: .2, width: .3, height: .4}});
     assert.equal(annotated.status, 201);
     const annotation = await annotated.json();
@@ -132,6 +138,18 @@ test('Worker: verified sessions, community isolation, moderation, newsletter and
     assert.equal((await call(`/api/annotations/${annotation.id}`, {method: 'DELETE', cookie: admin.cookie})).status, 200);
     await mf.purgeCache();
     for (const q of ['remembered', 'identification']) assert.deepEqual((await call(`/api/search?q=${q}`).then(r => r.json())).results, [], 'moderated annotation terms disappear from search');
+    const reviewQueue = await call('/api/admin/comments?filter=hidden', {cookie: admin.cookie}).then(r => r.json());
+    assert.equal(reviewQueue.comments[0].id, comment.id);
+    assert.equal(reviewQueue.comments[0].email, 'member@example.test');
+    assert.equal((await call(`/api/admin/comments/${comment.id}`, {method: 'PATCH', cookie: admin.cookie, body: {action: 'restore'}})).status, 200);
+    assert.equal((await call('/api/photos/1/community').then(r => r.json())).comments.length, 1);
+    assert.equal((await call(`/api/admin/annotations/${annotation.id}`, {method: 'PATCH', cookie: admin.cookie, body: {action: 'restore'}})).status, 200);
+    await mf.purgeCache();
+    assert.deepEqual((await call('/api/search?q=remembered').then(r => r.json())).results.map(photo => photo.id), [1]);
+    assert.equal((await call(`/api/admin/users/${member.user.id}`, {method: 'PATCH', cookie: admin.cookie, body: {annotationStatus: 'revoked'}})).status, 200);
+    assert.equal((await call('/api/photos/1/community', {cookie: member.cookie}).then(r => r.json())).user.canAnnotate, false);
+    assert.equal((await call('/api/photos/1/annotations', {method: 'POST', cookie: member.cookie, body: {name: 'Revoked', x: .1, y: .2, width: .3, height: .4}})).status, 403);
+    assert.equal((await call('/api/photos/1/comments', {method: 'POST', cookie: member.cookie, body: {body: 'Comments remain allowed'}})).status, 201);
     assert.equal((await call('/api/admin/collections/roll-a/hero', {method: 'PUT', cookie: member.cookie, body: {photoId: 2}})).status, 403);
     assert.equal((await call('/api/admin/collections/roll-a/hero', {method: 'PUT', cookie: admin.cookie, body: {photoId: 3}})).status, 400);
     assert.equal((await call('/api/admin/collections/roll-a/hero', {method: 'PUT', cookie: admin.cookie, body: {photoId: 2}})).status, 200);
