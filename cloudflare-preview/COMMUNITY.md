@@ -44,6 +44,12 @@ Transactional verification mail uses Cloudflare's native `EMAIL` binding from `n
 - Private/API errors use `private, no-store`. Account state is fetched separately from static pages and never placed into shared HTML caches. Public HTML covers are rewritten server-side and cached for 60 seconds, independent of cookies. Search uses a single primary FTS query on cache misses, caches public cards for 30 seconds, and requires browser revalidation. Photo/gallery pages remain static.
 - A daily Worker cron at 03:17 UTC removes expired sessions, codes and quota counters. It preserves users, consent and contribution records. Logs omit codes, cookies, email addresses and contribution bodies.
 
+## Annotation approval and moderation release
+
+Deployed 19 September 2026 in Worker version `c3a98a6f-e32c-41f4-9768-65e78842f033`, from source commit `fd3cfbf` on the `cloudflare-preview` branch. Migration `0005_moderation.sql` was applied after recording a D1 recovery bookmark. Read-only checks confirmed that Ian remained active, verified and administrator, and that account, comment, annotation, like and search-document counts were unchanged.
+
+The full source suite passed 130 tests; the deployment build passed type checks, a dry run and 83 focused authentication, permission, security, UI and Worker tests against the current archive snapshot. Local browser checks covered pending/approved members, comment hiding/restoration, annotation review thumbnails and the 390 px layout. Live read-only checks verified 13 deployed assets, guest denial of review endpoints, private response headers, the complete published sitemap, and all 1,395 photographs across 75 collections including the latest Bill Harvey batch. No test accounts or contributions were created on production. The authenticated admin workflow was exercised with synthetic local data; live admin sign-in still uses Ian's email verification code.
+
 ## Development and deployment
 
 Use Node 24 or newer. Local `.dev.vars` is ignored and contains a development `AUTH_SECRET` and `PUBLIC_ORIGIN=http://localhost:8787`. Do not reuse the production secret locally. Local email delivery is simulated by Wrangler.
