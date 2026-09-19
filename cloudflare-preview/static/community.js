@@ -20,7 +20,6 @@ const regionStatus = document.querySelector('#annotation-status');
 const saveRegion = document.querySelector('#annotation-save');
 const feedback = document.querySelector('#annotation-feedback');
 const annotationToolbar = document.querySelector('#annotation-toolbar');
-const photoSignin = document.querySelector('#photo-signin');
 const annotationPermission = document.querySelector('#annotation-permission-notice');
 const contributionHelp = document.querySelector('#community-contribution-help');
 const areaDetails = document.querySelector('#annotation-area-details');
@@ -60,7 +59,6 @@ function renderAuth() {
   guest.replaceChildren();
   guest.hidden = allowed;
   if (!allowed) guest.append(signin('Sign in or create an account to contribute'));
-  photoSignin.hidden = allowed;
   annotationToolbar.hidden = !annotationAllowed;
   feedback.hidden = !annotationAllowed;
   annotationPermission.hidden = !allowed || annotationAllowed;
