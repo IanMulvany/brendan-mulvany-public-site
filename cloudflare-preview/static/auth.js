@@ -1,4 +1,4 @@
-import { api, initializeEmailCode, message, safeReturnTo, working } from './ui.js';
+import { api, initializeEmailCode, message, safeReturnTo, setAccountIndicator, working } from './ui.js';
 
 const guest = document.querySelector('#account-guest');
 const profile = document.querySelector('#account-profile');
@@ -8,6 +8,7 @@ const profileForm = document.querySelector('#profile-form');
 const returnTo = safeReturnTo();
 
 function showUser(user) {
+  setAccountIndicator(user);
   guest.hidden = Boolean(user);
   profile.hidden = !user;
   if (!user) return;

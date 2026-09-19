@@ -92,6 +92,8 @@ test('anonymous public reads omit email, while verified active sessions are requ
   assert.deepEqual(read.body, {user: null, likeCount: 0, liked: false, comments: [], annotations: []});
   assert.match(read.headers.get('cache-control'), /no-store/);
   for (const as of [null, 'unverified', 'suspended']) {
+    const restrictedRead = await call('/api/photos/1/community', {as});
+    assert.equal(restrictedRead.body.user, null, `${as || 'anonymous'} must not receive a contributing identity`);
     await rejects(call('/api/photos/1/comments', {method: 'POST', as, body: {body: 'A comment'}}), 401);
     await rejects(call('/api/photos/1/annotations', {method: 'POST', as, body: box}), 401);
     await rejects(call('/api/photos/1/like', {method: 'PUT', as}), 401);
@@ -107,6 +109,28 @@ test('anonymous public reads omit email, while verified active sessions are requ
   assert.equal(signedIn.body.comments[0].canDelete, true);
   assert.equal(signedIn.body.user.displayName, 'member');
   assert.ok(!JSON.stringify(signedIn.body).includes('@'), 'public JSON must not expose user email addresses');
+});
+
+test('unverified, suspended, revoked and expired sessions can read names but receive no annotation permissions', async t => {
+  const {call, db, identities} = fixture(t);
+  const annotation = (await call('/api/photos/1/annotations', {method: 'POST', as: 'member', body: box})).body;
+  for (const as of ['unverified', 'suspended']) {
+    const read = (await call('/api/photos/1/community', {as})).body;
+    assert.equal(read.user, null);
+    assert.equal(read.annotations[0].id, annotation.id);
+    assert.equal(read.annotations[0].name, box.name);
+    assert.equal(read.annotations[0].canDelete, false);
+  }
+  const at = Math.floor(Date.now() / 1000);
+  for (const [column, value] of [['revoked_at', at], ['expires_at', at - 1]]) {
+    db.prepare('UPDATE sessions SET revoked_at=NULL, expires_at=? WHERE user_id=?').run(at + 3600, identities.member.id);
+    db.prepare(`UPDATE sessions SET ${column}=? WHERE user_id=?`).run(value, identities.member.id);
+    const read = (await call('/api/photos/1/community', {as: 'member'})).body;
+    assert.equal(read.user, null, `${column} must remove the contributing identity`);
+    assert.equal(read.annotations[0].name, box.name);
+    assert.equal(read.annotations[0].canDelete, false, 'a former session cannot manage even its own contributions');
+    await rejects(call('/api/photos/1/annotations', {method: 'POST', as: 'member', body: box}), 401);
+  }
 });
 
 test('comments and annotations can only be hidden by their owner or an administrator', async t => {

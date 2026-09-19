@@ -72,12 +72,24 @@ test('built image pages place the name editor beside the photograph with a keybo
   assert.match(page, /id="annotation-status"[^>]*role="status"[^>]*aria-live="polite"/);
 });
 
+test('built image pages hide annotation tools before authentication and offer a clear account entry point', async () => {
+  const catalogue = JSON.parse(await readFile(new URL('../data/sample.json', import.meta.url)));
+  const page = await readFile(new URL(`../dist/image/${catalogue.photos[0].id}/index.html`, import.meta.url), 'utf8');
+  for (const id of ['annotation-toolbar', 'annotation-feedback', 'annotation-overlay', 'annotation-form']) {
+    const tag = page.match(new RegExp(`<[^>]+id="${id}"[^>]*>`))?.[0];
+    assert.ok(tag, `${id} must exist`);
+    assert.match(tag, /\bhidden(?:[\s=>])/, `${id} must be hidden without JavaScript or while auth is loading`);
+  }
+  assert.match(page, /id="photo-signin"/);
+  assert.match(page, /Sign in[^<]*|Create an? account/i);
+});
+
 const settle = () => new Promise(resolve => setImmediate(resolve));
 let instance = 0;
 
 // Run the real event handlers and API helper. The DOM double supplies browser
 // primitives only; it does not reproduce drawing, validation or save logic.
-async function mountEditor(t, { user = { id: 'member-1', role: 'member' }, naturalWidth = 1000, naturalHeight = 700 } = {}) {
+async function mountEditor(t, { user = { id: 'member-1', role: 'member' }, naturalWidth = 1000, naturalHeight = 700, initialLoad, annotations = [] } = {}) {
   let doc;
   class Element extends EventTarget {
     dataset = {}; style = {}; attributes = new Map(); children = []; classes = new Set();
@@ -95,6 +107,12 @@ async function mountEditor(t, { user = { id: 'member-1', role: 'member' }, natur
     };
     setAttribute(name, value) { this.attributes.set(name, String(value)); }
     getAttribute(name) { return this.attributes.get(name) ?? null; }
+    removeAttribute(name) { this.attributes.delete(name); }
+    toggleAttribute(name, force) {
+      const present = force === undefined ? !this.attributes.has(name) : force;
+      if (present) this.setAttribute(name, ''); else this.removeAttribute(name);
+      return present;
+    }
     append(...children) { children.forEach(child => { child.parent = this; }); this.children.push(...children); }
     replaceChildren(...children) { this.children = []; this.append(...children); }
     focus() { doc.activeElement = this; }
@@ -114,7 +132,7 @@ async function mountEditor(t, { user = { id: 'member-1', role: 'member' }, natur
     '.annotation-stage', '#annotation-overlay', '#annotation-visible', '#annotation-status', '#annotation-save',
     '#annotation-feedback', '#annotation-area-details', '#annotation-note-details', '#annotation-preview',
     '#annotation-preview-image', '#community-signin', '#annotation-manual', '#photo-like-count',
-    '#annotation-clear', '#annotation-cancel',
+    '#annotation-clear', '#annotation-cancel', '#annotation-toolbar', '#photo-signin', '#community-contribution-help',
   ];
   const nodes = new Map(selectors.map(selector => [selector, new Element()]));
   const get = selector => nodes.get(selector) || null;
@@ -124,6 +142,8 @@ async function mountEditor(t, { user = { id: 'member-1', role: 'member' }, natur
   });
   const form = get('#annotation-form');
   form.hidden = true;
+  for (const selector of ['#annotation-toolbar', '#annotation-feedback', '#annotation-overlay']) get(selector).hidden = true;
+  get('#annotation-overlay').setAttribute('hidden', '');
   form.elements = Object.fromEntries(Object.entries({ name: '', note: '', x: '10', y: '10', width: '20', height: '20' }).map(([key, value]) => {
     const field = new Element(); field.value = field.defaultValue = value;
     field.isCoordinate = !['name', 'note'].includes(key); field.parent = get('#annotation-area-details');
@@ -140,7 +160,7 @@ async function mountEditor(t, { user = { id: 'member-1', role: 'member' }, natur
   const requests = [];
   let save = async body => ({ ok: true, json: async () => ({ ...body, id: 'saved-1', displayName: 'Test member' }) });
   const communityResponse = (annotations = []) => ({ ok: true, json: async () => ({ user, likeCount: 0, liked: false, comments: [], annotations }) });
-  let load = async () => communityResponse();
+  let load = initialLoad || (async () => communityResponse(annotations));
   const globals = {
     document: doc, window: Object.assign(new EventTarget(), { innerWidth: 1280 }),
     location: { hash: '', pathname: '/image/test-photo/', search: '' },
@@ -346,12 +366,96 @@ test('drawing uses the actual photograph bounds, rejects tiny boxes and allows a
   assert.equal(get('#annotation-save').disabled, false);
 });
 
-test('guests cannot start drawing or open manual annotation controls', async t => {
-  const { get, form, click, draw } = await mountEditor(t, { user: null });
-  assert.equal(get('#annotation-begin').disabled, true);
-  assert.equal(get('#annotation-manual').disabled, true);
-  click('#annotation-begin'); draw(); click('#annotation-manual');
-  assert.equal(form.hidden, true);
-  assert.equal(get('#annotation-overlay').classList.contains('is-drawing'), false);
-  assert.equal(get('#annotation-save').disabled, true);
+function assertAnnotationAccess(app, allowed) {
+  for (const selector of ['#annotation-toolbar', '#annotation-feedback', '#community-contribution-help']) {
+    assert.equal(app.get(selector).hidden, !allowed, `${selector} visibility must follow annotation permission`);
+  }
+  assert.equal(app.get('#annotation-overlay').getAttribute('hidden') !== null, !allowed, 'SVG overlay visibility must follow annotation permission');
+  assert.equal(app.get('#annotation-begin').disabled, !allowed);
+  assert.equal(app.get('#annotation-manual').disabled, !allowed);
+  assert.equal(app.get('#photo-signin').hidden, allowed);
+  if (!allowed) {
+    assert.equal(app.form.hidden, true);
+    assert.equal(app.get('#annotation-overlay').classList.contains('is-drawing'), false);
+    assert.equal(app.get('#annotation-overlay').children[0].children.length, 0, 'no name rectangles or labels may be painted for guests');
+    assert.equal(app.get('#annotation-save').disabled, true);
+  }
+}
+
+const existingName = { id: 'existing-1', name: 'Bill Harvey', displayName: 'Archive member', x: 0.1, y: 0.1, width: 0.2, height: 0.2 };
+
+test('guests cannot see annotation tools or painted names, while existing names remain readable', async t => {
+  const app = await mountEditor(t, { user: null, annotations: [existingName] });
+  assertAnnotationAccess(app, false);
+  assert.equal(app.get('#community-annotations').children[0].id, 'annotation-existing-1');
+  assert.ok(app.get('#community-annotations').children[0].children.some(child => child.textContent === 'Bill Harvey'));
+  app.click('#annotation-begin'); app.draw(); app.click('#annotation-manual');
+  app.emit(app.get('#annotation-visible'), 'change');
+  assertAnnotationAccess(app, false);
 });
+
+test('annotation controls stay hidden while authentication is pending, then appear for a verified member', async t => {
+  let finishLoad;
+  const app = await mountEditor(t, { initialLoad: () => new Promise(resolve => { finishLoad = resolve; }) });
+  assert.equal(typeof finishLoad, 'function');
+  assertAnnotationAccess(app, false);
+  app.click('#annotation-begin'); app.draw(); app.click('#annotation-manual');
+  assertAnnotationAccess(app, false);
+  finishLoad(app.communityResponse([existingName]));
+  await settle();
+  assertAnnotationAccess(app, true);
+  assert.equal(app.get('#annotation-overlay').children[0].children.length, 2);
+});
+
+test('a failed authentication lookup leaves annotation tools hidden', async t => {
+  const app = await mountEditor(t, { initialLoad: async () => { throw new Error('Network unavailable'); } });
+  assertAnnotationAccess(app, false);
+  assert.match(app.get('#community-status').textContent, /Network unavailable/);
+});
+
+test('a failed permissions refresh withdraws annotation controls without losing public names', async t => {
+  const app = await mountEditor(t, { annotations: [existingName] });
+  app.click('#annotation-begin'); app.draw();
+  assert.equal(app.form.hidden, false);
+  app.setLoad(async () => { throw new Error('Permissions could not be checked'); });
+  app.get('#comment-form').elements.body.value = 'A memory';
+  app.emit(app.get('#comment-form'), 'submit');
+  await settle();
+  assertAnnotationAccess(app, false);
+  assert.equal(app.get('#community-annotations').children[0].id, 'annotation-existing-1');
+  assert.match(app.get('#community-status').textContent, /Permissions could not be checked/);
+});
+
+test('administrators can annotate, while an unexpected role cannot expose the annotation tools', async t => {
+  await t.test('administrator', async sub => {
+    const app = await mountEditor(sub, { user: { id: 'admin-1', role: 'admin' } });
+    assertAnnotationAccess(app, true);
+    app.click('#annotation-begin'); app.draw();
+    assert.equal(app.form.hidden, false);
+  });
+  await t.test('unexpected role', async sub => {
+    const app = await mountEditor(sub, { user: { id: 'reader-1', role: 'reader' }, annotations: [existingName] });
+    assertAnnotationAccess(app, false);
+    app.click('#annotation-begin'); app.draw(); app.click('#annotation-manual');
+    assertAnnotationAccess(app, false);
+  });
+});
+
+for (const status of [401, 403]) {
+  test(`a ${status} save response removes annotation access and requires signing in again`, async t => {
+    const app = await mountEditor(t, { annotations: [existingName] });
+    app.click('#annotation-begin'); app.draw();
+    app.form.elements.name.value = 'Another person';
+    app.setSave(async () => ({ ok: false, status, json: async () => ({ error: 'Your session cannot add names.' }) }));
+    app.emit(app.form, 'submit');
+    await settle();
+    assert.equal(app.requests.length, 1);
+    assertAnnotationAccess(app, false);
+    app.click('#annotation-begin'); app.draw(); app.click('#annotation-manual');
+    app.emit(app.form, 'submit');
+    await settle();
+    assert.equal(app.requests.length, 1, 'stale controls must not submit another annotation');
+    assertAnnotationAccess(app, false);
+    assert.equal(app.get('#community-annotations').children[0].id, 'annotation-existing-1');
+  });
+}
