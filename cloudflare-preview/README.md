@@ -246,3 +246,30 @@ when that original deployment has been independently verified.
 Image pages have a **View full screen** link opening a viewport-filling dialog. It displays the uncropped large image and navigates the current roll in the same order as the gallery, including across gallery pagination boundaries. Use touch swipes, arrow buttons or Left/Right keys; close with Escape, Close or browser Back. **View image page** opens the currently displayed photograph's normal page for metadata and contributions. Annotation controls remain on the normal page.
 
 A content-hashed JSON manifest is shared by all image pages in each roll. Only the displayed large image is requested; opening the viewer does not download the entire roll. The link falls back to the original image without JavaScript. Pinch zoom and vertical gestures do not trigger navigation. The viewer does not require database or image-storage changes.
+
+### Naming people beside the photograph
+
+Choose **Add a name** and draw around a person. The name field opens beside the
+selected area when there is space, or directly below the photograph on a small
+screen. A close-up keeps the selection visible while typing. The name field is
+focused automatically. Optional notes and numeric area adjustments expand on
+demand; **Use area controls** also supports identification without dragging.
+**Redraw area** preserves the entered name and note. Escape or the close button
+cancels. Saving confirms the name beside the image and leaves **Add a name** ready
+for the next person. Failed saves keep the selection and entered text for retry.
+
+### Deploying UI changes after publishing a scanning batch
+
+GitHub stores source history. The current release workflow sends the built site
+directly to Cloudflare with Wrangler; pushing source alone does not publish it.
+The scanning app can publish a newer archive snapshot and switch the Worker's
+archive DB binding without updating this checkout's older build inputs.
+
+Before a frontend-only release, prepare a separate build with the latest
+`scanning_app/state/published.json` publication: use that release's
+`cloudflare-preview/wrangler.jsonc`, `data/sample.json` and
+`public/batches/index.html`, together with the current source. Verify the manifest
+against live search and preserve both D1 bindings. Then build, check, test and run
+`npm run deploy` in the prepared `cloudflare-preview` directory. Do not reseed or
+migrate databases for a frontend-only change, and do not deploy this checkout's
+older snapshot over a more recent scanning publication.

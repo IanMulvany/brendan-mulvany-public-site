@@ -2,3 +2,38 @@
 
 .annotation-toolbar{background:var(--paper)}.like-control .button{min-width:90px}
 .homepage-picker{display:flex;align-items:flex-end;gap:14px;max-width:800px;margin:22px 0 14px}.homepage-picker .admin-label{flex:1;min-width:0}.homepage-picker .button{flex-shrink:0;min-height:46px}.homepage-albums{list-style:none;padding:0;margin:18px 0 24px;max-width:960px}.homepage-album{display:grid;grid-template-columns:110px minmax(0,1fr) auto;align-items:center;gap:18px;border-top:1px solid var(--rule);padding:16px 0}.homepage-album__image{display:block;width:110px;height:74px;object-fit:contain;background:#e8e8e2}.homepage-album__details{min-width:0;font-size:13px;line-height:1.5;overflow-wrap:anywhere}.homepage-album__details strong{font-weight:500}.homepage-album__details p{font-size:11px;color:var(--muted);margin-top:6px}.homepage-album__actions{display:flex;gap:16px;flex-wrap:wrap}.homepage-album__actions .quiet-button{min-height:36px}.homepage-album__actions .quiet-button:disabled{cursor:default;text-decoration:none;opacity:.45}@media(max-width:700px){.homepage-picker{align-items:stretch;flex-direction:column;gap:12px}.homepage-picker .button{align-self:flex-start}.homepage-album{grid-template-columns:90px minmax(0,1fr);gap:10px 14px}.homepage-album__image{width:90px;height:60px}.homepage-album__actions{grid-column:1/-1;gap:25px}.homepage-album__details{font-size:12px}}
+
+/* Keep identification in the photograph's workspace, including on small screens. */
+.annotation-workspace{position:relative;background:var(--paper)}
+.annotation-toolbar{padding:12px 0;gap:12px 18px}
+.annotation-toolbar .button{min-height:44px;padding:11px 16px}
+.annotation-toolbar label{margin-left:auto;display:flex;align-items:center;gap:6px;min-height:44px}
+.annotation-toolbar .quiet-button{min-height:44px}
+.annotation-feedback{background:var(--paper);font-size:12px;color:var(--muted);line-height:1.6;padding:0 0 12px;min-height:30px}
+.annotation-feedback .text-link{margin:0;padding:0;border:0;text-decoration:underline}
+.annotation-feedback.is-error{color:#963c31}
+.annotation-editor{width:320px;max-width:100%;padding:18px;margin:12px 0 0;gap:12px;border:1px solid var(--rule);background:var(--paper);box-shadow:0 8px 28px #191b1820;scroll-margin-block:16px}
+.annotation-editor[hidden]{display:none}
+.annotation-editor.is-floating{position:absolute;z-index:3;margin:0;box-shadow:0 8px 35px #0004}
+.annotation-editor__heading{display:flex;align-items:center;gap:12px}
+.annotation-editor__heading .eyebrow{font-size:9px;margin:0 0 4px}
+.annotation-editor__heading h2{font-size:24px;line-height:1.15}
+.annotation-close{margin-left:auto;align-self:flex-start;border:0;background:transparent;color:var(--ink);font-size:26px;line-height:1;width:36px;height:36px;cursor:pointer}
+.annotation-preview{position:relative;width:64px;height:64px;flex:0 0 64px;overflow:hidden;background:#dddcd5;border:1px solid var(--rule)}
+.annotation-preview[hidden]{display:none}
+.annotation-preview img{position:absolute;max-width:none;object-fit:fill}
+.annotation-editor input,.annotation-editor textarea{background:#fff;font-size:16px;padding:10px;line-height:1.35}
+.annotation-editor textarea{min-height:68px}
+.annotation-editor .form-status{margin:0;min-height:0}
+.annotation-editor .form-status:empty{display:none}
+.annotation-editor .form-actions{gap:16px}
+.annotation-editor .form-actions .quiet-button{min-height:44px}
+.annotation-editor .button{min-height:44px;padding:11px 16px}
+.annotation-editor .region-fields{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:12px}
+.annotation-editor .region-fields input{font-size:14px}
+.annotation-details{font-size:12px;color:var(--muted)}
+.annotation-details summary{cursor:pointer;padding:5px 0;text-decoration:underline;text-underline-offset:3px}
+.annotation-details label{margin-top:9px;color:var(--ink)}
+.annotation-editor :is(input,textarea,button,summary):focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.annotation-toolbar button:disabled,.annotation-editor button:disabled{opacity:.55;cursor:default}
+@media(max-width:739px){.annotation-editor{width:100%;box-shadow:none;margin-top:0;border-top:3px solid var(--accent)}.annotation-toolbar{gap:8px 14px}.annotation-toolbar label{margin-left:0}.annotation-feedback{font-size:11px}}
