@@ -1,4 +1,5 @@
 import { api, el, message, signin, when, working } from './ui.js';
+import { editorPosition } from './annotation-layout.js';
 
 const community = document.querySelector('#community');
 const photoId = community.dataset.photoId;
@@ -17,6 +18,11 @@ const overlay = document.querySelector('#annotation-overlay');
 const showNames = document.querySelector('#annotation-visible');
 const regionStatus = document.querySelector('#annotation-status');
 const saveRegion = document.querySelector('#annotation-save');
+const feedback = document.querySelector('#annotation-feedback');
+const areaDetails = document.querySelector('#annotation-area-details');
+const noteDetails = document.querySelector('#annotation-note-details');
+const preview = document.querySelector('#annotation-preview');
+const previewImage = document.querySelector('#annotation-preview-image');
 const svgNS = 'http://www.w3.org/2000/svg';
 const labels = document.createElementNS(svgNS, 'g');
 const draftShape = document.createElementNS(svgNS, 'rect');
@@ -48,6 +54,10 @@ function renderAuth() {
   if (!state.user) {
     annotationForm.hidden = true;
     setDrawing(false);
+    setDraft(null);
+    feedback.replaceChildren(signin('Sign in to add names to this photograph'));
+  } else if (!draft && !drawing && !feedback.dataset.saved) {
+    message(feedback, 'Recognise someone? Select Add a name, then draw around them.');
   }
 }
 
@@ -142,7 +152,57 @@ function shapeAttributes(shape, region) {
 function paintDraft() {
   draftShape.setAttribute('visibility', draft && geometry ? 'visible' : 'hidden');
   if (draft && geometry) shapeAttributes(draftShape, draft);
-  saveRegion.disabled = !draft || !state.user;
+  saveRegion.disabled = !draft || !state.user || annotationForm.dataset.busy === 'true';
+  const previewReady = draft && draft.width > 0 && draft.height > 0 && geometry;
+  preview.hidden = !previewReady;
+  if (previewReady) {
+    const source = image.currentSrc || image.src;
+    if (previewImage.src !== source) previewImage.src = source;
+    const size = 64;
+    const scale = Math.min(size / (draft.width * image.naturalWidth), size / (draft.height * image.naturalHeight));
+    previewImage.style.width = `${image.naturalWidth * scale}px`;
+    previewImage.style.height = `${image.naturalHeight * scale}px`;
+    previewImage.style.left = `${(size - draft.width * image.naturalWidth * scale) / 2 - draft.x * image.naturalWidth * scale}px`;
+    previewImage.style.top = `${(size - draft.height * image.naturalHeight * scale) / 2 - draft.y * image.naturalHeight * scale}px`;
+  }
+  positionEditor();
+}
+
+function positionEditor() {
+  if (annotationForm.hidden || !geometry) return;
+  const bounds = stage.getBoundingClientRect();
+  const position = editorPosition(draft, geometry, bounds, { width: Math.min(320, bounds.width), height: annotationForm.offsetHeight }, window.innerWidth);
+  annotationForm.classList.toggle('is-floating', Boolean(position));
+  annotationForm.style.left = position ? `${position.left}px` : '';
+  annotationForm.style.top = position ? `${position.top}px` : '';
+}
+
+function showEditor({ manual = false } = {}) {
+  annotationForm.hidden = false;
+  areaDetails.open = manual;
+  paintDraft();
+  const field = manual ? annotationForm.elements.x : annotationForm.elements.name;
+  field.focus({ preventScroll: true });
+  annotationForm.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+}
+
+function beginDrawing() {
+  if (!state.user || annotationForm.dataset.busy === 'true') return;
+  delete feedback.dataset.saved;
+  annotationForm.hidden = true;
+  setDraft(null);
+  measure();
+  setDrawing(true);
+  message(feedback, 'Draw a box around one person. Their name field will open beside the selection.');
+  stage.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+}
+
+function cancelAnnotation() {
+  if (annotationForm.dataset.busy === 'true') return;
+  setDrawing(false); setDraft(null); annotationForm.reset(); annotationForm.hidden = true;
+  areaDetails.open = false; noteDetails.open = false;
+  message(regionStatus, ''); message(feedback, 'Name cancelled. Select Add a name to start again.');
+  begin.focus({ preventScroll: true });
 }
 
 function renderOverlay() {
@@ -167,8 +227,11 @@ function setDrawing(active) {
   drawing = active;
   overlay.classList.toggle('is-drawing', active);
   begin.setAttribute('aria-pressed', String(active));
-  begin.textContent = active ? 'Drawing is active' : 'Draw an area and add a name';
-  if (!active) { startPoint = null; pointerId = undefined; }
+  begin.textContent = active ? 'Cancel drawing' : 'Add a name';
+  if (!active) {
+    if (pointerId !== undefined && overlay.hasPointerCapture(pointerId)) overlay.releasePointerCapture(pointerId);
+    startPoint = null; pointerId = undefined;
+  }
 }
 
 function setDraft(region) {
@@ -189,7 +252,7 @@ function readManualRegion() {
   }
   draft = valid && region.width >= 0.01 && region.height >= 0.01 ? region : null;
   paintDraft();
-  message(regionStatus, draft ? 'Area ready. Add a name and save it below.' : 'The area must fit inside the photograph and be at least 1% wide and high.', !draft);
+  message(regionStatus, draft ? 'Area selected. Enter a name to save.' : 'The area must fit inside the photograph and be at least 1% wide and high.', !draft);
 }
 
 function point(event, clamp = false) {
@@ -201,24 +264,23 @@ function point(event, clamp = false) {
 }
 
 begin.addEventListener('click', () => {
-  if (!state.user) return;
-  annotationForm.hidden = false;
-  measure();
-  setDrawing(!drawing);
-  message(regionStatus, drawing ? 'Drag a rectangle on the photograph, or enter an area using the controls below.' : 'Drawing paused. You can still use the area controls below.');
+  if (drawing) cancelAnnotation();
+  else beginDrawing();
 });
 document.querySelector('#annotation-manual').addEventListener('click', () => {
-  if (!state.user) return;
-  annotationForm.hidden = false;
+  if (!state.user || annotationForm.dataset.busy === 'true') return;
+  delete feedback.dataset.saved;
   setDrawing(false);
+  measure();
   readManualRegion();
-  annotationForm.elements.x.focus();
+  showEditor({ manual: true });
+  message(feedback, 'Adjust the selected area, then enter the person’s name.');
 });
 overlay.addEventListener('pointerdown', event => {
-  if (!drawing || !state.user || event.button !== 0) return;
+  if (!drawing || !state.user || event.button !== 0 || pointerId !== undefined || event.isPrimary === false) return;
   measure();
   startPoint = point(event);
-  if (!startPoint) { message(regionStatus, 'Start the rectangle inside the photograph.'); return; }
+  if (!startPoint) { message(feedback, 'Start the rectangle inside the photograph.'); return; }
   pointerId = event.pointerId;
   overlay.setPointerCapture(pointerId);
   event.preventDefault();
@@ -231,26 +293,36 @@ overlay.addEventListener('pointermove', event => {
 });
 overlay.addEventListener('pointerup', event => {
   if (event.pointerId !== pointerId) return;
+  const end = point(event, true);
+  if (end && startPoint) setDraft({ x: Math.min(startPoint.x, end.x), y: Math.min(startPoint.y, end.y), width: Math.abs(end.x - startPoint.x), height: Math.abs(end.y - startPoint.y) });
+  setDrawing(false);
   if (draft && draft.width >= 0.01 && draft.height >= 0.01) {
-    message(regionStatus, 'Area selected. Add a name and save it below.');
+    message(regionStatus, '');
+    message(feedback, 'Area selected. Add their name, or redraw the box.');
+    showEditor();
   } else {
     setDraft(null);
-    message(regionStatus, 'Draw a larger area, at least 1% of the photograph in each direction.', true);
+    setDrawing(true);
+    message(feedback, 'That box was too small. Draw around the person, or use area controls.', true);
   }
-  setDrawing(false);
 });
-overlay.addEventListener('pointercancel', () => { setDraft(null); setDrawing(false); });
+overlay.addEventListener('pointercancel', () => { setDraft(null); setDrawing(false); message(feedback, 'Drawing interrupted. Select Add a name to try again.'); });
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && drawing) { setDrawing(false); setDraft(null); message(regionStatus, 'Drawing cancelled.'); }
+  if (event.key === 'Escape' && !document.querySelector('.image-viewer[open]') && (drawing || !annotationForm.hidden)) {
+    event.preventDefault(); cancelAnnotation();
+  }
 });
 for (const key of ['x', 'y', 'width', 'height']) annotationForm.elements[key].addEventListener('input', readManualRegion);
-document.querySelector('#annotation-clear').addEventListener('click', () => { setDraft(null); message(regionStatus, 'Area cleared. Draw another area or use the controls below.'); });
-document.querySelector('#annotation-cancel').addEventListener('click', () => {
-  setDrawing(false); setDraft(null); annotationForm.reset(); annotationForm.hidden = true; message(regionStatus, ''); begin.focus();
-});
+document.querySelector('#annotation-clear').addEventListener('click', beginDrawing);
+document.querySelector('#annotation-cancel').addEventListener('click', cancelAnnotation);
+annotationForm.addEventListener('invalid', event => {
+  if (event.target.closest('.region-fields')) areaDetails.open = true;
+}, true);
 showNames.addEventListener('change', renderOverlay);
 image.addEventListener('load', measure);
 new ResizeObserver(measure).observe(stage);
+new ResizeObserver(positionEditor).observe(annotationForm);
+window.addEventListener('resize', measure);
 
 async function load(append = false) {
   const data = await api(`${base}/community${append && state.nextCursor ? `?cursor=${encodeURIComponent(state.nextCursor)}` : ''}`);
@@ -275,14 +347,23 @@ commentForm.addEventListener('submit', event => {
 });
 annotationForm.addEventListener('submit', event => {
   event.preventDefault();
+  if (annotationForm.dataset.busy === 'true') return;
   if (!draft) { message(regionStatus, 'Select an area of the photograph first.', true); return; }
   const body = { ...draft, name: annotationForm.elements.name.value.trim(), note: annotationForm.elements.note.value.trim() };
+  if (!body.name) { message(regionStatus, 'Enter the person’s name.', true); annotationForm.elements.name.focus(); return; }
   working(annotationForm, async () => {
-    await api(`${base}/annotations`, { method: 'POST', body });
+    message(regionStatus, 'Saving name…');
+    const saved = await api(`${base}/annotations`, { method: 'POST', body });
+    state.annotations.push(saved);
     setDrawing(false); setDraft(null); annotationForm.reset(); annotationForm.hidden = true;
-    await load();
+    areaDetails.open = false; noteDetails.open = false;
+    showNames.checked = true;
+    renderLists(); renderOverlay();
+    feedback.dataset.saved = 'true';
+    message(feedback, `${body.name} saved. Select Add a name to identify someone else.`);
     message(status, 'The name has been added to the photograph. Saved names and notes become searchable within 30 seconds.');
-  }).catch(error => message(regionStatus, error.message, true));
+    begin.focus({ preventScroll: true });
+  }).catch(error => message(regionStatus, error.message || 'Could not save. Your name and selected area are kept here so you can try again.', true)).finally(paintDraft);
 });
 like.addEventListener('click', async () => {
   if (!state.user) return;

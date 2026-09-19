@@ -1,0 +1,297 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { readFile } from 'node:fs/promises';
+import { editorPosition } from '../static/annotation-layout.js';
+
+const stage = { width: 1000, height: 700 };
+const image = { x: 0, y: 0, ...stage };
+const card = { width: 320, height: 200 };
+
+function assertSeparate(position, region, picture = image, bounds = stage, editor = card) {
+  assert.ok(position, 'an editor position should fit');
+  assert.ok(position.left >= 8 && position.top >= 8);
+  assert.ok(position.left + editor.width <= bounds.width - 8);
+  assert.ok(position.top + editor.height <= bounds.height - 8);
+  const left = picture.x + region.x * picture.width;
+  const top = picture.y + region.y * picture.height;
+  const right = left + region.width * picture.width;
+  const bottom = top + region.height * picture.height;
+  assert.ok(position.left >= right + 12 || position.left + editor.width <= left - 12 ||
+    position.top >= bottom + 12 || position.top + editor.height <= top - 12,
+  'the name editor must leave the selected person visible');
+}
+
+test('editor can sit right, left, below or above the selected person', () => {
+  const cases = [
+    [{ x: 0.1, y: 0.2, width: 0.1, height: 0.2 }, { left: 212, top: 140 }],
+    [{ x: 0.8, y: 0.2, width: 0.1, height: 0.2 }, { left: 468, top: 140 }],
+    [{ x: 0.2, y: 0.1, width: 0.6, height: 0.2 }, { left: 200, top: 222 }],
+    [{ x: 0.2, y: 0.6, width: 0.6, height: 0.3 }, { left: 200, top: 208 }],
+  ];
+  for (const [region, expected] of cases) {
+    const position = editorPosition(region, image, stage, card, 1280);
+    assert.deepEqual(position, expected);
+    assertSeparate(position, region);
+  }
+});
+
+test('editor stays inside the stage and clear of selections near every edge, including letterboxed photos', () => {
+  for (const picture of [image, { x: 275, y: 0, width: 450, height: 700 }, { x: 0, y: 200, width: 1000, height: 300 }]) {
+    for (const x of [0, 0.01, 0.45, 0.8, 0.9]) {
+      for (const y of [0, 0.01, 0.45, 0.8, 0.9]) {
+        const region = { x, y, width: 0.1, height: 0.1 };
+        assertSeparate(editorPosition(region, picture, stage, card, 1280), region, picture);
+      }
+    }
+  }
+});
+
+test('small screens, large selections and expanded editors use the below-image fallback', () => {
+  const small = { x: 0.1, y: 0.1, width: 0.1, height: 0.1 };
+  assert.equal(editorPosition(null, image, stage, card, 1280), null);
+  assert.equal(editorPosition(small, image, stage, card, 739), null);
+  assert.ok(editorPosition(small, image, stage, card, 740));
+  assert.equal(editorPosition({ x: 0, y: 0, width: 1, height: 1 }, image, stage, card, 1280), null);
+  assert.equal(editorPosition(small, image, stage, { width: 1001, height: 200 }, 1280), null);
+  assert.equal(editorPosition(small, image, stage, { width: 320, height: 701 }, 1280), null);
+  // The card nominally fits, but there is no space for its required edge inset.
+  assert.equal(editorPosition(small, image, stage, { width: 320, height: 700 }, 1280), null);
+});
+
+test('built image pages place the name editor beside the photograph with a keyboard-accessible alternative', async () => {
+  const catalogue = JSON.parse(await readFile(new URL('../data/sample.json', import.meta.url)));
+  const page = await readFile(new URL(`../dist/image/${catalogue.photos[0].id}/index.html`, import.meta.url), 'utf8');
+  const workspace = page.indexOf('class="annotation-workspace"');
+  const editor = page.indexOf('id="annotation-form"');
+  const metadata = page.indexOf('class="photo-detail__info"');
+  const community = page.indexOf('id="community"');
+  assert.ok(workspace >= 0 && workspace < editor && editor < metadata && metadata < community);
+  assert.equal(page.match(/id="annotation-form"/g).length, 1);
+  assert.match(page, /id="annotation-manual"[^>]*>Use area controls/);
+  assert.match(page, /id="annotation-name"[^>]*required/);
+  assert.match(page, /id="annotation-status"[^>]*role="status"[^>]*aria-live="polite"/);
+});
+
+const settle = () => new Promise(resolve => setImmediate(resolve));
+let instance = 0;
+
+// Run the real event handlers and API helper. The DOM double supplies browser
+// primitives only; it does not reproduce drawing, validation or save logic.
+async function mountEditor(t, { user = { id: 'member-1', role: 'member' }, naturalWidth = 1000, naturalHeight = 700 } = {}) {
+  let doc;
+  class Element extends EventTarget {
+    dataset = {}; style = {}; attributes = new Map(); children = []; classes = new Set();
+    hidden = false; disabled = false; checked = false; open = false; value = ''; textContent = '';
+    offsetHeight = 200;
+    classList = {
+      add: name => this.classes.add(name),
+      remove: name => this.classes.delete(name),
+      contains: name => this.classes.has(name),
+      toggle: (name, force) => {
+        const on = force === undefined ? !this.classes.has(name) : force;
+        on ? this.classes.add(name) : this.classes.delete(name);
+        return on;
+      },
+    };
+    setAttribute(name, value) { this.attributes.set(name, String(value)); }
+    getAttribute(name) { return this.attributes.get(name) ?? null; }
+    append(...children) { children.forEach(child => { child.parent = this; }); this.children.push(...children); }
+    replaceChildren(...children) { this.children = []; this.append(...children); }
+    focus() { doc.activeElement = this; }
+    scrollIntoView() { this.scrolled = true; }
+    getBoundingClientRect() { return { left: 20, top: 60, width: 1000, height: 700 }; }
+    setPointerCapture(id) { this.captured = id; }
+    hasPointerCapture(id) { return this.captured === id; }
+    releasePointerCapture() { this.captured = undefined; }
+    querySelectorAll() { return this.controls || []; }
+    closest(selector) { return selector === '.region-fields' && this.isCoordinate ? this.parent : null; }
+    reset() { Object.values(this.elements || {}).forEach(field => { field.value = field.defaultValue || ''; }); }
+    after() {} remove() {}
+  }
+  const selectors = [
+    '#community', '#community-status', '#community-comments', '#community-annotations', '#comment-form',
+    '#annotation-form', '#photo-like', '#community-more', '#annotation-begin', '.photo-detail__image img',
+    '.annotation-stage', '#annotation-overlay', '#annotation-visible', '#annotation-status', '#annotation-save',
+    '#annotation-feedback', '#annotation-area-details', '#annotation-note-details', '#annotation-preview',
+    '#annotation-preview-image', '#community-signin', '#annotation-manual', '#photo-like-count',
+    '#annotation-clear', '#annotation-cancel',
+  ];
+  const nodes = new Map(selectors.map(selector => [selector, new Element()]));
+  const get = selector => nodes.get(selector) || null;
+  doc = Object.assign(new EventTarget(), {
+    querySelector: get, getElementById: id => get(`#${id}`),
+    createElement: () => new Element(), createElementNS: () => new Element(),
+  });
+  const form = get('#annotation-form');
+  form.hidden = true;
+  form.elements = Object.fromEntries(Object.entries({ name: '', note: '', x: '10', y: '10', width: '20', height: '20' }).map(([key, value]) => {
+    const field = new Element(); field.value = field.defaultValue = value;
+    field.isCoordinate = !['name', 'note'].includes(key); field.parent = get('#annotation-area-details');
+    return [key, field];
+  }));
+  form.controls = [...Object.values(form.elements), get('#annotation-save'), get('#annotation-clear'), get('#annotation-cancel')];
+  get('#annotation-save').disabled = true;
+  get('#community').dataset.photoId = 'test-photo';
+  get('#annotation-visible').checked = true;
+  Object.assign(get('.photo-detail__image img'), { naturalWidth, naturalHeight, src: '/photo.webp', currentSrc: '/photo.webp' });
+  const requests = [];
+  let save = async body => ({ ok: true, json: async () => ({ ...body, id: 'saved-1', displayName: 'Test member' }) });
+  const globals = {
+    document: doc, window: Object.assign(new EventTarget(), { innerWidth: 1280 }),
+    location: { hash: '', pathname: '/image/test-photo/', search: '' },
+    ResizeObserver: class { observe() {} },
+    fetch: async (url, options) => {
+      if (url.endsWith('/community')) return { ok: true, json: async () => ({ user, likeCount: 0, liked: false, comments: [], annotations: [] }) };
+      assert.equal(url, '/api/photos/test-photo/annotations');
+      assert.equal(options.method, 'POST');
+      const body = JSON.parse(options.body); requests.push(body);
+      return save(body);
+    },
+  };
+  for (const [key, value] of Object.entries(globals)) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { value, configurable: true });
+    t.after(() => previous ? Object.defineProperty(globalThis, key, previous) : delete globalThis[key]);
+  }
+  await import(`../static/community.js?annotation-test=${++instance}`);
+  await settle();
+  const emit = (element, type, values = {}) => element.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), values));
+  const click = selector => emit(get(selector), 'click');
+  const draw = (start = { clientX: 120, clientY: 130 }, end = { clientX: 220, clientY: 270 }) => {
+    const overlay = get('#annotation-overlay');
+    const pointer = { button: 0, pointerId: 7, isPrimary: true };
+    emit(overlay, 'pointerdown', { ...pointer, ...start });
+    emit(overlay, 'pointermove', { ...pointer, ...end });
+    emit(overlay, 'pointerup', { ...pointer, ...end });
+  };
+  return { get, doc, form, requests, emit, click, draw, setSave: handler => { save = handler; } };
+}
+
+test('drawing opens and focuses the nearby name field; redraw keeps text and cancel clears the draft', async t => {
+  const app = await mountEditor(t);
+  const { get, form, doc, click, draw, emit } = app;
+  click('#annotation-begin'); draw();
+  assert.equal(form.hidden, false);
+  assert.equal(doc.activeElement, form.elements.name);
+  assert.equal(form.classList.contains('is-floating'), true);
+  assert.equal(get('#annotation-preview').hidden, false);
+  assert.equal(get('#annotation-save').disabled, false);
+  assert.equal(form.elements.x.value, 10);
+  assert.equal(form.elements.width.value, 10);
+  form.elements.name.value = 'Bill Harvey';
+  form.elements.note.value = 'At home';
+  click('#annotation-clear');
+  assert.equal(form.hidden, true);
+  draw({ clientX: 720, clientY: 130 }, { clientX: 820, clientY: 270 });
+  assert.equal(form.elements.name.value, 'Bill Harvey');
+  assert.equal(form.elements.note.value, 'At home');
+  assert.equal(form.elements.x.value, 70);
+  assert.equal(doc.activeElement, form.elements.name);
+  emit(doc, 'keydown', { key: 'Escape' });
+  assert.equal(form.hidden, true);
+  assert.equal(form.elements.name.value, '');
+  assert.equal(form.elements.note.value, '');
+  assert.equal(get('#annotation-preview').hidden, true);
+  assert.equal(get('#annotation-save').disabled, true);
+  assert.equal(doc.activeElement, get('#annotation-begin'));
+});
+
+test('a pending save is sent once, and a failed save keeps the name, note and selected area for retry', async t => {
+  const app = await mountEditor(t);
+  const { get, form, doc, click, draw, emit, requests } = app;
+  click('#annotation-begin'); draw();
+  form.elements.name.value = '  Bill Harvey  ';
+  form.elements.note.value = '  At home  ';
+  let fail;
+  app.setSave(() => new Promise(resolve => { fail = resolve; }));
+  emit(form, 'submit'); emit(form, 'submit');
+  assert.equal(requests.length, 1);
+  assert.equal(form.dataset.busy, 'true');
+  assert.equal(get('#annotation-save').disabled, true);
+  assert.equal(form.elements.name.disabled, true);
+  click('#annotation-cancel');
+  assert.equal(form.hidden, false, 'an in-flight save must not lose its editor');
+  fail({ ok: false, status: 503, json: async () => ({ error: 'Temporary failure. Please retry.' }) });
+  await settle();
+  assert.equal(form.dataset.busy, 'false');
+  assert.equal(form.hidden, false);
+  assert.equal(form.elements.name.value, '  Bill Harvey  ');
+  assert.equal(form.elements.note.value, '  At home  ');
+  assert.equal(get('#annotation-preview').hidden, false);
+  assert.equal(get('#annotation-save').disabled, false);
+  assert.match(get('#annotation-status').textContent, /Temporary failure/);
+  assert.equal(get('#annotation-status').classList.contains('is-error'), true);
+  app.setSave(async body => ({ ok: true, json: async () => ({ ...body, id: 'saved-1', displayName: 'Test member' }) }));
+  emit(form, 'submit');
+  await settle();
+  assert.equal(requests.length, 2);
+  assert.deepEqual(requests[1], requests[0], 'retry sends the same selected area and text');
+  for (const [key, expected] of Object.entries({ x: 0.1, y: 0.1, width: 0.1, height: 0.2 })) {
+    assert.ok(Math.abs(requests[1][key] - expected) < 1e-10);
+  }
+  assert.equal(requests[1].name, 'Bill Harvey');
+  assert.equal(requests[1].note, 'At home');
+  assert.equal(form.hidden, true);
+  assert.equal(form.elements.name.value, '');
+  assert.equal(get('#annotation-preview').hidden, true);
+  assert.equal(get('#annotation-save').disabled, true);
+  assert.match(get('#annotation-feedback').textContent, /Bill Harvey saved/);
+  assert.equal(get('#community-annotations').children.length, 1);
+  assert.equal(doc.activeElement, get('#annotation-begin'));
+});
+
+test('area controls reject out-of-bounds and tiny boxes and name is required before saving', async t => {
+  const { get, form, doc, click, emit, requests } = await mountEditor(t);
+  click('#annotation-manual');
+  assert.equal(get('#annotation-area-details').open, true);
+  assert.equal(doc.activeElement, form.elements.x);
+  const setRegion = region => {
+    for (const [key, value] of Object.entries(region)) form.elements[key].value = String(value);
+    emit(form.elements.width, 'input');
+  };
+  for (const region of [
+    { x: 95, y: 10, width: 20, height: 20 },
+    { x: -1, y: 10, width: 20, height: 20 },
+    { x: 10, y: 10, width: 0.5, height: 20 },
+    { x: 10, y: 99, width: 20, height: 2 },
+  ]) {
+    setRegion(region);
+    assert.equal(get('#annotation-save').disabled, true);
+    assert.equal(get('#annotation-preview').hidden, true);
+    emit(form, 'submit');
+    assert.equal(requests.length, 0);
+  }
+  setRegion({ x: 99, y: 99, width: 1, height: 1 });
+  assert.equal(get('#annotation-save').disabled, false);
+  emit(form, 'submit');
+  assert.equal(requests.length, 0);
+  assert.equal(doc.activeElement, form.elements.name);
+  assert.match(get('#annotation-status').textContent, /Enter the person/);
+});
+
+test('drawing uses the actual photograph bounds, rejects tiny boxes and allows another attempt', async t => {
+  const { get, form, click, draw } = await mountEditor(t, { naturalWidth: 700, naturalHeight: 1000 });
+  click('#annotation-begin');
+  // The portrait occupies x=275..765 inside the 1000px-wide image element.
+  draw({ clientX: 120, clientY: 130 }, { clientX: 220, clientY: 270 });
+  assert.equal(form.hidden, true);
+  assert.equal(get('#annotation-overlay').classList.contains('is-drawing'), true);
+  draw({ clientX: 373, clientY: 130 }, { clientX: 374, clientY: 131 });
+  assert.equal(form.hidden, true);
+  assert.equal(get('#annotation-save').disabled, true);
+  draw({ clientX: 373, clientY: 130 }, { clientX: 471, clientY: 270 });
+  assert.equal(form.hidden, false);
+  assert.equal(form.elements.x.value, 20);
+  assert.equal(form.elements.width.value, 20);
+  assert.equal(get('#annotation-save').disabled, false);
+});
+
+test('guests cannot start drawing or open manual annotation controls', async t => {
+  const { get, form, click, draw } = await mountEditor(t, { user: null });
+  assert.equal(get('#annotation-begin').disabled, true);
+  assert.equal(get('#annotation-manual').disabled, true);
+  click('#annotation-begin'); draw(); click('#annotation-manual');
+  assert.equal(form.hidden, true);
+  assert.equal(get('#annotation-overlay').classList.contains('is-drawing'), false);
+  assert.equal(get('#annotation-save').disabled, true);
+});
