@@ -253,6 +253,8 @@ Annotation controls, drawing guidance and image overlays stay hidden until the s
 
 The admin review screen at `/admin/#admin-review-section` supports reviewing, hiding and restoring comments and names, with photograph context and an audit trail. Comments publish immediately. See [COMMUNITY.md](COMMUNITY.md) for the approval workflow and additive migration, and [SECURITY_REVIEW.md](SECURITY_REVIEW.md) for the comment security audit.
 
+The special [roll notebook collection](https://brendan-mulvany-photography.com/notebooks/) connects handwritten notebook rows to published rolls, with reciprocal source links from collections. See [NOTEBOOKS.md](NOTEBOOKS.md) for source provenance, export/rebuild instructions and future batch integration.
+
 Choose **Add a name** and draw around a person. The name field opens beside the
 selected area when there is space, or directly below the photograph on a small
 screen. A close-up keeps the selection visible while typing. The name field is

@@ -1,0 +1,1688 @@
+{
+  "version": 1,
+  "coordinateSystem": "normalized top-left of EXIF-upright source image",
+  "links": [
+    {
+      "roll": "3050",
+      "sourceImage": "IMG_6237.jpeg",
+      "entryId": "IMG_6237:ocr:015",
+      "book": "2",
+      "polygon": [
+        [
+          0.12,
+          0.644
+        ],
+        [
+          0.835,
+          0.644
+        ],
+        [
+          0.835,
+          0.689
+        ],
+        [
+          0.12,
+          0.689
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "d9adcce489f50752c92af3980a993fe19084c83b40c773572f0e373205eb4a98"
+    },
+    {
+      "roll": "3051",
+      "sourceImage": "IMG_6237.jpeg",
+      "entryId": "IMG_6237:review:3051",
+      "book": "2",
+      "polygon": [
+        [
+          0.12,
+          0.68
+        ],
+        [
+          0.85,
+          0.68
+        ],
+        [
+          0.85,
+          0.724
+        ],
+        [
+          0.12,
+          0.724
+        ]
+      ],
+      "verification": "visual",
+      "notes": "Physical row 16. Roll 3051 is clearly written; ditto marks repeat the Pope's Visit entry immediately above (3050). OCR read the roll as 305/ and omitted the roll number.",
+      "sourceSha256": "d9adcce489f50752c92af3980a993fe19084c83b40c773572f0e373205eb4a98"
+    },
+    {
+      "roll": "3054",
+      "sourceImage": "IMG_6237.jpeg",
+      "entryId": "IMG_6237:ocr:020",
+      "book": "2",
+      "polygon": [
+        [
+          0.12,
+          0.8
+        ],
+        [
+          0.835,
+          0.8
+        ],
+        [
+          0.835,
+          0.843
+        ],
+        [
+          0.12,
+          0.843
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "d9adcce489f50752c92af3980a993fe19084c83b40c773572f0e373205eb4a98"
+    },
+    {
+      "roll": "3061",
+      "sourceImage": "IMG_6238.jpeg",
+      "entryId": "IMG_6238:ocr:005",
+      "book": "2",
+      "polygon": [
+        [
+          0.115,
+          0.27
+        ],
+        [
+          0.84,
+          0.268
+        ],
+        [
+          0.84,
+          0.306
+        ],
+        [
+          0.115,
+          0.308
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "d450a69c9b3b3a14fc0380c15c600c840d2093a79600fe52ebd8d342969082f3"
+    },
+    {
+      "roll": "3071",
+      "sourceImage": "IMG_6238.jpeg",
+      "entryId": "IMG_6238:ocr:015",
+      "book": "2",
+      "polygon": [
+        [
+          0.115,
+          0.637
+        ],
+        [
+          0.84,
+          0.637
+        ],
+        [
+          0.84,
+          0.671
+        ],
+        [
+          0.115,
+          0.674
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "d450a69c9b3b3a14fc0380c15c600c840d2093a79600fe52ebd8d342969082f3"
+    },
+    {
+      "roll": "3093",
+      "sourceImage": "IMG_6239.jpeg",
+      "entryId": "IMG_6239:ocr:015",
+      "book": "2",
+      "polygon": [
+        [
+          0.14,
+          0.633
+        ],
+        [
+          0.86,
+          0.632
+        ],
+        [
+          0.86,
+          0.672
+        ],
+        [
+          0.14,
+          0.677
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "b05193487fa503eb905205e48c3013f8309550af0e194a32981a7d3bfbadc4c6",
+      "notes": "Literal handwritten roll 3093 verified. Notebook subject reads Ireland v England (Wembley), which conflicts with the current published collection title; existing collection metadata is preserved.",
+      "publicNote": "The notebook calls this roll Ireland at Wembley; the collection is currently titled Ireland vs Argentina. Linked by the recorded roll number."
+    },
+    {
+      "roll": "3099",
+      "sourceImage": "IMG_6239.jpeg",
+      "entryId": "IMG_6239:ocr:021",
+      "book": "2",
+      "polygon": [
+        [
+          0.14,
+          0.856
+        ],
+        [
+          0.86,
+          0.855
+        ],
+        [
+          0.86,
+          0.887
+        ],
+        [
+          0.14,
+          0.889
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "b05193487fa503eb905205e48c3013f8309550af0e194a32981a7d3bfbadc4c6"
+    },
+    {
+      "roll": "4009",
+      "sourceImage": "IMG_6240.jpeg",
+      "entryId": "IMG_6240:ocr:010",
+      "book": "2",
+      "polygon": [
+        [
+          0.135,
+          0.407
+        ],
+        [
+          0.855,
+          0.405
+        ],
+        [
+          0.855,
+          0.435
+        ],
+        [
+          0.135,
+          0.436
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "3c21c32a8a0f7024ab3bfa0b3774b6ab032057cc054dd6971029bfe90f53159d"
+    },
+    {
+      "roll": "4024",
+      "sourceImage": "IMG_6241.jpeg",
+      "entryId": "IMG_6241:ocr:002",
+      "book": "2",
+      "polygon": [
+        [
+          0.078,
+          0.128
+        ],
+        [
+          0.837,
+          0.13
+        ],
+        [
+          0.837,
+          0.163
+        ],
+        [
+          0.078,
+          0.164
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "34501b55eacf8d495d1a8086009b9bf92b01de439a86a261e86adeca6906b6f3",
+      "notes": "Visually confirmed Birr Air Show row 2. The separate OCR candidate IMG_6241:ocr:007 actually reads 4029 and is not a duplicate 4024."
+    },
+    {
+      "roll": "4029",
+      "sourceImage": "IMG_6241.jpeg",
+      "entryId": "IMG_6241:review:4029",
+      "book": "2",
+      "polygon": [
+        [
+          0.075,
+          0.312
+        ],
+        [
+          0.837,
+          0.312
+        ],
+        [
+          0.837,
+          0.361
+        ],
+        [
+          0.075,
+          0.361
+        ]
+      ],
+      "verification": "visual",
+      "notes": "Physical row 7: Pope's Visit to Ireland, between 4028 and 4030. OCR incorrectly read 4024; the true 4024 is row 2, Birr Air Show.",
+      "sourceSha256": "34501b55eacf8d495d1a8086009b9bf92b01de439a86a261e86adeca6906b6f3"
+    },
+    {
+      "roll": "4034",
+      "sourceImage": "IMG_6241.jpeg",
+      "entryId": "IMG_6241:ocr:012",
+      "book": "2",
+      "polygon": [
+        [
+          0.078,
+          0.51
+        ],
+        [
+          0.837,
+          0.513
+        ],
+        [
+          0.837,
+          0.547
+        ],
+        [
+          0.078,
+          0.552
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "34501b55eacf8d495d1a8086009b9bf92b01de439a86a261e86adeca6906b6f3"
+    },
+    {
+      "roll": "4053",
+      "sourceImage": "IMG_6242.jpeg",
+      "entryId": "IMG_6242:visual:009",
+      "book": "2",
+      "polygon": [
+        [
+          0.105,
+          0.421
+        ],
+        [
+          0.815,
+          0.428
+        ],
+        [
+          0.815,
+          0.46
+        ],
+        [
+          0.105,
+          0.47
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "7e8cc9e7c5ece4f236b76b8fe8f191001693766976219f4d7b03f052fdfa8dee"
+    },
+    {
+      "roll": "4057",
+      "sourceImage": "IMG_6242.jpeg",
+      "entryId": "IMG_6242:visual:013",
+      "book": "2",
+      "polygon": [
+        [
+          0.105,
+          0.573
+        ],
+        [
+          0.815,
+          0.573
+        ],
+        [
+          0.815,
+          0.606
+        ],
+        [
+          0.105,
+          0.606
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "7e8cc9e7c5ece4f236b76b8fe8f191001693766976219f4d7b03f052fdfa8dee"
+    },
+    {
+      "roll": "4061",
+      "sourceImage": "IMG_6242.jpeg",
+      "entryId": "IMG_6242:visual:017",
+      "book": "2",
+      "polygon": [
+        [
+          0.105,
+          0.717
+        ],
+        [
+          0.815,
+          0.718
+        ],
+        [
+          0.815,
+          0.753
+        ],
+        [
+          0.105,
+          0.754
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "7e8cc9e7c5ece4f236b76b8fe8f191001693766976219f4d7b03f052fdfa8dee"
+    },
+    {
+      "roll": "4062",
+      "sourceImage": "IMG_6242.jpeg",
+      "entryId": "IMG_6242:visual:018",
+      "book": "2",
+      "polygon": [
+        [
+          0.105,
+          0.755
+        ],
+        [
+          0.815,
+          0.755
+        ],
+        [
+          0.815,
+          0.791
+        ],
+        [
+          0.105,
+          0.791
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "7e8cc9e7c5ece4f236b76b8fe8f191001693766976219f4d7b03f052fdfa8dee"
+    },
+    {
+      "roll": "4064",
+      "sourceImage": "IMG_6242.jpeg",
+      "entryId": "IMG_6242:visual:020",
+      "book": "2",
+      "polygon": [
+        [
+          0.105,
+          0.828
+        ],
+        [
+          0.815,
+          0.829
+        ],
+        [
+          0.815,
+          0.866
+        ],
+        [
+          0.105,
+          0.866
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "7e8cc9e7c5ece4f236b76b8fe8f191001693766976219f4d7b03f052fdfa8dee"
+    },
+    {
+      "roll": "4066",
+      "sourceImage": "IMG_6242.jpeg",
+      "entryId": "IMG_6242:visual:022",
+      "book": "2",
+      "polygon": [
+        [
+          0.105,
+          0.899
+        ],
+        [
+          0.815,
+          0.9
+        ],
+        [
+          0.815,
+          0.938
+        ],
+        [
+          0.105,
+          0.938
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "7e8cc9e7c5ece4f236b76b8fe8f191001693766976219f4d7b03f052fdfa8dee"
+    },
+    {
+      "roll": "4072",
+      "sourceImage": "IMG_6243.jpeg",
+      "entryId": "IMG_6243:visual:006",
+      "book": "2",
+      "polygon": [
+        [
+          0.102,
+          0.292
+        ],
+        [
+          0.81,
+          0.292
+        ],
+        [
+          0.81,
+          0.326
+        ],
+        [
+          0.102,
+          0.327
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "864e3a67fc1a05491ab0dea24c261faa33f6abcf187d24cd837879644ed55445"
+    },
+    {
+      "roll": "4081",
+      "sourceImage": "IMG_6243.jpeg",
+      "entryId": "IMG_6243:visual:015",
+      "book": "2",
+      "polygon": [
+        [
+          0.095,
+          0.617
+        ],
+        [
+          0.81,
+          0.619
+        ],
+        [
+          0.81,
+          0.65
+        ],
+        [
+          0.095,
+          0.65
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "864e3a67fc1a05491ab0dea24c261faa33f6abcf187d24cd837879644ed55445"
+    },
+    {
+      "roll": "4083",
+      "sourceImage": "IMG_6243.jpeg",
+      "entryId": "IMG_6243:visual:017",
+      "book": "2",
+      "polygon": [
+        [
+          0.095,
+          0.69
+        ],
+        [
+          0.81,
+          0.691
+        ],
+        [
+          0.81,
+          0.724
+        ],
+        [
+          0.095,
+          0.725
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "864e3a67fc1a05491ab0dea24c261faa33f6abcf187d24cd837879644ed55445",
+      "notes": "Literal handwritten roll 4083 verified. Notebook subject reads Ireland v Argentina, which conflicts with the current published collection title; existing collection metadata is preserved.",
+      "publicNote": "The notebook calls this roll Ireland v Argentina; the collection is currently titled Ireland at Wembley. Linked by the recorded roll number."
+    },
+    {
+      "roll": "4084",
+      "sourceImage": "IMG_6243.jpeg",
+      "entryId": "IMG_6243:visual:018",
+      "book": "2",
+      "polygon": [
+        [
+          0.095,
+          0.73
+        ],
+        [
+          0.81,
+          0.729
+        ],
+        [
+          0.81,
+          0.758
+        ],
+        [
+          0.095,
+          0.758
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "864e3a67fc1a05491ab0dea24c261faa33f6abcf187d24cd837879644ed55445"
+    },
+    {
+      "roll": "4087",
+      "sourceImage": "IMG_6243.jpeg",
+      "entryId": "IMG_6243:visual:021",
+      "book": "2",
+      "polygon": [
+        [
+          0.095,
+          0.848
+        ],
+        [
+          0.81,
+          0.848
+        ],
+        [
+          0.81,
+          0.881
+        ],
+        [
+          0.095,
+          0.882
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "864e3a67fc1a05491ab0dea24c261faa33f6abcf187d24cd837879644ed55445"
+    },
+    {
+      "roll": "4093",
+      "sourceImage": "IMG_6244.jpeg",
+      "entryId": "IMG_6244:ocr:005",
+      "book": "2",
+      "polygon": [
+        [
+          0.08,
+          0.268
+        ],
+        [
+          0.785,
+          0.253
+        ],
+        [
+          0.785,
+          0.286
+        ],
+        [
+          0.08,
+          0.3
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "2763e8bfc00803dbe0defa65a4fc7b9ddc5b6104ea9fbb9c9825e1d4e1c5fc1c"
+    },
+    {
+      "roll": "5000",
+      "sourceImage": "IMG_6244.jpeg",
+      "entryId": "IMG_6244:ocr:012",
+      "book": "2",
+      "polygon": [
+        [
+          0.082,
+          0.518
+        ],
+        [
+          0.8,
+          0.509
+        ],
+        [
+          0.8,
+          0.544
+        ],
+        [
+          0.082,
+          0.555
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "2763e8bfc00803dbe0defa65a4fc7b9ddc5b6104ea9fbb9c9825e1d4e1c5fc1c"
+    },
+    {
+      "roll": "5005",
+      "sourceImage": "IMG_6244.jpeg",
+      "entryId": "IMG_6244:review:5005",
+      "book": "2",
+      "polygon": [
+        [
+          0.087,
+          0.69
+        ],
+        [
+          0.811,
+          0.682
+        ],
+        [
+          0.813,
+          0.729
+        ],
+        [
+          0.088,
+          0.739
+        ]
+      ],
+      "verification": "visual",
+      "notes": "Physical row 17: French G P, roll 5005, date written 4/6/80. The roll is between 5004 and 5006. OCR read its final digit as Cyrillic \u0411.",
+      "sourceSha256": "2763e8bfc00803dbe0defa65a4fc7b9ddc5b6104ea9fbb9c9825e1d4e1c5fc1c"
+    },
+    {
+      "roll": "5008",
+      "sourceImage": "IMG_6244.jpeg",
+      "entryId": "IMG_6244:ocr:020",
+      "book": "2",
+      "polygon": [
+        [
+          0.085,
+          0.804
+        ],
+        [
+          0.816,
+          0.797
+        ],
+        [
+          0.816,
+          0.832
+        ],
+        [
+          0.085,
+          0.846
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "2763e8bfc00803dbe0defa65a4fc7b9ddc5b6104ea9fbb9c9825e1d4e1c5fc1c"
+    },
+    {
+      "roll": "5010",
+      "sourceImage": "IMG_6244.jpeg",
+      "entryId": "IMG_6244:review:5010",
+      "book": "2",
+      "polygon": [
+        [
+          0.088,
+          0.878
+        ],
+        [
+          0.816,
+          0.867
+        ],
+        [
+          0.816,
+          0.92
+        ],
+        [
+          0.09,
+          0.93
+        ]
+      ],
+      "verification": "visual",
+      "notes": "Physical bottom row 22: Boat Trip Ireland V England, roll 5010. The preceding row is 5009, and IMG_6245 starts with 5011. OCR observed the text/roll but the row parser omitted this final entry.",
+      "sourceSha256": "2763e8bfc00803dbe0defa65a4fc7b9ddc5b6104ea9fbb9c9825e1d4e1c5fc1c"
+    },
+    {
+      "roll": "5018",
+      "sourceImage": "IMG_6245.jpeg",
+      "entryId": "IMG_6245:review:5018",
+      "book": "2",
+      "polygon": [
+        [
+          0.106,
+          0.35
+        ],
+        [
+          0.833,
+          0.346
+        ],
+        [
+          0.833,
+          0.39
+        ],
+        [
+          0.107,
+          0.399
+        ]
+      ],
+      "verification": "visual",
+      "notes": "Physical row 8: Eagle House Pub, date written 7/8/80; clearly numbered 5018 between 5017 and 5019. OCR read 50/8 and omitted the roll number.",
+      "sourceSha256": "d8a34f594812373f0bb3044bbfb4b133c752ed54cc4aa0925d9e9e054bdc4e91"
+    },
+    {
+      "roll": "5020",
+      "sourceImage": "IMG_6245.jpeg",
+      "entryId": "IMG_6245:ocr:010",
+      "book": "2",
+      "polygon": [
+        [
+          0.112,
+          0.433
+        ],
+        [
+          0.835,
+          0.427
+        ],
+        [
+          0.835,
+          0.463
+        ],
+        [
+          0.112,
+          0.473
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "d8a34f594812373f0bb3044bbfb4b133c752ed54cc4aa0925d9e9e054bdc4e91"
+    },
+    {
+      "roll": "5063",
+      "sourceImage": "IMG_6247.jpeg",
+      "entryId": "IMG_6247:ocr:009",
+      "book": "2",
+      "polygon": [
+        [
+          0.055,
+          0.378
+        ],
+        [
+          0.813,
+          0.392
+        ],
+        [
+          0.813,
+          0.425
+        ],
+        [
+          0.055,
+          0.412
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "b2efd6427b3bfa4f257714c828a96e16268f042500130e53e1a5ad0944a84bbc"
+    },
+    {
+      "roll": "5065",
+      "sourceImage": "IMG_6247.jpeg",
+      "entryId": "IMG_6247:ocr:011",
+      "book": "2",
+      "polygon": [
+        [
+          0.055,
+          0.45
+        ],
+        [
+          0.813,
+          0.459
+        ],
+        [
+          0.813,
+          0.495
+        ],
+        [
+          0.055,
+          0.488
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "b2efd6427b3bfa4f257714c828a96e16268f042500130e53e1a5ad0944a84bbc"
+    },
+    {
+      "roll": "5069",
+      "sourceImage": "IMG_6247.jpeg",
+      "entryId": "IMG_6247:ocr:015",
+      "book": "2",
+      "polygon": [
+        [
+          0.05,
+          0.612
+        ],
+        [
+          0.8,
+          0.618
+        ],
+        [
+          0.8,
+          0.657
+        ],
+        [
+          0.05,
+          0.653
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "b2efd6427b3bfa4f257714c828a96e16268f042500130e53e1a5ad0944a84bbc"
+    },
+    {
+      "roll": "5078",
+      "sourceImage": "IMG_6248.jpeg",
+      "entryId": "IMG_6248:visual:002",
+      "book": "2",
+      "polygon": [
+        [
+          0.075,
+          0.077
+        ],
+        [
+          0.83,
+          0.092
+        ],
+        [
+          0.83,
+          0.122
+        ],
+        [
+          0.075,
+          0.113
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "8d487c2cb3faa751ae0d62dfaabac2ccc3087778ca1cbc5aa80ead416da09ba2"
+    },
+    {
+      "roll": "5079",
+      "sourceImage": "IMG_6248.jpeg",
+      "entryId": "IMG_6248:visual:003",
+      "book": "2",
+      "polygon": [
+        [
+          0.075,
+          0.12
+        ],
+        [
+          0.826,
+          0.132
+        ],
+        [
+          0.826,
+          0.159
+        ],
+        [
+          0.075,
+          0.153
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "8d487c2cb3faa751ae0d62dfaabac2ccc3087778ca1cbc5aa80ead416da09ba2",
+      "notes": "Handwritten roll identifier verified. The existing visual transcription retains uncertainty in the opponent reading; this link does not correct collection metadata."
+    },
+    {
+      "roll": "5082",
+      "sourceImage": "IMG_6248.jpeg",
+      "entryId": "IMG_6248:visual:005",
+      "book": "2",
+      "polygon": [
+        [
+          0.065,
+          0.234
+        ],
+        [
+          0.815,
+          0.247
+        ],
+        [
+          0.815,
+          0.277
+        ],
+        [
+          0.065,
+          0.264
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "8d487c2cb3faa751ae0d62dfaabac2ccc3087778ca1cbc5aa80ead416da09ba2",
+      "notes": "Separate physical row with visible ditto marks for Jim Brady\u2019s wedding; the helper groups rolls 5081\u20135086 in one logical entry, but this polygon targets this roll only."
+    },
+    {
+      "roll": "5083",
+      "sourceImage": "IMG_6248.jpeg",
+      "entryId": "IMG_6248:visual:005",
+      "book": "2",
+      "polygon": [
+        [
+          0.065,
+          0.272
+        ],
+        [
+          0.815,
+          0.284
+        ],
+        [
+          0.815,
+          0.315
+        ],
+        [
+          0.065,
+          0.301
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "8d487c2cb3faa751ae0d62dfaabac2ccc3087778ca1cbc5aa80ead416da09ba2",
+      "notes": "Separate physical row with visible ditto marks for Jim Brady\u2019s wedding; the helper groups rolls 5081\u20135086 in one logical entry, but this polygon targets this roll only."
+    },
+    {
+      "roll": "5084",
+      "sourceImage": "IMG_6248.jpeg",
+      "entryId": "IMG_6248:visual:005",
+      "book": "2",
+      "polygon": [
+        [
+          0.065,
+          0.31
+        ],
+        [
+          0.815,
+          0.319
+        ],
+        [
+          0.815,
+          0.351
+        ],
+        [
+          0.065,
+          0.338
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "8d487c2cb3faa751ae0d62dfaabac2ccc3087778ca1cbc5aa80ead416da09ba2",
+      "notes": "Separate physical row with visible ditto marks for Jim Brady\u2019s wedding; the helper groups rolls 5081\u20135086 in one logical entry, but this polygon targets this roll only."
+    },
+    {
+      "roll": "5085",
+      "sourceImage": "IMG_6248.jpeg",
+      "entryId": "IMG_6248:visual:005",
+      "book": "2",
+      "polygon": [
+        [
+          0.065,
+          0.348
+        ],
+        [
+          0.815,
+          0.357
+        ],
+        [
+          0.815,
+          0.389
+        ],
+        [
+          0.065,
+          0.375
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "8d487c2cb3faa751ae0d62dfaabac2ccc3087778ca1cbc5aa80ead416da09ba2",
+      "notes": "Separate physical row with visible ditto marks for Jim Brady\u2019s wedding; the helper groups rolls 5081\u20135086 in one logical entry, but this polygon targets this roll only."
+    },
+    {
+      "roll": "5086",
+      "sourceImage": "IMG_6248.jpeg",
+      "entryId": "IMG_6248:visual:005",
+      "book": "2",
+      "polygon": [
+        [
+          0.065,
+          0.386
+        ],
+        [
+          0.815,
+          0.395
+        ],
+        [
+          0.815,
+          0.427
+        ],
+        [
+          0.065,
+          0.413
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "8d487c2cb3faa751ae0d62dfaabac2ccc3087778ca1cbc5aa80ead416da09ba2",
+      "notes": "Separate physical row with visible ditto marks for Jim Brady\u2019s wedding; the helper groups rolls 5081\u20135086 in one logical entry, but this polygon targets this roll only."
+    },
+    {
+      "roll": "5099",
+      "sourceImage": "IMG_6249.jpeg",
+      "entryId": "IMG_6249:ocr:001",
+      "book": "2",
+      "polygon": [
+        [
+          0.115,
+          0.08
+        ],
+        [
+          0.83,
+          0.08
+        ],
+        [
+          0.83,
+          0.119
+        ],
+        [
+          0.115,
+          0.119
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "ec231c86c070b96740caf7b12ca9310d1308b4e1e557a6e2db66da511ee334dd"
+    },
+    {
+      "roll": "6000",
+      "sourceImage": "IMG_6249.jpeg",
+      "entryId": "IMG_6249:ocr:002",
+      "book": "2",
+      "polygon": [
+        [
+          0.115,
+          0.12
+        ],
+        [
+          0.83,
+          0.119
+        ],
+        [
+          0.83,
+          0.155
+        ],
+        [
+          0.115,
+          0.16
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "ec231c86c070b96740caf7b12ca9310d1308b4e1e557a6e2db66da511ee334dd"
+    },
+    {
+      "roll": "6008",
+      "sourceImage": "IMG_6249.jpeg",
+      "entryId": "IMG_6249:review:6008",
+      "book": "2",
+      "polygon": [
+        [
+          0.107,
+          0.402
+        ],
+        [
+          0.833,
+          0.405
+        ],
+        [
+          0.833,
+          0.454
+        ],
+        [
+          0.107,
+          0.451
+        ]
+      ],
+      "verification": "visual",
+      "notes": "Physical row 10 clearly reads Billy Connelly, roll 6008. This conflicts with the published collection title Soccor shots Ireland; the notebook assigns Soccer Shots Ireland to roll 6006 on row 8. Geometry verifies the written roll only; published collection metadata requires separate review.",
+      "sourceSha256": "ec231c86c070b96740caf7b12ca9310d1308b4e1e557a6e2db66da511ee334dd",
+      "publicNote": "The notebook describes Billy Connelly; the collection is currently titled Soccor shots Ireland. Linked by the recorded roll number."
+    },
+    {
+      "roll": "6015",
+      "sourceImage": "IMG_6249.jpeg",
+      "entryId": "IMG_6249:ocr:017",
+      "book": "2",
+      "polygon": [
+        [
+          0.115,
+          0.672
+        ],
+        [
+          0.825,
+          0.675
+        ],
+        [
+          0.825,
+          0.713
+        ],
+        [
+          0.115,
+          0.709
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "ec231c86c070b96740caf7b12ca9310d1308b4e1e557a6e2db66da511ee334dd"
+    },
+    {
+      "roll": "6018",
+      "sourceImage": "IMG_6249.jpeg",
+      "entryId": "IMG_6249:ocr:020",
+      "book": "2",
+      "polygon": [
+        [
+          0.115,
+          0.788
+        ],
+        [
+          0.818,
+          0.793
+        ],
+        [
+          0.818,
+          0.83
+        ],
+        [
+          0.115,
+          0.827
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "ec231c86c070b96740caf7b12ca9310d1308b4e1e557a6e2db66da511ee334dd"
+    },
+    {
+      "roll": "6020",
+      "sourceImage": "IMG_6249.jpeg",
+      "entryId": "IMG_6249:ocr:022",
+      "book": "2",
+      "polygon": [
+        [
+          0.115,
+          0.867
+        ],
+        [
+          0.818,
+          0.873
+        ],
+        [
+          0.818,
+          0.915
+        ],
+        [
+          0.115,
+          0.911
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "ec231c86c070b96740caf7b12ca9310d1308b4e1e557a6e2db66da511ee334dd"
+    },
+    {
+      "roll": "6023",
+      "sourceImage": "IMG_6250.jpeg",
+      "entryId": "IMG_6250:ocr:003",
+      "book": "2",
+      "polygon": [
+        [
+          0.11,
+          0.216
+        ],
+        [
+          0.793,
+          0.19
+        ],
+        [
+          0.793,
+          0.224
+        ],
+        [
+          0.11,
+          0.25
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "6638eaecf5cb395746cec706d69ce0df30a57df9afadaf6f63b58b9f579ce417"
+    },
+    {
+      "roll": "6024",
+      "sourceImage": "IMG_6250.jpeg",
+      "entryId": "IMG_6250:ocr:004",
+      "book": "2",
+      "polygon": [
+        [
+          0.11,
+          0.253
+        ],
+        [
+          0.795,
+          0.229
+        ],
+        [
+          0.795,
+          0.257
+        ],
+        [
+          0.11,
+          0.28
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "6638eaecf5cb395746cec706d69ce0df30a57df9afadaf6f63b58b9f579ce417"
+    },
+    {
+      "roll": "6025",
+      "sourceImage": "IMG_6250.jpeg",
+      "entryId": "IMG_6250:ocr:005",
+      "book": "2",
+      "polygon": [
+        [
+          0.11,
+          0.28
+        ],
+        [
+          0.8,
+          0.262
+        ],
+        [
+          0.8,
+          0.293
+        ],
+        [
+          0.11,
+          0.311
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "6638eaecf5cb395746cec706d69ce0df30a57df9afadaf6f63b58b9f579ce417"
+    },
+    {
+      "roll": "6026",
+      "sourceImage": "IMG_6250.jpeg",
+      "entryId": "IMG_6250:ocr:006",
+      "book": "2",
+      "polygon": [
+        [
+          0.11,
+          0.316
+        ],
+        [
+          0.803,
+          0.299
+        ],
+        [
+          0.803,
+          0.33
+        ],
+        [
+          0.11,
+          0.349
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "6638eaecf5cb395746cec706d69ce0df30a57df9afadaf6f63b58b9f579ce417"
+    },
+    {
+      "roll": "6028",
+      "sourceImage": "IMG_6250.jpeg",
+      "entryId": "IMG_6250:ocr:008",
+      "book": "2",
+      "polygon": [
+        [
+          0.105,
+          0.389
+        ],
+        [
+          0.807,
+          0.374
+        ],
+        [
+          0.807,
+          0.406
+        ],
+        [
+          0.105,
+          0.42
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "6638eaecf5cb395746cec706d69ce0df30a57df9afadaf6f63b58b9f579ce417"
+    },
+    {
+      "roll": "6040",
+      "sourceImage": "IMG_6250.jpeg",
+      "entryId": "IMG_6250:ocr:020",
+      "book": "2",
+      "polygon": [
+        [
+          0.11,
+          0.819
+        ],
+        [
+          0.829,
+          0.815
+        ],
+        [
+          0.829,
+          0.85
+        ],
+        [
+          0.11,
+          0.858
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "6638eaecf5cb395746cec706d69ce0df30a57df9afadaf6f63b58b9f579ce417"
+    },
+    {
+      "roll": "6045",
+      "sourceImage": "IMG_6251.jpeg",
+      "entryId": "IMG_6251:ocr:003",
+      "book": "2",
+      "polygon": [
+        [
+          0.17,
+          0.219
+        ],
+        [
+          0.824,
+          0.211
+        ],
+        [
+          0.824,
+          0.236
+        ],
+        [
+          0.17,
+          0.251
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "5a0ab49fa044e6309b9d6e5650a27f1f6686671c318bdfbdcd1d7e35557197e9"
+    },
+    {
+      "roll": "6052",
+      "sourceImage": "IMG_6251.jpeg",
+      "entryId": "IMG_6251:ocr:010",
+      "book": "2",
+      "polygon": [
+        [
+          0.17,
+          0.456
+        ],
+        [
+          0.832,
+          0.447
+        ],
+        [
+          0.832,
+          0.47
+        ],
+        [
+          0.17,
+          0.481
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "5a0ab49fa044e6309b9d6e5650a27f1f6686671c318bdfbdcd1d7e35557197e9"
+    },
+    {
+      "roll": "6059",
+      "sourceImage": "IMG_6251.jpeg",
+      "entryId": "IMG_6251:ocr:017",
+      "book": "2",
+      "polygon": [
+        [
+          0.17,
+          0.698
+        ],
+        [
+          0.84,
+          0.692
+        ],
+        [
+          0.84,
+          0.716
+        ],
+        [
+          0.17,
+          0.722
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "5a0ab49fa044e6309b9d6e5650a27f1f6686671c318bdfbdcd1d7e35557197e9"
+    },
+    {
+      "roll": "6061",
+      "sourceImage": "IMG_6251.jpeg",
+      "entryId": "IMG_6251:ocr:019",
+      "book": "2",
+      "polygon": [
+        [
+          0.17,
+          0.768
+        ],
+        [
+          0.84,
+          0.763
+        ],
+        [
+          0.84,
+          0.787
+        ],
+        [
+          0.17,
+          0.795
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "5a0ab49fa044e6309b9d6e5650a27f1f6686671c318bdfbdcd1d7e35557197e9"
+    },
+    {
+      "roll": "6066",
+      "sourceImage": "IMG_6252.jpeg",
+      "entryId": "IMG_6252:ocr:002",
+      "book": "2",
+      "polygon": [
+        [
+          0.14,
+          0.209
+        ],
+        [
+          0.803,
+          0.182
+        ],
+        [
+          0.803,
+          0.21
+        ],
+        [
+          0.14,
+          0.242
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "b5bd24560a96ed6293d8bafc3b4a6dbed9186330ae04d93cbb3e88f04d97e3f0"
+    },
+    {
+      "roll": "6079",
+      "sourceImage": "IMG_6252.jpeg",
+      "entryId": "IMG_6252:ocr:015",
+      "book": "2",
+      "polygon": [
+        [
+          0.15,
+          0.662
+        ],
+        [
+          0.827,
+          0.65
+        ],
+        [
+          0.827,
+          0.676
+        ],
+        [
+          0.15,
+          0.686
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "b5bd24560a96ed6293d8bafc3b4a6dbed9186330ae04d93cbb3e88f04d97e3f0"
+    },
+    {
+      "roll": "6097",
+      "sourceImage": "IMG_6253.jpeg",
+      "entryId": "IMG_6253:visual:012",
+      "book": "2",
+      "polygon": [
+        [
+          0.13,
+          0.54
+        ],
+        [
+          0.777,
+          0.53
+        ],
+        [
+          0.777,
+          0.554
+        ],
+        [
+          0.13,
+          0.563
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "d665ea6b5e61c1c6c321044a3159967ce2e37ca3197888befdb27d6129bd177e"
+    },
+    {
+      "roll": "7010",
+      "sourceImage": "IMG_6254.jpeg",
+      "entryId": "IMG_6254:visual:004",
+      "book": "2",
+      "polygon": [
+        [
+          0.125,
+          0.279
+        ],
+        [
+          0.815,
+          0.257
+        ],
+        [
+          0.815,
+          0.282
+        ],
+        [
+          0.125,
+          0.31
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "f4a898899a0a0719ed6835b2bfbf78f01918a12ef8f123d28863a0c94ad9f2ee"
+    },
+    {
+      "roll": "7017",
+      "sourceImage": "IMG_6254.jpeg",
+      "entryId": "IMG_6254:visual:011",
+      "book": "2",
+      "polygon": [
+        [
+          0.13,
+          0.534
+        ],
+        [
+          0.825,
+          0.521
+        ],
+        [
+          0.825,
+          0.545
+        ],
+        [
+          0.13,
+          0.557
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "f4a898899a0a0719ed6835b2bfbf78f01918a12ef8f123d28863a0c94ad9f2ee"
+    },
+    {
+      "roll": "7019",
+      "sourceImage": "IMG_6254.jpeg",
+      "entryId": "IMG_6254:visual:013",
+      "book": "2",
+      "polygon": [
+        [
+          0.13,
+          0.607
+        ],
+        [
+          0.832,
+          0.602
+        ],
+        [
+          0.832,
+          0.626
+        ],
+        [
+          0.13,
+          0.633
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "f4a898899a0a0719ed6835b2bfbf78f01918a12ef8f123d28863a0c94ad9f2ee"
+    },
+    {
+      "roll": "7020",
+      "sourceImage": "IMG_6254.jpeg",
+      "entryId": "IMG_6254:visual:014",
+      "book": "2",
+      "polygon": [
+        [
+          0.13,
+          0.644
+        ],
+        [
+          0.835,
+          0.636
+        ],
+        [
+          0.835,
+          0.66
+        ],
+        [
+          0.13,
+          0.668
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "f4a898899a0a0719ed6835b2bfbf78f01918a12ef8f123d28863a0c94ad9f2ee"
+    },
+    {
+      "roll": "7022",
+      "sourceImage": "IMG_6254.jpeg",
+      "entryId": "IMG_6254:visual:016",
+      "book": "2",
+      "polygon": [
+        [
+          0.13,
+          0.718
+        ],
+        [
+          0.838,
+          0.723
+        ],
+        [
+          0.838,
+          0.746
+        ],
+        [
+          0.13,
+          0.746
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "f4a898899a0a0719ed6835b2bfbf78f01918a12ef8f123d28863a0c94ad9f2ee"
+    },
+    {
+      "roll": "7023",
+      "sourceImage": "IMG_6254.jpeg",
+      "entryId": "IMG_6254:visual:017",
+      "book": "2",
+      "polygon": [
+        [
+          0.13,
+          0.752
+        ],
+        [
+          0.84,
+          0.755
+        ],
+        [
+          0.84,
+          0.782
+        ],
+        [
+          0.13,
+          0.781
+        ]
+      ],
+      "verification": "visual",
+      "sourceSha256": "f4a898899a0a0719ed6835b2bfbf78f01918a12ef8f123d28863a0c94ad9f2ee"
+    }
+  ]
+}
