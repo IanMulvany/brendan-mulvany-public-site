@@ -2,7 +2,7 @@ import {requireAdmin} from './auth';
 import {HttpError, assertOrigin, json, rateLimit, readJson} from './http';
 
 const photoFields = new Set(['title', 'description', 'date', 'location', 'rotation']);
-const collectionFields = new Set(['title', 'description']);
+const collectionFields = new Set(['title', 'description', 'year']);
 const statuses = new Set(['pending', 'cancelled', 'applied_local', 'published', 'conflict']);
 const idPattern = /^[A-Za-z0-9_-]{1,80}$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -28,6 +28,9 @@ function correction(body: Record<string, unknown>) {
   if (proposed.length > limit || (field === 'title' && !proposed) ||
       /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/.test(proposed)) {
     throw new HttpError(400, `Use at most ${limit} characters without control characters.`);
+  }
+  if (field === 'year' && (!/^\d{4}$/.test(proposed) || !/^\d{4}$/.test(baseValue))) {
+    throw new HttpError(400, 'Use a four-digit collection year.');
   }
   if (field === 'date' && proposed && !/^\d{4}(?:-\d{2}(?:-\d{2})?)?$/.test(proposed)) {
     throw new HttpError(400, 'Use YYYY, YYYY-MM, or YYYY-MM-DD for a date.');

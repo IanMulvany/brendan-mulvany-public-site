@@ -35,11 +35,12 @@ async function renderQueue(target, kind, entityId) {
 }
 
 async function mountEditor(kind, entityId) {
-  const fields = kind === 'photo' ? ['title', 'description', 'date', 'location', 'rotation'] : ['title', 'description'];
+  const fields = kind === 'photo' ? ['title', 'description', 'date', 'location', 'rotation'] : ['title', 'description', 'year'];
   const values = kind === 'photo'
     ? (await api(`/api/admin/corrections/photo/${encodeURIComponent(entityId)}`)).photo
     : {title: document.querySelector('.page-intro h1')?.textContent || '',
-       description: document.querySelector('.page-intro__description')?.textContent || ''};
+       description: document.querySelector('.page-intro__description')?.textContent || '',
+       year: collection.dataset.collectionYear || ''};
   const section = el('section', 'editorial-tools');
   section.setAttribute('aria-label', 'Archive corrections');
   section.append(el('h2', '', 'Suggest an archive correction'));
@@ -48,7 +49,7 @@ async function mountEditor(kind, entityId) {
   const fieldLabel = el('label', 'editorial-label', 'Field');
   const fieldSelect = el('select');
   for (const name of fields) {
-    const option = el('option', '', name === 'rotation' ? 'Image rotation' : name[0].toUpperCase() + name.slice(1));
+    const option = el('option', '', name === 'rotation' ? 'Image rotation' : name === 'year' ? 'Collection year' : name[0].toUpperCase() + name.slice(1));
     option.value = name;
     fieldSelect.append(option);
   }
@@ -69,8 +70,13 @@ async function mountEditor(kind, entityId) {
       editorSlot.replaceChildren(wrapper);
       return;
     }
-    editor = textField('Proposed value', values[fieldSelect.value], fieldSelect.value === 'description');
-    editorSlot.replaceChildren(editor.wrapper);
+    editor = textField(fieldSelect.value === 'year' ? 'Correct year (YYYY)' : 'Proposed value', values[fieldSelect.value], fieldSelect.value === 'description');
+    if (fieldSelect.value === 'year') {
+      editor.input.maxLength = 4;
+      editor.input.inputMode = 'numeric';
+      editor.input.pattern = '[0-9]{4}';
+      editorSlot.replaceChildren(editor.wrapper, el('p', 'field-help', 'Also updates photographs in this collection that still use the old year. Photographs with their own dates are preserved.'));
+    } else editorSlot.replaceChildren(editor.wrapper);
   }
   fieldSelect.addEventListener('change', showField);
   showField();

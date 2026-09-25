@@ -115,3 +115,18 @@ test('rotation proposals use the published image version and accept only quarter
   await rejects(call('POST', {...rotation, value: 'left'}), 409);
   assert.equal(db.prepare("SELECT field,value FROM editorial_corrections WHERE field='rotation'").get().value, 'right');
 });
+
+
+test('owner can queue a four-digit collection year and duplicate proposals are blocked', async t => {
+  const {call, db} = fixture(t);
+  const proposal = {kind: 'collection', entityId: 'roll-5088', field: 'year',
+    baseValue: '1884', value: '1984'};
+  await rejects(call('POST', proposal, 'member'), 403);
+  for (const value of ['', '84', '1984-01', 'nineteen'])
+    await rejects(call('POST', {...proposal, value}), 400);
+  await rejects(call('POST', {...proposal, baseValue: 'unknown'}), 400);
+  assert.equal((await call('POST', proposal)).status, 201);
+  await rejects(call('POST', {...proposal, value: '1985'}), 409);
+  const row = db.prepare("SELECT kind,field,base_value AS baseValue,value,status FROM editorial_corrections WHERE field='year'").get();
+  assert.deepEqual({...row}, {kind: 'collection', field: 'year', baseValue: '1884', value: '1984', status: 'pending'});
+});
