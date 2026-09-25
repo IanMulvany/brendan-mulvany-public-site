@@ -1,7 +1,7 @@
 import {requireAdmin} from './auth';
 import {HttpError, assertOrigin, json, rateLimit, readJson} from './http';
 
-const photoFields = new Set(['title', 'description', 'date', 'location']);
+const photoFields = new Set(['title', 'description', 'date', 'location', 'rotation']);
 const collectionFields = new Set(['title', 'description']);
 const statuses = new Set(['pending', 'cancelled', 'applied_local', 'published', 'conflict']);
 const idPattern = /^[A-Za-z0-9_-]{1,80}$/;
@@ -22,6 +22,9 @@ function correction(body: Record<string, unknown>) {
   }
   const proposed = value.normalize('NFC').trim();
   const limit = field === 'description' ? 3000 : field === 'title' ? 180 : field === 'location' ? 180 : 10;
+  if (field === 'rotation' && (proposed !== 'left' && proposed !== 'right')) {
+    throw new HttpError(400, 'Choose rotate left or rotate right.');
+  }
   if (proposed.length > limit || (field === 'title' && !proposed) ||
       /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/.test(proposed)) {
     throw new HttpError(400, `Use at most ${limit} characters without control characters.`);
@@ -49,7 +52,7 @@ export async function handleEditorial(request: Request, env: Env): Promise<Respo
   const db = env.COMMUNITY.withSession('first-primary');
   const photo = /^\/api\/admin\/corrections\/photo\/([1-9][0-9]{0,9})$/.exec(url.pathname);
   if (photo && request.method === 'GET') {
-    const row = await env.DB.prepare('SELECT title,description,date,location FROM photos WHERE id=?')
+    const row = await env.DB.prepare('SELECT title,description,date,location,image_base AS imageBase FROM photos WHERE id=?')
       .bind(Number(photo[1])).first();
     if (!row) throw new HttpError(404, 'This photograph is not published.');
     return json({photo: row, sourceVersion: env.CACHE_VERSION});
@@ -70,7 +73,8 @@ export async function handleEditorial(request: Request, env: Env): Promise<Respo
     const next = correction(await readJson(request));
     if (next.kind === 'photo') {
       // SQL identifiers are selected from the server's fixed allowlist above.
-      const row = await env.DB.prepare(`SELECT ${next.field} AS value FROM photos WHERE id=?`)
+      const column = next.field === 'rotation' ? 'image_base' : next.field;
+      const row = await env.DB.prepare(`SELECT ${column} AS value FROM photos WHERE id=?`)
         .bind(Number(next.entityId)).first<{value: string}>();
       if (!row) throw new HttpError(404, 'This photograph is not published.');
       if ((row.value ?? '') !== next.baseValue) throw new HttpError(409, 'The published value changed. Reload before editing.');

@@ -31,7 +31,7 @@ class D1 {
 function fixture(t) {
   const archive = new D1(), community = new D1();
   archive.sqlite.exec(readFileSync(new URL('../migrations/0001_search.sql', import.meta.url), 'utf8'));
-  for (const filename of ['0001_accounts.sql', '0002_community.sql', '0005_moderation.sql', '0006_editorial_corrections.sql']) {
+  for (const filename of ['0001_accounts.sql', '0002_community.sql', '0005_moderation.sql', '0006_editorial_corrections.sql', '0007_annotation_rotation.sql']) {
     community.sqlite.exec(readFileSync(new URL(`../community-migrations/${filename}`, import.meta.url), 'utf8'));
   }
   archive.sqlite.prepare(`INSERT INTO photos(id,collection_id,title,description,date,year,location,tags,image_base)
@@ -100,4 +100,18 @@ test('published base checks, field allowlist and one open change per field', asy
   assert.equal((await call('POST', {kind: 'collection', entityId: 'roll-5088', field: 'title',
     baseValue: 'Old roll title', value: 'A better roll title'})).status, 201);
   assert.equal(db.prepare('SELECT COUNT(*) AS total FROM editorial_corrections').get().total, 2);
+});
+
+test('rotation proposals use the published image version and accept only quarter-turn directions', async t => {
+  const {call, db} = fixture(t);
+  const rotation = {kind: 'photo', entityId: '1', field: 'rotation',
+    baseValue: 'https://cdn.example.test/a', value: 'right'};
+  const details = await (await call('GET', undefined, 'owner', '/api/admin/corrections/photo/1')).json();
+  assert.equal(details.photo.imageBase, rotation.baseValue);
+  await rejects(call('POST', {...rotation, value: '180'}), 400);
+  await rejects(call('POST', {...rotation, baseValue: 'https://cdn.example.test/old'}), 409);
+  await rejects(call('POST', rotation, 'member'), 403);
+  assert.equal((await call('POST', rotation)).status, 201);
+  await rejects(call('POST', {...rotation, value: 'left'}), 409);
+  assert.equal(db.prepare("SELECT field,value FROM editorial_corrections WHERE field='rotation'").get().value, 'right');
 });

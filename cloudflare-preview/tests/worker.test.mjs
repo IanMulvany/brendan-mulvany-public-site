@@ -37,7 +37,7 @@ test('Worker: verified sessions, community isolation, moderation, newsletter and
   try {
     const db = await mf.getD1Database('DB', 'site');
     const community = await mf.getD1Database('COMMUNITY', 'site');
-    for (const filename of ['community-migrations/0001_accounts.sql', 'community-migrations/0002_community.sql', 'community-migrations/0003_homepage.sql', 'community-migrations/0004_search.sql', 'community-migrations/0005_moderation.sql']) {
+    for (const filename of ['community-migrations/0001_accounts.sql', 'community-migrations/0002_community.sql', 'community-migrations/0003_homepage.sql', 'community-migrations/0004_search.sql', 'community-migrations/0005_moderation.sql', 'community-migrations/0007_annotation_rotation.sql']) {
       const sql = await readFile(filename, 'utf8');
       // D1 exec accepts one SQL statement per line.
       await community.exec(sql.replace(/--[^\n]*/g, '').replace(/\s+/g, ' '));

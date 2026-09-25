@@ -48,7 +48,7 @@ const origin = 'https://archive.test';
 function fixture(t) {
   const archive = new D1(), community = new D1();
   archive.sqlite.exec(readFileSync(new URL('../migrations/0001_search.sql', import.meta.url), 'utf8'));
-  for (const file of ['0001_accounts.sql', '0002_community.sql', '0004_search.sql', '0005_moderation.sql']) {
+  for (const file of ['0001_accounts.sql', '0002_community.sql', '0004_search.sql', '0005_moderation.sql', '0007_annotation_rotation.sql']) {
     community.sqlite.exec(readFileSync(new URL(`../community-migrations/${file}`, import.meta.url), 'utf8'));
   }
   const insert = archive.sqlite.prepare(`INSERT INTO photos
@@ -86,6 +86,26 @@ function fixture(t) {
 }
 const rejects = (promise, status) => assert.rejects(promise, error => error.status === status);
 const box = {name: 'A person', note: 'In the crowd', x: 0.1, y: 0.2, width: 0.2, height: 0.3};
+
+test('person boxes follow immutable image rotations, including names added after the first turn', async t => {
+  const {call, archive, db} = fixture(t);
+  const first = (await call('/api/photos/1/annotations', {method: 'POST', as: 'member', body: box})).body;
+  const marker = turn => `https://cdn.example.test/1-editorial-r${turn}-0123456789abcdef`;
+  archive.prepare('UPDATE photos SET image_base=? WHERE id=1').run(marker(1));
+  const once = (await call('/api/photos/1/community')).body.annotations[0];
+  assert.deepEqual([once.x, once.y, once.width, once.height], [0.5, 0.1, 0.3, 0.2]);
+  assert.equal(db.prepare('SELECT rotation_turns FROM annotations WHERE id=?').get(first.id).rotation_turns, 0);
+  const second = (await call('/api/photos/1/annotations', {method: 'POST', as: 'member', body: {...box, name: 'Later person'}})).body;
+  assert.equal(db.prepare('SELECT rotation_turns FROM annotations WHERE id=?').get(second.id).rotation_turns, 1);
+  archive.prepare('UPDATE photos SET image_base=? WHERE id=1').run(marker(2));
+  const current = (await call('/api/photos/1/community')).body.annotations;
+  const old = current.find(item => item.id === first.id);
+  const newer = current.find(item => item.id === second.id);
+  assert.deepEqual([old.x, old.y, old.width, old.height], [0.7, 0.5, 0.2, 0.3]);
+  assert.deepEqual([newer.x, newer.y, newer.width, newer.height], [0.5, 0.1, 0.3, 0.2]);
+  const review = (await call('/api/admin/annotations?filter=all', {as: 'admin'})).body.annotations;
+  assert.deepEqual([review.find(item => item.id === first.id).x, review.find(item => item.id === first.id).y], [0.7, 0.5]);
+});
 
 test('anonymous public reads omit email, while verified active sessions are required for every write', async t => {
   const {call, db} = fixture(t);
@@ -507,7 +527,7 @@ test('reviewing, hiding and restoring annotations updates search terms through e
   }
 });
 
-test('the additive moderation migration keeps historical accounts, contributions, settings and search unchanged', t => {
+test('additive moderation and rotation migrations preserve historical accounts, names and search', t => {
   const db = new DatabaseSync(':memory:'); t.after(() => db.close());
   db.exec('PRAGMA foreign_keys=ON');
   for (const file of ['0001_accounts.sql', '0002_community.sql', '0003_homepage.sql', '0004_search.sql']) {
@@ -525,12 +545,14 @@ test('the additive moderation migration keeps historical accounts, contributions
   const tables = ['users', 'sessions', 'comments', 'annotations', 'likes', 'collection_heroes', 'search_photos'];
   const before = new Map(tables.map(table => [table, db.prepare(`SELECT * FROM ${table}`).all()]));
   db.exec(readFileSync(new URL('../community-migrations/0005_moderation.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../community-migrations/0007_annotation_rotation.sql', import.meta.url), 'utf8'));
   for (const table of tables) {
     const columns = Object.keys(before.get(table)[0]);
     assert.deepEqual(db.prepare(`SELECT ${columns.join(',')} FROM ${table}`).all(), before.get(table), table);
   }
   assert.equal(db.prepare('SELECT annotation_status FROM users').get().annotation_status, 'pending');
   assert.equal(db.prepare('SELECT reviewed_at FROM comments').get().reviewed_at, null);
+  assert.equal(db.prepare('SELECT rotation_turns FROM annotations').get().rotation_turns, 0);
   assert.equal(db.prepare("SELECT rowid FROM search_photos_fts WHERE search_photos_fts MATCH 'Historicalperson'").all().length, 1);
   assert.equal(db.prepare('PRAGMA foreign_key_check').all().length, 0);
 });

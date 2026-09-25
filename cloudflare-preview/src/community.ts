@@ -1,5 +1,6 @@
 import {getUser, requireAdmin, requireUser, type AuthUser} from './auth';
 import {HttpError, assertOrigin, json, rateLimit, readJson} from './http';
+import {imageTurns, rotateRegion} from './rotation';
 
 const PAGE_SIZE = 100;
 const ADMIN_PAGE_SIZE = 50;
@@ -11,7 +12,7 @@ const canDelete = (user: AuthUser | null, owner: string) => Boolean(user && (use
 
 type Photo = {id: number; collection_id: string; title: string; year: string; image_base: string; width: number | null; height: number | null};
 type Comment = {id: string; userId: string; displayName: string; body: string; createdAt: number};
-type Annotation = {id: string; userId: string; displayName: string; name: string; note: string; x: number; y: number; width: number; height: number; createdAt: number};
+type Annotation = {id: string; userId: string; displayName: string; name: string; note: string; x: number; y: number; width: number; height: number; rotationTurns: number; createdAt: number};
 type Position = {at: number; id: string};
 type Cursor = {v: 1; photoId: number; comments: Position | null; annotations: Position | null};
 
@@ -87,7 +88,7 @@ function encodeCursor(cursor: Cursor) {
 async function contributions<T extends Comment | Annotation>(env: Env, table: 'comments' | 'annotations', photoId: number,
   position: Position | null | undefined) {
   if (position === null) return [];
-  const fields = table === 'comments' ? 'c.body' : 'c.name, c.note, c.x, c.y, c.width, c.height';
+  const fields = table === 'comments' ? 'c.body' : 'c.name, c.note, c.x, c.y, c.width, c.height, c.rotation_turns AS rotationTurns';
   const args: (number | string)[] = [photoId];
   if (position) args.push(position.at, position.at, position.id);
   args.push(PAGE_SIZE + 1);
@@ -106,7 +107,7 @@ async function likeState(env: Env, photoId: number, user: AuthUser | null) {
   return {likeCount: state?.likeCount ?? 0, liked: Boolean(state?.liked)};
 }
 async function getCommunity(request: Request, env: Env, photoId: number) {
-  await photo(env, photoId);
+  const currentPhoto = await photo(env, photoId);
   const user = await getUser(request, env);
   const cursor = decodeCursor(new URL(request.url).searchParams.get('cursor'), photoId);
   const [comments, annotations, likes] = await Promise.all([
@@ -119,7 +120,8 @@ async function getCommunity(request: Request, env: Env, photoId: number) {
   const nextPage: Cursor = {v: 1, photoId, comments: next(comments), annotations: next(annotations)};
   return json({user: publicUser(user), ...likes,
     comments: comments.slice(0, PAGE_SIZE).map(item => ({...item, canDelete: canDelete(user, item.userId)})),
-    annotations: annotations.slice(0, PAGE_SIZE).map(item => ({...item, canDelete: canDelete(user, item.userId)})),
+    annotations: annotations.slice(0, PAGE_SIZE).map(item => ({...rotateRegion(item, imageTurns(currentPhoto.image_base)),
+      canDelete: canDelete(user, item.userId)})),
     ...(nextPage.comments || nextPage.annotations ? {nextCursor: encodeCursor(nextPage)} : {}),
   });
 }
@@ -142,21 +144,22 @@ async function createComment(request: Request, env: Env, photoId: number) {
 async function createAnnotation(request: Request, env: Env, photoId: number) {
   const user = await writer(request, env);
   if (!user.canAnnotate) throw new HttpError(403, 'An administrator must approve your account before you can add names.');
-  await photo(env, photoId);
+  const currentPhoto = await photo(env, photoId);
   const value = validateAnnotation(await readJson(request));
   const id = crypto.randomUUID(), createdAt = now();
+  const turns = imageTurns(currentPhoto.image_base);
   // Recheck approval in the same transaction as insertion, so an approval
   // revoked after the session read cannot still authorize a contribution.
   const results = await env.COMMUNITY.batch([
-    env.COMMUNITY.prepare(`INSERT INTO annotations (id,photo_id,user_id,name,note,x,y,width,height,created_at)
-      SELECT ?,?,?,?,?,?,?,?,?,? FROM users WHERE id = ? AND status = 'active' AND verified_at IS NOT NULL
+    env.COMMUNITY.prepare(`INSERT INTO annotations (id,photo_id,user_id,name,note,x,y,width,height,rotation_turns,created_at)
+      SELECT ?,?,?,?,?,?,?,?,?,?,? FROM users WHERE id = ? AND status = 'active' AND verified_at IS NOT NULL
         AND (annotation_status = 'approved' OR lower(email) = ?)`)
-      .bind(id, photoId, user.id, value.name, value.note, value.x, value.y, value.width, value.height, createdAt,
+      .bind(id, photoId, user.id, value.name, value.note, value.x, value.y, value.width, value.height, turns, createdAt,
         user.id, env.ADMIN_EMAIL.trim().toLowerCase()),
     audit(env, user, 'annotation.created', photoId, id, 'EXISTS(SELECT 1 FROM annotations WHERE id = ?)', [id]),
   ]);
   if (!results[0].meta.changes) throw new HttpError(403, 'Your annotation permission has changed. Please reload the page.');
-  return json({id, userId: user.id, displayName: user.displayName, ...value, createdAt, canDelete: true}, 201);
+  return json({id, userId: user.id, displayName: user.displayName, ...value, rotationTurns: turns, createdAt, canDelete: true}, 201);
 }
 async function hideContribution(request: Request, env: Env, table: 'comments' | 'annotations', id: string) {
   const user = await writer(request, env);
@@ -296,7 +299,7 @@ async function reviewList(env: Env, table: 'comments' | 'annotations', page: num
   if (!['unreviewed', 'visible', 'hidden', 'all'].includes(filter)) throw new HttpError(400, 'Invalid contribution review filter.');
   const condition = filter === 'unreviewed' ? 'c.reviewed_at IS NULL AND c.hidden_at IS NULL'
     : filter === 'visible' ? 'c.hidden_at IS NULL' : filter === 'hidden' ? 'c.hidden_at IS NOT NULL' : '1';
-  const fields = table === 'comments' ? 'c.body' : 'c.name,c.note,c.x,c.y,c.width,c.height';
+  const fields = table === 'comments' ? 'c.body' : 'c.name,c.note,c.x,c.y,c.width,c.height,c.rotation_turns AS rotationTurns';
   const result = await env.COMMUNITY.prepare(`SELECT c.id,c.photo_id AS photoId,c.user_id AS userId,
       u.display_name AS displayName,u.email,${fields},c.created_at AS createdAt,
       c.hidden_at AS hiddenAt,c.hidden_by AS hiddenBy,c.reviewed_at AS reviewedAt,c.reviewed_by AS reviewedBy
@@ -309,7 +312,11 @@ async function reviewList(env: Env, table: 'comments' | 'annotations', page: num
     .bind(...photoIds).all<Photo>()).results : [];
   const byId = new Map(photos.map(item => [item.id, {id: item.id, imageBase: item.image_base,
     title: item.title, width: item.width, height: item.height}]));
-  return json({[table]: items.map(item => ({...item, photo: byId.get(item.photoId) ?? null})), hasMore: result.results.length > ADMIN_PAGE_SIZE});
+  return json({[table]: items.map(item => {
+    const selected = byId.get(item.photoId) ?? null;
+    return {...(table === 'annotations' && selected ? rotateRegion(item as Annotation & ReviewItem, imageTurns(selected.imageBase)) : item),
+      photo: selected};
+  }), hasMore: result.results.length > ADMIN_PAGE_SIZE});
 }
 
 async function moderateContribution(request: Request, env: Env, table: 'comments' | 'annotations', id: string) {

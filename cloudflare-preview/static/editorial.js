@@ -19,7 +19,8 @@ async function renderQueue(target, kind, entityId) {
   target.replaceChildren();
   for (const row of corrections.filter(item => !kind || (item.kind === kind && item.entityId === entityId))) {
     const stage = row.status === 'pending' ? 'queued for local sync' : row.status === 'applied_local' ? 'applied locally; awaiting publication' : 'needs conflict review';
-    const item = el('li', '', `${row.kind} ${row.entityId} · ${row.field}: “${row.value}” — ${stage}`);
+    const change = row.field === 'rotation' ? `rotate ${row.value}` : `${row.field}: “${row.value}”`;
+    const item = el('li', '', `${row.kind} ${row.entityId} · ${change} — ${stage}`);
     const cancel = el('button', 'quiet-button', 'Cancel');
     cancel.type = 'button';
     cancel.addEventListener('click', async () => {
@@ -34,7 +35,7 @@ async function renderQueue(target, kind, entityId) {
 }
 
 async function mountEditor(kind, entityId) {
-  const fields = kind === 'photo' ? ['title', 'description', 'date', 'location'] : ['title', 'description'];
+  const fields = kind === 'photo' ? ['title', 'description', 'date', 'location', 'rotation'] : ['title', 'description'];
   const values = kind === 'photo'
     ? (await api(`/api/admin/corrections/photo/${encodeURIComponent(entityId)}`)).photo
     : {title: document.querySelector('.page-intro h1')?.textContent || '',
@@ -47,7 +48,7 @@ async function mountEditor(kind, entityId) {
   const fieldLabel = el('label', 'editorial-label', 'Field');
   const fieldSelect = el('select');
   for (const name of fields) {
-    const option = el('option', '', name[0].toUpperCase() + name.slice(1));
+    const option = el('option', '', name === 'rotation' ? 'Image rotation' : name[0].toUpperCase() + name.slice(1));
     option.value = name;
     fieldSelect.append(option);
   }
@@ -55,6 +56,19 @@ async function mountEditor(kind, entityId) {
   const editorSlot = el('div');
   let editor;
   function showField() {
+    if (fieldSelect.value === 'rotation') {
+      const wrapper = el('label', 'editorial-label', 'Direction');
+      const input = el('select');
+      for (const [value, label] of [['left', 'Rotate 90° left'], ['right', 'Rotate 90° right']]) {
+        const option = el('option', '', label);
+        option.value = value;
+        input.append(option);
+      }
+      wrapper.append(input);
+      editor = {wrapper, input};
+      editorSlot.replaceChildren(wrapper);
+      return;
+    }
     editor = textField('Proposed value', values[fieldSelect.value], fieldSelect.value === 'description');
     editorSlot.replaceChildren(editor.wrapper);
   }
@@ -73,7 +87,7 @@ async function mountEditor(kind, entityId) {
     try {
       const field = fieldSelect.value;
       await api('/api/admin/corrections', {method: 'POST', body: {
-        kind, entityId, field, baseValue: values[field] || '', value: editor.input.value,
+        kind, entityId, field, baseValue: field === 'rotation' ? values.imageBase : values[field] || '', value: editor.input.value,
       }});
       message(status, 'Saved to your correction queue. The public site has not changed yet.');
       await renderQueue(list, kind, entityId);
