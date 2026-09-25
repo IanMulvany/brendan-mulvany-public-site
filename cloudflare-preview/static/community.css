@@ -65,3 +65,11 @@
 .admin-row .member-actions{margin:0;justify-content:flex-end;gap:10px;max-width:430px}
 .admin-row .member-permission{color:var(--ink);margin-top:10px}
 @media(max-width:700px){.review-card{grid-template-columns:1fr;gap:16px}.review-card__photo{max-width:240px}.review-filters{align-items:stretch}.review-filters .admin-label{flex:1;min-width:140px}.review-pagination .button{padding:10px 12px}.admin-row{flex-wrap:wrap}.admin-row .member-actions{justify-content:flex-start;width:100%;max-width:none}.review-card__body{font-size:14px}}
+.editorial-tools { margin: 2rem 0; padding: 1.5rem; border: 1px solid currentColor; border-radius: .5rem; }
+.editorial-tools h2, .editorial-tools h3 { margin: 0 0 .75rem; }
+.editorial-form { display: grid; gap: .8rem; max-width: 44rem; }
+.editorial-label { display: grid; gap: .3rem; }
+.editorial-label input, .editorial-label select, .editorial-label textarea { width: 100%; font: inherit; padding: .5rem; }
+.editorial-form button { justify-self: start; }
+.editorial-queue { padding-left: 1.5rem; overflow-wrap: anywhere; }
+.editorial-queue li { margin: .5rem 0; }
